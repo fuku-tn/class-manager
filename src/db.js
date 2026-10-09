@@ -34,6 +34,9 @@ async function openDb({ memory = false, url = process.env.DATABASE_URL } = {}) {
   }
 
   if (!url) throw new Error('Thiếu DATABASE_URL (xem Documents/supabase-guide.md)');
+  // Chịu được lỗi dán cấu hình: khoảng trắng, dấu nháy bao quanh, tên biến bị dán kèm, tham số kiểu Prisma.
+  url = url.trim().replace(/^DATABASE_URL\s*=\s*/, '').replace(/^["']+|["']+$/g, '');
+  try { const u = new URL(url); u.searchParams.delete('pgbouncer'); u.searchParams.delete('connection_limit'); url = u.toString(); } catch { /* để pg báo lỗi rõ */ }
   types.setTypeParser(DATE_OID, (v) => v);
   types.setTypeParser(TIMESTAMPTZ_OID, (v) => v);
   types.setTypeParser(INT8_OID, (v) => Number(v));

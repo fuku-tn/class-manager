@@ -26,6 +26,18 @@ Webapp chạy được trên Vercel: Express trở thành một Vercel Function,
 
 Nếu build lỗi: mở **Deployments → Build Logs / Runtime Logs** và gửi lỗi cho Claude.
 
+## Gặp "Lỗi máy chủ" khi đăng nhập?
+Lỗi 500 gần như luôn do kết nối database. Mở `https://<tên>.vercel.app/api/health/db`:
+| Kết quả | Nguyên nhân | Cách sửa |
+|---|---|---|
+| `{"ok":true}` | Kết nối tốt | Lỗi ở chỗ khác → xem Runtime Logs |
+| `thiếu biến DATABASE_URL` | Chưa đặt biến, hoặc đặt nhưng chưa **Redeploy** / sai môi trường (Production/Preview) | Settings → Environment Variables → thêm cho **Production** → Deployments → Redeploy |
+| `sai mật khẩu database` | Mật khẩu sai, hoặc còn nguyên chữ `[YOUR-PASSWORD]` | Thay bằng mật khẩu thật (bỏ cả dấu `[ ]`); ký tự đặc biệt phải mã hóa URL (`@` → `%40`) hoặc đặt lại mật khẩu chỉ gồm chữ và số |
+| `không đúng định dạng` | Dán sai chuỗi | Dán lại nguyên chuỗi từ Supabase › Connect |
+| `không kết nối được` / `sai tên người dùng` | Sai mã project hoặc vùng (`aws-0-ap-northeast-1`) | Copy lại chuỗi **Transaction pooler** từ Supabase |
+| `chưa tạo bảng` | Chưa chạy `supabase/schema.sql` | Chạy trong SQL Editor |
+Sau khi sửa biến môi trường **phải Redeploy** thì mới có hiệu lực. Endpoint này chỉ trả về loại lỗi, không lộ chuỗi kết nối. Code cũng tự bỏ qua dấu nháy/khoảng trắng dán thừa và tham số `?pgbouncer=true`.
+
 ## Trước khi mở cho người khác dùng (bắt buộc xem)
 - Trang sẽ **công khai trên Internet** và chứa email/SĐT học viên. Việc duy nhất ngăn người lạ là đăng nhập.
   - **Đổi mật khẩu tài khoản admin tạm** (hỏi chủ dự án), hoặc tạo admin riêng (`npm run create-admin`) rồi khóa tài khoản tạm.
