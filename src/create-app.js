@@ -1,6 +1,7 @@
 const path = require('node:path');
 const express = require('express');
 const { attachUser, requireAuth, requireAdmin } = require('./auth');
+const { describeDbError } = require('./db');
 
 function createApp(db) {
   const app = express();
@@ -23,13 +24,7 @@ function createApp(db) {
       res.json({ ok: true });
     } catch (e) {
       const m = String(e.message);
-      const reason = /Thiếu DATABASE_URL/.test(m) ? 'thiếu biến DATABASE_URL'
-        : e.code === '28P01' || /password authentication/i.test(m) ? 'sai mật khẩu database'
-        : /Tenant or user not found/i.test(m) ? 'sai tên người dùng/mã project trong chuỗi kết nối'
-        : /Invalid URL|invalid connection string/i.test(m) ? 'DATABASE_URL không đúng định dạng (kiểm tra dấu ngoặc [ ], ký tự đặc biệt trong mật khẩu)'
-        : /ENOTFOUND|ECONNREFUSED|ETIMEDOUT|ECONNRESET/.test(m + (e.code || '')) ? 'không kết nối được tới máy chủ database'
-        : /relation .* does not exist/i.test(m) ? 'chưa tạo bảng (chạy supabase/schema.sql)'
-        : 'lỗi khác — xem Runtime Logs trên Vercel';
+      const reason = describeDbError(e) ?? 'lỗi khác — xem Runtime Logs trên Vercel';
       console.error('health/db:', m);
       res.status(503).json({ ok: false, reason });
     }
@@ -49,6 +44,9 @@ function createApp(db) {
     if (err.type === 'entity.parse.failed') return res.status(400).json({ error: 'JSON không hợp lệ' });
     if (err.status && err.status < 500) return res.status(err.status).json({ error: err.message });
     console.error(err);
+    // Lỗi cấu hình/kết nối database: báo rõ để người triển khai tự sửa (thông điệp không chứa bí mật).
+    const dbReason = describeDbError(err);
+    if (dbReason) return res.status(503).json({ error: `Không kết nối được cơ sở dữ liệu: ${dbReason}` });
     res.status(500).json({ error: 'Lỗi máy chủ' });
   });
   return app;

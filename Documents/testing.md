@@ -11,9 +11,10 @@ Dùng **PGlite** (Postgres thật chạy trong bộ nhớ) với `src/schema.sql
 |---|---|
 | `tests/helpers.js` | `startTestApp()`: `openDb({ memory: true })` + server cổng ngẫu nhiên + client có cookie, `addUser`, `login` |
 | `tests/api.test.js` | Auth, phân quyền, điểm danh, bài tập, dashboard, validation, XSS |
+| `tests/db-errors.test.js` | Phân loại lỗi cấu hình/kết nối DB; thiếu `DATABASE_URL` → đăng nhập trả 503 có lý do |
 | `tests/import.test.js` | Import file mẫu khớp số liệu Excel, chạy lại không trùng, lỗi thiếu cột |
 
-## Đã được kiểm thử tự động (15 test)
+## Đã được kiểm thử tự động (17 test)
 - Chưa đăng nhập → 401; đăng nhập sai/đúng.
 - Giảng viên không truy cập được lớp chưa được phân (403), sau khi phân thì được; không tạo lớp / xem user được.
 - Tỉ lệ điểm danh: có phép không tính vào mẫu số (A=0.67, B=0.5).

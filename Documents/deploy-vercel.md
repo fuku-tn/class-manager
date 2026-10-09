@@ -27,7 +27,7 @@ Webapp chạy được trên Vercel: Express trở thành một Vercel Function,
 Nếu build lỗi: mở **Deployments → Build Logs / Runtime Logs** và gửi lỗi cho Claude.
 
 ## Gặp "Lỗi máy chủ" khi đăng nhập?
-Lỗi 500 gần như luôn do kết nối database. Mở `https://<tên>.vercel.app/api/health/db`:
+Từ bản này, màn hình đăng nhập tự báo lý do nếu là lỗi database (vd "Không kết nối được cơ sở dữ liệu: thiếu biến DATABASE_URL trên máy chủ"). Lỗi 500 chung chung "Lỗi máy chủ" thì xem Runtime Logs. Có thể mở `https://<tên>.vercel.app/api/health/db`:
 | Kết quả | Nguyên nhân | Cách sửa |
 |---|---|---|
 | `{"ok":true}` | Kết nối tốt | Lỗi ở chỗ khác → xem Runtime Logs |
