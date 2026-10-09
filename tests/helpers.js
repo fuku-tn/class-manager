@@ -1,5 +1,5 @@
 const { openDb } = require('../src/db');
-const { createApp } = require('../src/app');
+const { createApp } = require('../src/create-app');
 const { hashPassword } = require('../src/auth');
 
 // Khởi động app với DB trong bộ nhớ; trả về client có cookie riêng cho mỗi người dùng.

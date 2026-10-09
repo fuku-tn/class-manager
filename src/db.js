@@ -38,7 +38,8 @@ async function openDb({ memory = false, url = process.env.DATABASE_URL } = {}) {
   types.setTypeParser(TIMESTAMPTZ_OID, (v) => v);
   types.setTypeParser(INT8_OID, (v) => Number(v));
   const local = /localhost|127\.0\.0\.1/.test(url);
-  const pool = new Pool({ connectionString: url, max: 5, ssl: local ? false : { rejectUnauthorized: false } });
+  // Serverless (Vercel): mỗi instance giữ ít kết nối; dùng Supabase Transaction pooler (cổng 6543) để không cạn kết nối.
+  const pool = new Pool({ connectionString: url, max: process.env.VERCEL ? 3 : 5, idleTimeoutMillis: 10000, ssl: local ? false : { rejectUnauthorized: false } });
   pool.on('error', (e) => console.error('Lỗi kết nối Postgres:', e.message));
   await pool.query('select 1'); // báo lỗi sớm nếu sai URL/mật khẩu
   return {
@@ -61,4 +62,18 @@ async function openDb({ memory = false, url = process.env.DATABASE_URL } = {}) {
   };
 }
 
-module.exports = { openDb };
+// Bản "lười": trả về ngay đối tượng db dùng được, kết nối thật được mở ở lần gọi đầu.
+// Cần cho môi trường serverless nơi module phải xuất ra app đồng bộ (src/index.js).
+function openDbLazy(options) {
+  let ready = null;
+  const get = () => (ready ??= openDb(options).catch((e) => { ready = null; throw e; })); // lỗi thì lần sau thử lại
+  return {
+    all: async (...a) => (await get()).all(...a),
+    one: async (...a) => (await get()).one(...a),
+    run: async (...a) => (await get()).run(...a),
+    tx: async (...a) => (await get()).tx(...a),
+    close: async () => { if (ready) await (await ready).close(); },
+  };
+}
+
+module.exports = { openDb, openDbLazy };

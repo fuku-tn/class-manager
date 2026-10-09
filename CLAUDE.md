@@ -10,6 +10,7 @@ Giao diện và tài liệu bằng **tiếng Việt**; tên biến/hàm/bảng b
 | Mục tiêu, phạm vi, tính năng, lộ trình | [Documents/project-overview.md](Documents/project-overview.md) |
 | Kiến trúc, API, code backend & frontend, chuyển Supabase | [Documents/code-guide.md](Documents/code-guide.md) |
 | Quy trình làm việc / thêm tính năng / phát hành | [Documents/workflow.md](Documents/workflow.md) |
+| Triển khai lên Vercel | [Documents/deploy-vercel.md](Documents/deploy-vercel.md) |
 | Chiến lược & checklist kiểm thử | [Documents/testing.md](Documents/testing.md) |
 | Quyết định, giả định, việc đang dở | [memory.md](memory.md) |
 | Nội dung đã bỏ/thay thế (không xóa hẳn) | [Archive.md](Archive.md) |
@@ -26,7 +27,7 @@ npm test         # node:test, Postgres trong bộ nhớ (PGlite) — KHÔNG đ�
 Cần Node >= 22.13. Dữ liệu thật nằm trên **Supabase (Postgres)**.
 
 ## Cấu trúc
-- `src/` backend: `app.js` (Express), `routes/` (auth, users, classes, classData), `services/` (stats, importExcel), `schema.sql` (Postgres), `db.js` (pg Pool / PGlite), `auth.js`
+- `src/` backend: `create-app.js` (Express), `dev-server.js` (chạy máy nhà), `index.js` (điểm vào Vercel — **đừng thêm file tên app/index/server khác trong `src/`**), `routes/` (auth, users, classes, classData), `services/` (stats, importExcel), `schema.sql` (Postgres), `db.js` (pg Pool / PGlite), `auth.js`
 - `public/` frontend ES modules thuần: `js/main.js` (router hash), `js/pages/*`, `js/ui.js` (helper DOM), `css/style.css`
 - `scripts/` CLI · `supabase/schema.sql` (bản dán vào SQL Editor, giữ giống `src/schema.sql`) · `legacy/` (SQLite cũ, chỉ để tham khảo) · `tests/` · `Documents/` · `.claude/skills/`
 
@@ -37,8 +38,9 @@ Cần Node >= 22.13. Dữ liệu thật nằm trên **Supabase (Postgres)**.
 4. Mọi route theo lớp phải qua `requireClassAccess` (giảng viên chỉ thấy lớp được phân công); thao tác xóa/tạo lớp/quản lý user chỉ admin.
 5. Đổi schema → sửa `src/schema.sql` **và** `supabase/schema.sql`, rồi **chạy SQL tương ứng (ALTER) trên Supabase** (schema chỉ dùng `if not exists`, không tự thêm cột); cập nhật `Documents/code-guide.md`, thêm test. Bảng mới phải `enable row level security`.
 6. Thông báo lỗi trả về cho người dùng bằng tiếng Việt.
-7. Không commit `.env`, `node_modules/`, `legacy/*.db`, file `.xlsx/.csv` (dữ liệu học viên thật). Không đưa dữ liệu học viên thật vào repo/test ngoài file mẫu.
-8. Xong một thay đổi: chạy `npm test`; cập nhật [memory.md](memory.md) nếu có quyết định/giả định mới; nội dung lỗi thời chuyển sang [Archive.md](Archive.md).
+7. Vercel **bỏ qua `express.static()`**: file tĩnh phải nằm trong `public/` (kể cả thư viện — Chart.js ở `public/vendor/`, cập nhật bằng `npm run vendor`).
+8. Không commit `.env`, `node_modules/`, `legacy/*.db`, file `.xlsx/.csv` (dữ liệu học viên thật). Không đưa dữ liệu học viên thật vào repo/test ngoài file mẫu.
+9. Xong một thay đổi: chạy `npm test`; cập nhật [memory.md](memory.md) nếu có quyết định/giả định mới; nội dung lỗi thời chuyển sang [Archive.md](Archive.md).
 
 ## Skill của project (`.claude/skills/`)
 - `student-webapp-dev` — thêm/sửa tính năng đúng kiến trúc của project

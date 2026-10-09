@@ -7,6 +7,7 @@ Cập nhật file này mỗi khi chốt quyết định mới. Mục lỗi thờ
 - **Lưu trữ:** ~~SQLite local~~ → **Supabase (Postgres)** từ 2026-10-09. Webapp kết nối trực tiếp qua `DATABASE_URL` (Session pooler, cổng 5432, thư viện `pg`). Test dùng PGlite (Postgres trong bộ nhớ). Bản SQLite cũ giữ ở `legacy/` để tham khảo.
 - **Công nghệ:** Express + HTML/JS thuần (ES modules) + Chart.js (phục vụ từ `node_modules`, không CDN). Phụ thuộc: `express`, `exceljs`, `chart.js`, `pg`; dev: `@electric-sql/pglite`.
 - **Ngôn ngữ:** giao diện + tài liệu tiếng Việt, code tiếng Anh.
+- **Thương hiệu & giao diện:** "Starttrain | The Next Analyst"; font Inter (không chân — theo yêu cầu ban đầu của chủ dự án, dù ảnh tham khảo dùng chữ có chân cho tiêu đề). Từ 2026-10-09 theo ảnh tham khảo "Haven Realty": nền tối + vàng champagne `#c9a46a` + thẻ kính mờ, mặc định tối, có chế độ sáng. Màu/logo do Claude chọn tạm — **thay nếu Starttrain có bảng màu/logo chính thức** (biến trong `style.css`, `logo()` trong `ui.js`). Ảnh tham khảo chỉ dùng làm phong cách, **không** đưa ảnh bất động sản vào app.
 - Auth tự viết (scrypt + phiên lưu DB + cookie HttpOnly), bảng `users` riêng. Chưa dùng Supabase Auth.
 - **RLS bật trên mọi bảng, không policy**: chỉ server (chuỗi Postgres) đọc/ghi được; khóa `anon` công khai không đọc được gì.
 - Mật khẩu DB đã từng gửi trong khung chat → nên reset trên Supabase rồi cập nhật `.env`.
@@ -26,6 +27,7 @@ Cập nhật file này mỗi khi chốt quyết định mới. Mục lỗi thờ
 | 10 | Một sheet có thể chứa nhiều lớp (tách theo `COURSE ID`); giá trị lạ như `O` ở ô buổi/bài (2 học viên P104 buổi 1) tính là vắng — khớp ATTENDANCE RATE = 0 trong Excel. Cột ATTENDANCE RATE của Excel chia cho **tổng số buổi (8)**, webapp chia cho **số buổi đã diễn ra** nên P104 hiện ~100% thay vì 13% | Cần xác nhận cách tính nào đúng |
 
 ## Việc còn dở / ý tưởng
+- [ ] Deploy lên Vercel theo `Documents/deploy-vercel.md` (dùng Transaction pooler cổng 6543 cho `DATABASE_URL` trên Vercel); sau đó kiểm tra bản live.
 - [ ] Đặt lại mật khẩu database Supabase (đã lộ trong chat) và cập nhật `DATABASE_URL` trong `.env`.
 - [ ] Đổi mật khẩu tài khoản admin tạm (hỏi chủ dự án; không ghi mật khẩu vào repo) hoặc tạo admin riêng bằng `npm run create-admin`.
 - [ ] Postgres local (localhost:5432, PostgreSQL 17) từ chối đăng nhập `postgres`/`postgre` với mật khẩu đã cung cấp — không còn cần thiết vì đã dùng Supabase; bỏ qua trừ khi muốn dùng thêm.
@@ -47,4 +49,8 @@ Cập nhật file này mỗi khi chốt quyết định mới. Mục lỗi thờ
 | 2026-10-09 | Chuyển toàn bộ code sang Postgres/Supabase (`src/db.js` dùng `pg`; mọi route/service async); test dùng PGlite | 15 test pass; API thử trực tiếp trên Supabase (đăng nhập, dashboard, ghi/hoàn điểm danh, import lại ~5s) |
 | 2026-10-09 | `.gitignore` loại `.env`, `data/`, `legacy/*.db`, `*.xlsx/xls/csv` (Excel chứa email/SĐT thật) | Chưa `git init`/push |
 
-Chưa làm / chưa kiểm: giao diện trên trình duyệt thật; Supabase Auth; upload Excel trên web; triển khai.
+| 2026-10-09 | Làm mới giao diện: thanh bên navy, font Inter, bảng màu nhất quán (biến CSS), thương hiệu "Starttrain \| The Next Analyst" (logo, tiêu đề, trang đăng nhập), biểu đồ có trạng thái rỗng, responsive | Đã chụp màn hình bằng Edge headless (desktop 1366px + mobile 390px), không có lỗi JS; bảng màu chưa có xác nhận từ thương hiệu thật |
+| 2026-10-09 | Giao diện v3 theo ảnh tham khảo (tối + vàng + kính mờ, thanh điều hướng ngang, hero + thẻ lối tắt ở Dashboard, nút đổi sáng/tối) và **chuyển tab mượt**: khung cố định, mờ dần/hiện lên, thanh tiến trình, cache danh sách lớp | Nguyên nhân chớp trắng cũ: mỗi lần đổi tab xóa cả trang rồi mới tải dữ liệu. Đo bằng Edge headless qua 4 lần đổi tab: khung không dựng lại, 0 khung hình trống, có đủ pha mờ dần/hiện lên; không lỗi JS |
+| 2026-10-09 | Chuẩn bị triển khai Vercel: `src/index.js` (điểm vào), đổi tên `app.js→create-app.js`, `server.js→dev-server.js`, Chart.js vào `public/vendor`, `vercel.json` (vùng hnd1), `.vercelignore`, DB lười + `trust proxy`; viết `Documents/deploy-vercel.md` | Kiểm tra tại chỗ OK (nạp như Vercel, DB thật, 15 test). **Chưa deploy thật** — cần tài khoản Vercel của chủ dự án |
+
+Chưa làm / chưa kiểm: thử tay thao tác ghi trên giao diện mới (bấm ô điểm danh, modal sửa) bằng chuột thật; Supabase Auth; upload Excel trên web; triển khai.

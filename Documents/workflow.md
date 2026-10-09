@@ -34,7 +34,7 @@ npm start            # mở http://localhost:3000 và đăng nhập (PORT=3100 n
 
 ## 5. Sao lưu & phát hành
 - Sao lưu: dữ liệu ở Supabase — bật backup trong dashboard; có thể xuất CSV từng bảng ở Table Editor.
-- Triển khai: đặt `NODE_ENV=production` (bật cookie Secure) và `DATABASE_URL` trong biến môi trường của nền tảng, chạy sau HTTPS. Có thể chạy nhiều tiến trình (DB tách riêng); lưu ý bộ đếm đăng nhập sai đang nằm trong bộ nhớ từng tiến trình.
+- Triển khai Vercel: xem [deploy-vercel.md](deploy-vercel.md). Triển khai nơi khác: đặt `NODE_ENV=production` (bật cookie Secure) và `DATABASE_URL` trong biến môi trường của nền tảng, chạy sau HTTPS. Có thể chạy nhiều tiến trình (DB tách riêng); lưu ý bộ đếm đăng nhập sai đang nằm trong bộ nhớ từng tiến trình.
 - Đổi mật khẩu admin mặc định; mỗi giảng viên một tài khoản riêng.
 
 ## 6. Quy ước làm việc với Claude Code

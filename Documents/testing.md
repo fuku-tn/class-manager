@@ -39,6 +39,9 @@ Dùng **PGlite** (Postgres thật chạy trong bộ nhớ) với `src/schema.sql
 5. Bài tập: mở 1 ô, đổi trạng thái + Challenge + ghi chú; kiểm tra ★ và tỉ lệ cột cuối.
 6. Admin: tạo giảng viên, phân 1 lớp; đăng nhập bằng giảng viên → chỉ thấy lớp đó, không có menu Lớp học/Người dùng.
 7. F5 ở từng tab — vẫn đúng trang, không mất đăng nhập.
+8. Đổi tab nhanh nhiều lần liên tiếp: thanh điều hướng đứng yên, nội dung mờ dần rồi hiện lên, không chớp trắng, trang cuối cùng bấm là trang hiển thị.
+9. Nút mặt trời/mặt trăng: đổi sáng/tối, biểu đồ vẽ lại đúng màu; F5 vẫn giữ lựa chọn.
+10. Thu nhỏ cửa sổ ≤ 640px (hoặc mở trên điện thoại): thanh điều hướng, hero, bảng cuộn ngang không tràn.
 
 ## Viết test mới
 - Mỗi tính năng/bug sửa → ít nhất 1 test: đường đi đúng + 1 đầu vào sai + 1 kiểm tra quyền (nếu có).

@@ -5,6 +5,7 @@ const { attachUser, requireAuth, requireAdmin } = require('./auth');
 function createApp(db) {
   const app = express();
   app.disable('x-powered-by');
+  if (process.env.VERCEL) app.set('trust proxy', 1); // sau proxy của Vercel: req.ip là IP khách thật
   app.use(express.json({ limit: '100kb' }));
   app.use((_req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -23,7 +24,6 @@ function createApp(db) {
   app.use('/api', (_req, res) => res.status(404).json({ error: 'Không tìm thấy' }));
 
   const pub = path.join(__dirname, '..', 'public');
-  app.use('/vendor/chart.js', express.static(path.join(__dirname, '..', 'node_modules', 'chart.js', 'dist')));
   app.use(express.static(pub));
 
   // eslint-disable-next-line no-unused-vars

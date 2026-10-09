@@ -1,5 +1,5 @@
 import { get, post } from './api.js';
-import { h, toast } from './ui.js';
+import { h, toast, logo, icon, BRAND } from './ui.js';
 import { renderLogin } from './pages/login.js';
 import { renderDashboard } from './pages/dashboard.js';
 import { renderStudents } from './pages/students.js';
@@ -22,71 +22,154 @@ const TABS = [
   ['attendance', 'Điểm danh', renderAttendance],
   ['homework', 'Bài tập', renderHomework],
 ];
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const initials = (name) => name.split(/\s+/).filter(Boolean).slice(-2).map((w) => w[0]).join('').toUpperCase() || '?';
 
-function shell(content, activeTab, classId) {
-  const select = h('select', {
-    'aria-label': 'Chọn lớp',
-    onchange: (e) => { location.hash = `#/c/${e.target.value}/${activeTab || 'dashboard'}`; },
-  }, state.classes.length
-    ? state.classes.map((c) => h('option', { value: c.id, selected: String(c.id) === String(classId) }, c.code))
-    : h('option', {}, '(chưa có lớp)'));
-  const admin = state.user.role === 'admin';
-  return h('div', {},
-    h('header', { class: 'topbar' },
-      h('span', { class: 'brand' }, 'Quản lý lớp'),
-      select,
-      h('nav', { class: 'tabs' }, TABS.map(([key, label]) =>
-        h('a', { href: `#/c/${classId}/${key}`, class: key === activeTab ? 'active' : '' }, label))),
-      h('span', { class: 'spacer' }),
-      admin && h('a', { class: 'nav-link', href: '#/classes' }, 'Lớp học'),
-      admin && h('a', { class: 'nav-link', href: '#/users' }, 'Người dùng'),
-      h('span', { class: 'muted small' }, state.user.name),
-      h('button', { onclick: async () => { await post('/api/auth/logout'); state.user = null; route(); } }, 'Đăng xuất')),
-    h('main', {}, content));
+// ---------- Khung cố định (dựng một lần, chỉ cập nhật phần thay đổi) ----------
+let shell = null; // { root, view, select, navLinks, adminLinks, progress }
+
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  store.set('theme', theme);
 }
 
-async function refreshClasses() {
-  state.classes = await get('/api/classes');
+function buildShell() {
+  const admin = state.user.role === 'admin';
+  const select = h('select', {
+    id: 'class-select', 'aria-label': 'Chọn lớp',
+    onchange: (e) => { location.hash = `#/c/${e.target.value}/${shell.active && TABS.some((t) => t[0] === shell.active) ? shell.active : 'dashboard'}`; },
+  });
+  const navLinks = TABS.map(([key, label]) => h('a', { class: 'nav-link', 'data-key': key }, icon(key), h('span', {}, label)));
+  const adminLinks = admin ? [
+    h('a', { class: 'nav-link', 'data-key': 'classes', href: '#/classes', title: 'Quản lý lớp học' }, icon('classes'), h('span', {}, 'Lớp học')),
+    h('a', { class: 'nav-link', 'data-key': 'users', href: '#/users', title: 'Quản lý người dùng' }, icon('users'), h('span', {}, 'Người dùng')),
+  ] : [];
+  const themeBtn = h('button', { class: 'icon-btn', title: 'Đổi giao diện sáng/tối', 'aria-label': 'Đổi giao diện sáng/tối' });
+  const paintTheme = () => themeBtn.replaceChildren(icon(document.documentElement.dataset.theme === 'light' ? 'moon' : 'sun'));
+  themeBtn.addEventListener('click', () => { applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light'); paintTheme(); route(); }); // vẽ lại để biểu đồ lấy màu mới
+  paintTheme();
+
+  const view = h('div', { class: 'view' });
+  const progress = h('div', { class: 'progress' });
+  const root = h('div', {},
+    progress,
+    h('header', { class: 'topbar' },
+      h('a', { class: 'brand', href: '#/' }, logo(36), h('div', { class: 'brand-text' },
+        h('span', { class: 'brand-name' }, BRAND.name), h('span', { class: 'brand-tag' }, BRAND.tagline))),
+      h('nav', { class: 'top-nav', 'aria-label': 'Điều hướng lớp' }, navLinks),
+      h('div', { class: 'top-right' },
+        select,
+        h('nav', { class: 'admin-links', 'aria-label': 'Quản trị' }, adminLinks),
+        themeBtn,
+        h('div', { class: 'chip-user', title: admin ? 'Quản trị viên' : 'Giảng viên' },
+          h('div', { class: 'avatar' }, initials(state.user.name)),
+          h('span', { class: 'chip-user-name' }, state.user.name),
+          h('button', { class: 'icon-btn', title: 'Đăng xuất', 'aria-label': 'Đăng xuất',
+            onclick: async () => { await post('/api/auth/logout'); state.user = null; shell = null; route(); } }, icon('logout'))))),
+    h('main', { class: 'content' }, view));
+  shell = { root, view, select, navLinks, adminLinks, progress, active: null, classKey: null };
+}
+
+// Cập nhật thanh điều hướng/chọn lớp mà không dựng lại.
+function updateShell(active, classId) {
+  shell.active = active;
+  for (const a of shell.navLinks) {
+    a.href = `#/c/${classId}/${a.dataset.key}`;
+    a.classList.toggle('active', a.dataset.key === active);
+  }
+  for (const a of shell.adminLinks) a.classList.toggle('active', a.dataset.key === active);
+  const key = state.classes.map((c) => c.id).join(',');
+  if (shell.classKey !== key) { // danh sách lớp đổi → dựng lại tùy chọn
+    shell.select.replaceChildren(...(state.classes.length
+      ? state.classes.map((c) => h('option', { value: c.id }, c.code))
+      : [h('option', {}, '(chưa có lớp)')]));
+    shell.classKey = key;
+  }
+  shell.select.value = classId ?? '';
+}
+
+// ---------- Chuyển trang mượt: mờ dần nội dung cũ → tải → hiện nội dung mới ----------
+let navToken = 0;
+async function transitionTo(renderFn) {
+  const token = ++navToken;
+  const { view, progress } = shell;
+  const motion = !reducedMotion();
+  const first = !view.hasChildNodes();
+  if (motion && !first) view.classList.add('leaving');
+
+  // Thanh tiến trình chỉ hiện nếu tải lâu hơn 180ms (tránh nhấp nháy khi mạng nhanh).
+  const timer = setTimeout(() => { progress.classList.remove('done'); void progress.offsetWidth; progress.classList.add('on'); }, 180);
+  let node;
+  try {
+    [node] = await Promise.all([renderFn(), motion && !first ? sleep(140) : null]);
+  } catch (e) {
+    if (e.status === 401) { clearTimeout(timer); return 'unauth'; }
+    toast(e.message, true);
+    node = h('div', { class: 'empty-state' }, `Không tải được trang: ${e.message}`);
+  }
+  clearTimeout(timer);
+  if (token !== navToken) return; // đã có lần điều hướng mới hơn
+  if (progress.classList.contains('on')) { progress.classList.remove('on'); progress.classList.add('done'); }
+
+  view.replaceChildren(node);
+  view.classList.remove('leaving', 'entering');
+  void view.offsetWidth; // khởi động lại animation
+  if (motion) view.classList.add('entering');
+  window.scrollTo({ top: 0 });
 }
 
 async function route() {
-  app.replaceChildren();
   if (!state.user) {
     try { state.user = await get('/api/auth/me'); } catch { /* chưa đăng nhập */ }
   }
   if (!state.user) {
+    shell = null;
+    app.replaceChildren();
     return renderLogin(app, async (user) => { state.user = user; location.hash = '#/'; route(); });
   }
+  if (!shell || !app.contains(shell.root)) { app.replaceChildren(); buildShell(); app.append(shell.root); }
+
+  const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
+  const admin = state.user.role === 'admin';
+  const ctx = {
+    state, navigate: (hash) => { location.hash = hash; },
+    refreshClasses: async () => { state.classes = await get('/api/classes'); updateShell(shell.active, store.get('classId')); },
+  };
   try {
-    await refreshClasses();
-    const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
-    const ctx = { state, refreshClasses, navigate: (hash) => { location.hash = hash; } };
-
-    if (parts[0] === 'classes' && state.user.role === 'admin') {
-      return app.append(shell(await renderClasses(ctx), null, store.get('classId')));
-    }
-    if (parts[0] === 'users' && state.user.role === 'admin') {
-      return app.append(shell(await renderUsers(ctx), null, store.get('classId')));
-    }
-
-    let classId = parts[0] === 'c' ? parts[1] : store.get('classId');
-    if (!state.classes.some((c) => String(c.id) === String(classId))) classId = state.classes[0]?.id;
-    if (!classId) {
-      return app.append(shell(h('div', { class: 'empty-state' },
-        state.user.role === 'admin'
-          ? h('p', {}, 'Chưa có lớp nào. ', h('a', { href: '#/classes' }, 'Tạo lớp mới'), ' hoặc chạy "npm run import" để nhập từ Excel.')
-          : h('p', {}, 'Bạn chưa được phân công lớp nào. Hãy liên hệ admin.')), null, null));
-    }
-    store.set('classId', String(classId));
-    const tabKey = parts[0] === 'c' && TABS.some((t) => t[0] === parts[2]) ? parts[2] : 'dashboard';
-    const cls = state.classes.find((c) => String(c.id) === String(classId));
-    const render = TABS.find((t) => t[0] === tabKey)[2];
-    app.append(shell(await render({ ...ctx, cls }), tabKey, classId));
+    // Danh sách lớp chỉ tải lại khi cần (lần đầu, trang quản trị) để chuyển tab nhanh.
+    if (!state.classes.length || parts[0] === 'classes' || parts[0] === 'users') state.classes = await get('/api/classes');
   } catch (e) {
     if (e.status === 401) { state.user = null; return route(); }
     toast(e.message, true);
-    app.append(h('main', {}, h('div', { class: 'empty-state' }, `Không tải được trang: ${e.message}`)));
   }
+
+  let result;
+  if (parts[0] === 'classes' && admin) {
+    updateShell('classes', store.get('classId'));
+    result = await transitionTo(() => renderClasses(ctx));
+  } else if (parts[0] === 'users' && admin) {
+    updateShell('users', store.get('classId'));
+    result = await transitionTo(() => renderUsers(ctx));
+  } else {
+    let classId = parts[0] === 'c' ? parts[1] : store.get('classId');
+    if (!state.classes.some((c) => String(c.id) === String(classId))) classId = state.classes[0]?.id;
+    if (!classId) {
+      updateShell(null, null);
+      result = await transitionTo(async () => h('div', { class: 'empty-state' },
+        admin
+          ? h('p', {}, 'Chưa có lớp nào. ', h('a', { href: '#/classes' }, 'Tạo lớp mới'), ' hoặc chạy "npm run import" để nhập từ Excel.')
+          : h('p', {}, 'Bạn chưa được phân công lớp nào. Hãy liên hệ admin.')));
+    } else {
+      store.set('classId', String(classId));
+      const tabKey = parts[0] === 'c' && TABS.some((t) => t[0] === parts[2]) ? parts[2] : 'dashboard';
+      const cls = state.classes.find((c) => String(c.id) === String(classId));
+      const render = TABS.find((t) => t[0] === tabKey)[2];
+      updateShell(tabKey, classId);
+      result = await transitionTo(() => render({ ...ctx, cls }));
+    }
+  }
+  if (result === 'unauth') { state.user = null; shell = null; route(); }
 }
 
 window.addEventListener('hashchange', route);

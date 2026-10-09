@@ -3,14 +3,15 @@
   "version": "0.1.0",
   "description": "Webapp quản lý học viên, điểm danh, bài tập và dashboard theo lớp",
   "private": true,
-  "main": "src/server.js",
+  "main": "src/dev-server.js",
   "engines": {
     "node": ">=22.13"
   },
   "scripts": {
-    "start": "node --env-file-if-exists=.env --no-warnings=ExperimentalWarning src/server.js",
-    "dev": "node --watch --env-file-if-exists=.env --no-warnings=ExperimentalWarning src/server.js",
+    "start": "node --env-file-if-exists=.env --no-warnings=ExperimentalWarning src/dev-server.js",
+    "dev": "node --watch --env-file-if-exists=.env --no-warnings=ExperimentalWarning src/dev-server.js",
     "migrate-pg": "node --env-file-if-exists=.env --no-warnings=ExperimentalWarning scripts/migrate-to-postgres.js",
+    "vendor": "node scripts/copy-vendor.js",
     "import": "node --env-file-if-exists=.env --no-warnings=ExperimentalWarning scripts/import-excel.js",
     "create-admin": "node --env-file-if-exists=.env scripts/create-admin.js",
     "test": "node --test --no-warnings=ExperimentalWarning tests/*.test.js"

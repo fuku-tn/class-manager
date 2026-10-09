@@ -1,20 +1,38 @@
 import { get } from '../api.js';
-import { h, pct } from '../ui.js';
+import { h, pct, icon } from '../ui.js';
 
 const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
-function chartBox(title, hint) {
+function chartBox(title, hint, emptyText) {
   const canvas = h('canvas', { role: 'img', 'aria-label': title });
-  return { canvas, el: h('div', { class: 'card' }, h('h2', {}, title), hint && h('p', { class: 'muted small' }, hint), h('div', { class: 'chart-box' }, canvas)) };
+  const box = h('div', { class: 'chart-box' }, emptyText ? h('div', { class: 'chart-empty' }, emptyText) : canvas);
+  return { canvas, empty: !!emptyText, el: h('div', { class: 'card' }, h('h2', {}, title), hint && h('p', { class: 'muted small' }, hint), box) };
 }
+
+const shortcut = (href, iconName, title, text) =>
+  h('a', { class: 'shortcut', href }, icon(iconName), h('b', {}, title), h('span', {}, text), h('div', { class: 'go' }, icon('arrow')));
 
 export async function renderDashboard({ cls }) {
   const d = await get(`/api/classes/${cls.id}/dashboard`);
   const t = d.totals;
   const kpi = (label, value, bad) => h('div', { class: `kpi${bad ? ' bad' : ''}` }, h('div', { class: 'label' }, label), h('div', { class: 'value' }, value));
+  const riskAnchor = h('div', { id: 'at-risk' });
 
   const root = h('div', {},
-    h('div', { class: 'page-head' }, h('div', {}, h('h1', {}, cls.code), h('div', { class: 'muted small' }, `${cls.phase || ''} · ${cls.name !== cls.code ? cls.name : ''}`))),
+    h('section', { class: 'hero' },
+      h('div', {},
+        h('div', { class: 'eyebrow' }, [cls.phase, 'Tổng quan lớp học'].filter(Boolean).join(' · ')),
+        h('h1', {}, 'Theo dõi lớp ', h('span', { class: 'accent' }, cls.code)),
+        h('p', {}, `${t.active} học viên đang học · ${t.held_sessions}/${t.total_sessions} buổi đã diễn ra. Điểm danh, bài tập và cảnh báo được tổng hợp tự động.`)),
+      h('div', { class: 'hero-card' },
+        h('div', { class: 'label' }, 'Chuyên cần trung bình'),
+        h('div', { class: 'big' }, pct(t.avg_attendance_rate)),
+        h('div', { class: 'hero-stats' },
+          h('div', {}, h('b', {}, `${t.active}/${t.enrolled}`), h('span', {}, 'Đang học')),
+          h('div', {}, h('b', {}, pct(t.avg_hw_rate)), h('span', {}, 'Hoàn thành HW')),
+          h('div', {}, h('b', {}, t.at_risk), h('span', {}, 'Cần chú ý'))),
+        h('button', { class: 'primary', onclick: () => document.getElementById('at-risk')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
+          'Xem học viên cần chú ý'))),
     h('div', { class: 'kpis' },
       kpi('Học viên đang học', `${t.active}/${t.enrolled}`),
       kpi('Bảo lưu / nghỉ', `${t.deferred} / ${t.dropped}`),
@@ -28,41 +46,42 @@ export async function renderDashboard({ cls }) {
     return root;
   }
 
-  const a = chartBox('Điểm danh theo buổi', 'Số học viên đang học theo từng trạng thái');
-  const b = chartBox('Nộp bài tập', 'Số học viên đang học theo trạng thái nộp');
-  const c = chartBox('Hình thức học');
+  const a = chartBox('Điểm danh theo buổi', 'Số học viên đang học theo từng trạng thái', d.by_session.some((x) => x.held) ? null : 'Chưa có buổi nào được điểm danh.');
+  const b = chartBox('Nộp bài tập', 'Số học viên đang học theo trạng thái nộp', d.by_assignment.some((x) => x.collected) ? null : 'Chưa thu bài tập nào.');
+  const c = chartBox('Hình thức học', 'Phân bố học viên đang học');
   root.append(h('div', { class: 'grid2' }, a.el, b.el, c.el));
 
   // Chart cần canvas đã nằm trong DOM → vẽ ở tick sau.
   setTimeout(() => {
     if (!window.Chart) return;
-    const text = css('--text'), border = css('--border');
-    Chart.defaults.color = text; Chart.defaults.borderColor = border;
+    Chart.defaults.color = css('--muted'); Chart.defaults.borderColor = css('--border');
+    Chart.defaults.font.family = getComputedStyle(document.body).fontFamily; Chart.defaults.font.size = 12;
     const opts = (stacked) => ({
       responsive: true, maintainAspectRatio: false,
-      scales: { x: { stacked }, y: { stacked, beginAtZero: true, ticks: { precision: 0 } } },
-      plugins: { legend: { position: 'bottom' } },
+      scales: { x: { stacked, grid: { display: false } }, y: { stacked, beginAtZero: true, ticks: { precision: 0 } } },
+      plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } } },
     });
-    const ds = (label, data, color) => ({ label, data, backgroundColor: css(color) });
+    const ds = (label, data, color) => ({ label, data, backgroundColor: css(color), borderRadius: 5, borderSkipped: false, maxBarThickness: 38 });
     const held = d.by_session.filter((s) => s.held);
-    new Chart(a.canvas, { type: 'bar', options: opts(true), data: {
+    if (!a.empty) new Chart(a.canvas, { type: 'bar', options: opts(true), data: {
       labels: held.map((s) => `B${s.session_no}`),
       datasets: [ds('Có mặt', held.map((s) => s.present), '--ok'), ds('Đi trễ', held.map((s) => s.late), '--warn'),
         ds('Có phép', held.map((s) => s.excused), '--info'), ds('Vắng', held.map((s) => s.absent), '--bad')],
     } });
     const coll = d.by_assignment.filter((x) => x.collected);
-    new Chart(b.canvas, { type: 'bar', options: opts(true), data: {
+    if (!b.empty) new Chart(b.canvas, { type: 'bar', options: opts(true), data: {
       labels: coll.map((x) => (x.kind === 'capstone' ? 'CP' : `HW${x.seq}`)),
       datasets: [ds('Đã nộp', coll.map((x) => x.submitted), '--ok'), ds('Nộp lại', coll.map((x) => x.resubmit), '--warn'),
         ds('Thiếu', coll.map((x) => x.missing), '--bad')],
     } });
-    const palette = ['--primary', '--ok', '--warn', '--info'].map(css);
-    new Chart(c.canvas, { type: 'doughnut', options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } },
-      data: { labels: d.by_mode.map((m) => m.mode), datasets: [{ data: d.by_mode.map((m) => m.count), backgroundColor: palette, borderColor: css('--surface') }] } });
+    const palette = ['--cat-1', '--cat-2', '--cat-3', '--cat-4'].map(css);
+    new Chart(c.canvas, { type: 'doughnut', options: { responsive: true, maintainAspectRatio: false, cutout: '68%', plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } } } },
+      data: { labels: d.by_mode.map((m) => m.mode), datasets: [{ data: d.by_mode.map((m) => m.count), backgroundColor: palette, borderColor: css('--solid'), borderWidth: 3 }] } });
   }, 0);
 
-  const riskCard = h('div', { class: 'card' },
-    h('h2', {}, `Học viên cần chú ý (${d.at_risk.length})`),
+  const riskCard = h('div', { class: 'card' }, riskAnchor,
+    h('div', { class: 'eyebrow' }, 'Cần chú ý'),
+    h('h2', { style: 'margin-top:.3rem' }, `Học viên cần chú ý (${d.at_risk.length})`),
     h('p', { class: 'muted small' }, `Điểm danh dưới ${Math.round(d.thresholds.attendance * 100)}% hoặc thiếu từ ${d.thresholds.missing_hw} bài HW trở lên.`));
   if (d.at_risk.length) {
     riskCard.append(h('div', { class: 'table-wrap' }, h('table', {},
@@ -73,5 +92,10 @@ export async function renderDashboard({ cls }) {
         h('td', {}, h('span', { class: `badge ${r.hw_missing >= d.thresholds.missing_hw ? 'bad' : ''}` }, r.hw_missing))))))));
   } else riskCard.append(h('p', {}, 'Không có học viên nào cần chú ý.'));
   root.append(riskCard);
+
+  root.append(h('div', { class: 'shortcuts' },
+    shortcut(`#/c/${cls.id}/attendance`, 'attendance', 'Điểm danh', 'Ghi nhận chuyên cần từng buổi chỉ với một cú bấm.'),
+    shortcut(`#/c/${cls.id}/students`, 'students', 'Học viên', 'Danh sách, bảo lưu, voucher và xuất CSV.'),
+    shortcut(`#/c/${cls.id}/homework`, 'homework', 'Bài tập', 'Theo dõi HW, Challenge và Capstone.')));
   return root;
 }

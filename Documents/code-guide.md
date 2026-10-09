@@ -5,7 +5,7 @@
 Trình duyệt (public/, ES modules, router hash)
       │  fetch JSON, cookie phiên HttpOnly
       ▼
-Express (src/app.js) ── attachUser → requireAuth → [requireAdmin] → requireClassAccess
+Express (src/create-app.js) ── attachUser → requireAuth → [requireAdmin] → requireClassAccess
       │
       ├─ routes/  (auth, users, classes, classData)  — validate + SQL
       ├─ services/stats.js        — MỌI công thức tỉ lệ/dashboard
@@ -73,8 +73,13 @@ Chỉ lưu **sự kiện đã ghi nhận**; tỉ lệ luôn được tính, khô
 - `ui.js`: `h(tag, attrs, ...children)` dựng DOM (tự escape — **không dùng `innerHTML` với dữ liệu**), `formModal`, `confirmModal`, `toast`, `downloadCsv`.
 - `api.js`: `get/post/put/del`, ném `Error` với thông điệp của server; `status 401` → quay về đăng nhập.
 - Ma trận điểm danh/bài tập cập nhật **lạc quan** (đổi ô ngay, hoàn tác nếu API lỗi).
-- Màu theo biến CSS (`style.css`), tự theo chế độ sáng/tối của hệ điều hành. Biểu đồ đọc màu từ cùng các biến.
-- Chart.js phục vụ tại `/vendor/chart.js/chart.umd.js` từ `node_modules`.
+- **Thương hiệu:** "Starttrain | The Next Analyst" (hằng `BRAND` + `logo()` trong `ui.js`, tiêu đề tab/favicon ở `index.html`). Font **Inter** (sans-serif, không chân; Google Fonts, dự phòng `system-ui`).
+- **Phong cách (theo ảnh tham khảo "Haven Realty"):** nền tối xanh navy + vầng sáng vàng/xanh, vàng champagne làm màu nhấn, thẻ kính mờ (`backdrop-filter`), nút vàng bo tròn, nhãn nhỏ viết hoa giãn chữ (`.eyebrow`), thẻ lối tắt có nút mũi tên tròn. Mặc định **tối**; nút mặt trời/mặt trăng đổi sang **sáng** (lưu `localStorage.theme`, gán `data-theme` trước khi CSS tải để không chớp).
+- **Màu:** chỉ dùng biến CSS ở `:root` / `:root[data-theme="light"]` trong `style.css`: `--gold*`, `--glass*`, `--solid*`, `--bg-glow-*`, 4 màu trạng thái cố định `--ok/--warn/--bad/--info`, `--cat-1..4` cho biểu đồ phân loại. Không viết mã màu trực tiếp trong JS/CSS ngoài hai khối đó. Biểu đồ đọc màu từ biến lúc vẽ → đổi giao diện thì `route()` được gọi lại để vẽ lại.
+- **Bố cục:** thanh điều hướng ngang (logo · Dashboard/Học viên/Điểm danh/Bài tập · chọn lớp · quản trị · đổi giao diện · người dùng). Dưới 900px thanh này chia thành các hàng, menu cuộn ngang.
+- **Chuyển trang mượt (`main.js`):** khung (`buildShell`) dựng **một lần**; mỗi lần đổi tab chỉ `transitionTo()` vùng `.view`: mờ dần nội dung cũ (140ms) → tải trang mới song song → hiện nội dung mới với hiệu ứng `rise` lần lượt từng khối. Thanh tiến trình vàng chỉ hiện nếu tải > 180ms. Có token chống chạy chồng khi bấm nhanh; tôn trọng `prefers-reduced-motion`. Danh sách lớp được cache, chỉ tải lại ở trang Lớp học/Người dùng.
+- Biểu tượng SVG dựng bằng DOM (`icon(name)` trong `ui.js`).
+- Chart.js phục vụ tại `/vendor/chart.umd.min.js` từ `public/vendor/` (Vercel không phục vụ `node_modules`; cập nhật bằng `npm run vendor`).
 
 ## Bảo mật (đã có)
 scrypt băm mật khẩu · token phiên ngẫu nhiên 256-bit, chỉ lưu băm · cookie HttpOnly + SameSite=Lax (+ Secure khi `NODE_ENV=production`) · SQL tham số hóa · DOM dựng bằng textContent · header `nosniff`, `X-Frame-Options` · giới hạn body 100KB · giới hạn đăng nhập sai.

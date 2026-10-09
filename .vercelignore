@@ -1,0 +1,11 @@
+legacy/
+tests/
+Documents/
+supabase/
+scripts/
+*.md
+.env
+.env.*
+*.xlsx
+*.xls
+*.csv

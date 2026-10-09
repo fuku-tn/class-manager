@@ -34,20 +34,20 @@ export async function renderAttendance({ cls }) {
   function renderHead() {
     head.replaceChildren(h('tr', {},
       h('th', { class: 'sticky' }, 'Học viên'),
-      data.sessions.map((s) => h('th', { class: 'num', title: s.title || '' },
-        h('div', {}, `B${s.session_no}`),
-        h('div', { class: 'muted small' }, s.session_date || ''),
-        h('button', { class: 'small', title: 'Đánh dấu tất cả chưa điểm danh là Có mặt', onclick: async () => {
-          try { await post(`${base}/sessions/${s.id}/attendance/bulk`, { status: 'present' }); toast(`Đã điểm danh cả lớp buổi ${s.session_no}`); await reload(); }
-          catch (e) { toast(e.message, true); }
-        } }, 'Cả lớp ✓'),
+      data.sessions.map((s) => h('th', { class: 'num', title: s.title || '' }, h('div', { class: 'sess-head' },
+        h('div', { class: 'sess-title' }, `B${s.session_no}`,
         h('button', { class: 'small', title: 'Sửa tên/ngày buổi học', onclick: async () => {
           const v = await formModal({ title: `Buổi ${s.session_no}`, fields: [
             { name: 'title', label: 'Tên buổi', value: s.title, full: true },
             { name: 'session_date', label: 'Ngày học', type: 'date', value: s.session_date }] });
           if (!v) return;
           try { await put(`${base}/sessions/${s.id}`, v); await reload(); } catch (e) { toast(e.message, true); }
-        } }, '✎'))),
+        } }, '✎')),
+        h('div', { class: 'muted small' }, s.session_date || ''),
+        h('button', { class: 'small', title: 'Đánh dấu tất cả chưa điểm danh là Có mặt', onclick: async () => {
+          try { await post(`${base}/sessions/${s.id}/attendance/bulk`, { status: 'present' }); toast(`Đã điểm danh cả lớp buổi ${s.session_no}`); await reload(); }
+          catch (e) { toast(e.message, true); }
+        } }, 'Cả lớp ✓')))),
       h('th', { class: 'num' }, 'Tỉ lệ')));
   }
 
@@ -92,5 +92,5 @@ export async function renderAttendance({ cls }) {
       h('span', {}, 'Bấm ô để đổi: '), ...Object.entries(LABEL).map(([k, v]) => h('span', {}, h('span', { class: `cell ${k}` }, SHORT[k]), ` ${v}`)),
       h('span', { class: 'muted' }, '· Shift+bấm để ghi chú · Tỉ lệ = (có mặt + trễ) / (buổi đã diễn ra − có phép)')),
     h('div', { class: 'toolbar' }, search),
-    h('div', { class: 'table-wrap' }, h('table', {}, head, body)));
+    h('div', { class: 'table-wrap' }, h('table', { class: 'table-att' }, head, body)));
 }

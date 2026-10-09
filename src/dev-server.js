@@ -1,5 +1,5 @@
 const { openDb } = require('./db');
-const { createApp } = require('./app');
+const { createApp } = require('./create-app');
 
 (async () => {
   const db = await openDb();
