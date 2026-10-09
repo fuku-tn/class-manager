@@ -1,0 +1,50 @@
+# Memory — quyết định, giả định, việc đang dở
+
+Cập nhật file này mỗi khi chốt quyết định mới. Mục lỗi thời → chuyển sang [Archive.md](Archive.md).
+
+## Quyết định đã chốt (2026-10-09)
+- **Người dùng:** nhiều giảng viên/trợ giảng; 2 vai trò `admin` và `instructor`; giảng viên chỉ thấy lớp được phân công.
+- **Lưu trữ:** ~~SQLite local~~ → **Supabase (Postgres)** từ 2026-10-09. Webapp kết nối trực tiếp qua `DATABASE_URL` (Session pooler, cổng 5432, thư viện `pg`). Test dùng PGlite (Postgres trong bộ nhớ). Bản SQLite cũ giữ ở `legacy/` để tham khảo.
+- **Công nghệ:** Express + HTML/JS thuần (ES modules) + Chart.js (phục vụ từ `node_modules`, không CDN). Phụ thuộc: `express`, `exceljs`, `chart.js`, `pg`; dev: `@electric-sql/pglite`.
+- **Ngôn ngữ:** giao diện + tài liệu tiếng Việt, code tiếng Anh.
+- Auth tự viết (scrypt + phiên lưu DB + cookie HttpOnly), bảng `users` riêng. Chưa dùng Supabase Auth.
+- **RLS bật trên mọi bảng, không policy**: chỉ server (chuỗi Postgres) đọc/ghi được; khóa `anon` công khai không đọc được gì.
+- Mật khẩu DB đã từng gửi trong khung chat → nên reset trên Supabase rồi cập nhật `.env`.
+
+## Giả định cần xác nhận với chủ dự án
+| # | Giả định hiện tại | Ảnh hưởng nếu sai |
+|---|---|---|
+| 1 | Ô trống trong buổi đã diễn ra = **Vắng**; ô trống ở bài đã thu = **Thiếu** | Tỉ lệ sai |
+| 2 | Tỉ lệ điểm danh = (có mặt + trễ) / (buổi đã diễn ra − có phép). Khớp cột ATTENDANCE RATE mẫu (vd 6/8 = 0.75) | `services/stats.js` |
+| 3 | Buổi/bài chỉ tính vào mẫu số khi **đã có ít nhất 1 bản ghi** (`held`/`collected`). HW6 mẫu không ai nộp → coi chưa thu | Dashboard |
+| 4 | "Nộp lại" **không** tính hoàn thành HW | `stats.js` |
+| 5 | Học viên "cần chú ý": điểm danh < 80% **hoặc** thiếu ≥ 2 HW (đổi bằng `ATTENDANCE_THRESHOLD`, `MISSING_HW_ALERT`) | Danh sách at-risk (mẫu đang ra 20/44 — có thể quá nhạy) |
+| 6 | Ghi chú "Vào trễ" ở ô có mặt → trạng thái `late` khi import | Import |
+| 7 | Chỉ học viên `active`/`completed` được tính trong Dashboard; `deferred`/`dropped` loại ra | Dashboard |
+| 8 | Cột `VOUCHER GG MAPS` là **số tiền** (500000); cột `SUBINDEX`, `CUSTOMER ID`, `FORM`, `CERTIFICATE STATUS` chưa rõ nghĩa → chỉ lưu, chưa dùng | Cần hỏi |
+| 9 | Chưa có ngày học của từng buổi (Excel không có) → để trống, nhập tay trong tab Điểm danh (nút ✎) | — |
+| 10 | Một sheet có thể chứa nhiều lớp (tách theo `COURSE ID`); giá trị lạ như `O` ở ô buổi/bài (2 học viên P104 buổi 1) tính là vắng — khớp ATTENDANCE RATE = 0 trong Excel. Cột ATTENDANCE RATE của Excel chia cho **tổng số buổi (8)**, webapp chia cho **số buổi đã diễn ra** nên P104 hiện ~100% thay vì 13% | Cần xác nhận cách tính nào đúng |
+
+## Việc còn dở / ý tưởng
+- [ ] Đặt lại mật khẩu database Supabase (đã lộ trong chat) và cập nhật `DATABASE_URL` trong `.env`.
+- [ ] Đổi mật khẩu tài khoản admin tạm (hỏi chủ dự án; không ghi mật khẩu vào repo) hoặc tạo admin riêng bằng `npm run create-admin`.
+- [ ] Postgres local (localhost:5432, PostgreSQL 17) từ chối đăng nhập `postgres`/`postgre` với mật khẩu đã cung cấp — không còn cần thiết vì đã dùng Supabase; bỏ qua trừ khi muốn dùng thêm.
+- [ ] Chủ dự án xác nhận các giả định ở trên (đặc biệt #1, #4, #5).
+- [ ] **Chưa kiểm thử giao diện trên trình duyệt thật** — mới test API (15 test, Postgres) và kiểm tra cú pháp JS; API đã thử trực tiếp trên Supabase. Cần mở thử `npm start` và duyệt các tab.
+- [ ] Upload Excel trực tiếp trên web (hiện chỉ có CLI `npm run import`).
+- [ ] Thêm tab xem chi tiết 1 học viên (lịch sử điểm danh/HW qua các lớp).
+- [ ] Nhắc/xuất danh sách voucher sắp hết hạn.
+
+## Nhật ký những gì đã làm
+| Ngày | Việc | Kết quả / ghi chú |
+|---|---|---|
+| 2026-10-09 | Dựng webapp Node.js: Express + frontend thuần + Chart.js; auth admin/giảng viên; 4 màn hình lớp + Lớp học + Người dùng | Chạy ở cổng 3100 (3000 bị DuHoc24 chiếm) |
+| 2026-10-09 | Tạo bộ tài liệu: CLAUDE.md, memory.md, Archive.md, `Documents/` (context, project-overview, code-guide, workflow, testing, supabase-guide) và 3 skill trong `.claude/skills/` | — |
+| 2026-10-09 | Import Excel lần đầu: lớp P101 (46 học viên) | Dashboard khớp dòng tổng của Excel |
+| 2026-10-09 | Excel được thêm lớp P104 (26 học viên) cùng sheet → importer tách lớp theo `COURSE ID` | 2 lớp, 72 học viên; 2 ô `O` ở buổi 1 bị cảnh báo & tính vắng |
+| 2026-10-09 | Thử kết nối Postgres local (localhost:5432) | Bị từ chối đăng nhập; chuyển sang Supabase |
+| 2026-10-09 | Tạo schema Supabase (`supabase/schema.sql`, RLS bật, không policy) và chuyển dữ liệu SQLite → Supabase (`npm run migrate-pg`) | Số dòng khớp: 2 lớp, 72 học viên, 394 điểm danh, 276 bài nộp, 18 voucher |
+| 2026-10-09 | Chuyển toàn bộ code sang Postgres/Supabase (`src/db.js` dùng `pg`; mọi route/service async); test dùng PGlite | 15 test pass; API thử trực tiếp trên Supabase (đăng nhập, dashboard, ghi/hoàn điểm danh, import lại ~5s) |
+| 2026-10-09 | `.gitignore` loại `.env`, `data/`, `legacy/*.db`, `*.xlsx/xls/csv` (Excel chứa email/SĐT thật) | Chưa `git init`/push |
+
+Chưa làm / chưa kiểm: giao diện trên trình duyệt thật; Supabase Auth; upload Excel trên web; triển khai.

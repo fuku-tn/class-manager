@@ -1,0 +1,13 @@
+node_modules/
+data/
+.env
+*.db
+*.db-*
+*.xlsx
+*.xls
+*.csv
+legacy/*.db
+legacy/*.db-*
+legacy/*.db
+legacy/*.db-*
+.claude/settings.local.json
