@@ -13,10 +13,11 @@ Dùng **PGlite** (Postgres thật chạy trong bộ nhớ) với `src/schema.sql
 | `tests/api.test.js` | Auth, phân quyền, điểm danh, bài tập, dashboard, validation, XSS |
 | `tests/concurrency.test.js` | Chặn ghi đè (409) khi hai người cùng sửa, ghi nhận người sửa, phát tin realtime (giả lập), cấu hình kênh |
 | `tests/import-transactions.test.js` | Nhập Transactions + giáo trình: không lọt dữ liệu tiền, trạng thái, mẫu mặc định, chạy lại không trùng, dry-run |
+| `tests/overview-and-filter.test.js` | Logic lọc lớp (không dấu, thời gian, chương trình, sắp xếp), API tổng quan (đếm lớp, chuyên cần loại buổi có phép, phạm vi quyền), `timing` trong danh sách lớp |
 | `tests/db-errors.test.js` | Phân loại lỗi cấu hình/kết nối DB; thiếu `DATABASE_URL` → đăng nhập trả 503 có lý do |
 | `tests/import.test.js` | Nhập điểm danh nhiều sheet (workbook dựng trong test): X/O/trống, có phép không tính mẫu số, bỏ sheet ẩn và cột tiền, giáo trình theo tên sheet, khớp mã lớp lệch P/B, không ghi đè ô sửa trên app, dry-run |
 
-## Đã được kiểm thử tự động (33 test)
+## Đã được kiểm thử tự động (39 test)
 - Chưa đăng nhập → 401; đăng nhập sai/đúng.
 - Giảng viên không truy cập được lớp chưa được phân (403), sau khi phân thì được; không tạo lớp / xem user được.
 - Tỉ lệ điểm danh: có phép không tính vào mẫu số (A=0.67, B=0.5).
@@ -45,7 +46,9 @@ Dùng **PGlite** (Postgres thật chạy trong bộ nhớ) với `src/schema.sql
 8. Đổi tab nhanh nhiều lần liên tiếp: thanh điều hướng đứng yên, nội dung mờ dần rồi hiện lên, không chớp trắng, trang cuối cùng bấm là trang hiển thị.
 9. Nút mặt trời/mặt trăng: đổi sáng/tối, biểu đồ vẽ lại đúng màu; F5 vẫn giữ lựa chọn.
 10. **Hai người cùng điểm danh:** mở tab Điểm danh trên hai trình duyệt/máy (hai tài khoản). Huy hiệu đều là "Trực tiếp". Người 1 bấm một ô → người 2 thấy đổi và nháy vàng trong ~1 giây; rê chuột vào ô thấy tên người sửa. Tắt mạng máy 2, đổi ô ở máy 1, bật mạng máy 2 rồi bấm cùng ô → báo "Ô này vừa được … đổi", không ghi đè.
-11. Thu nhỏ cửa sổ ≤ 640px (hoặc mở trên điện thoại): thanh điều hướng, hero, bảng cuộn ngang không tràn.
+11. **Chọn lớp:** bấm nút lớp ở góc trên; mặc định chỉ hiện lớp đang học; gõ `bih 103`, chọn chip chương trình, dùng ↑ ↓ Enter; bấm ra ngoài/Esc để đóng. Trang Lớp học (admin) có cùng bộ lọc.
+12. **Trang chủ:** mở `#/` — số liệu đếm lên, từ khóa xoay, thẻ lớp tự chạy và dừng khi rê chuột; bấm một thẻ mở Dashboard của lớp đó.
+13. Thu nhỏ cửa sổ ≤ 640px (hoặc mở trên điện thoại): thanh điều hướng, hero, bảng cuộn ngang không tràn.
 
 ## Viết test mới
 - Mỗi tính năng/bug sửa → ít nhất 1 test: đường đi đúng + 1 đầu vào sai + 1 kiểm tra quyền (nếu có).

@@ -100,7 +100,7 @@ export function downloadCsv(filename, rows) {
 // ---------- Thương hiệu & biểu tượng (SVG dựng bằng DOM, không innerHTML) ----------
 export const BRAND = { name: 'Starttrain', tagline: 'The Next Analyst' };
 
-function svg(tag, attrs = {}, ...children) {
+export function svg(tag, attrs = {}, ...children) {
   const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
   for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
   el.append(...children);
@@ -126,6 +126,10 @@ const ICONS = {
   classes: [['path', { d: 'm12 2 10 5-10 5L2 7z' }], ['path', { d: 'm2 17 10 5 10-5M2 12l10 5 10-5' }]],
   users: [['path', { d: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' }]],
   arrow: [['path', { d: 'M5 12h14M12 5l7 7-7 7' }]],
+  home: [['path', { d: 'm3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z' }]],
+  chevron: [['path', { d: 'm6 9 6 6 6-6' }]],
+  search: [['circle', { cx: 11, cy: 11, r: 7 }], ['path', { d: 'm21 21-4.3-4.3' }]],
+  play: [['path', { d: 'M8 5v14l11-7z' }]],
   alert: [['path', { d: 'M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z' }], ['path', { d: 'M12 9v4M12 17h.01' }]],
   sun: [['circle', { cx: 12, cy: 12, r: 4 }], ['path', { d: 'M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41' }]],
   moon: [['path', { d: 'M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z' }]],

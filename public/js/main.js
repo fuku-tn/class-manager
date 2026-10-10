@@ -7,6 +7,8 @@ import { renderAttendance } from './pages/attendance.js';
 import { renderHomework } from './pages/homework.js';
 import { renderClasses } from './pages/classes.js';
 import { renderUsers } from './pages/users.js';
+import { renderHome } from './pages/home.js';
+import { createClassPicker } from './class-picker.js';
 
 const app = document.getElementById('app');
 const state = { user: null, classes: [] };
@@ -36,10 +38,14 @@ function applyTheme(theme) {
 
 function buildShell() {
   const admin = state.user.role === 'admin';
-  const select = h('select', {
-    id: 'class-select', 'aria-label': 'Chọn lớp',
-    onchange: (e) => { location.hash = `#/c/${e.target.value}/${shell.active && TABS.some((t) => t[0] === shell.active) ? shell.active : 'dashboard'}`; },
+  // Bộ chọn lớp có tìm kiếm + lọc (thay cho dropdown liệt kê toàn bộ lớp)
+  const picker = createClassPicker({
+    getClasses: () => state.classes,
+    getCurrentId: () => store.get('classId'),
+    storage: store,
+    onSelect: (c) => { location.hash = `#/c/${c.id}/${shell.active && TABS.some((t) => t[0] === shell.active) ? shell.active : 'dashboard'}`; },
   });
+  const homeLink = h('a', { class: 'nav-link', 'data-key': 'home', href: '#/' }, icon('home'), h('span', {}, 'Trang chủ'));
   const navLinks = TABS.map(([key, label]) => h('a', { class: 'nav-link', 'data-key': key }, icon(key), h('span', {}, label)));
   const adminLinks = admin ? [
     h('a', { class: 'nav-link', 'data-key': 'classes', href: '#/classes', title: 'Quản lý lớp học' }, icon('classes'), h('span', {}, 'Lớp học')),
@@ -57,9 +63,9 @@ function buildShell() {
     h('header', { class: 'topbar' },
       h('a', { class: 'brand', href: '#/' }, logo(36), h('div', { class: 'brand-text' },
         h('span', { class: 'brand-name' }, BRAND.name), h('span', { class: 'brand-tag' }, BRAND.tagline))),
-      h('nav', { class: 'top-nav', 'aria-label': 'Điều hướng lớp' }, navLinks),
+      h('nav', { class: 'top-nav', 'aria-label': 'Điều hướng' }, homeLink, navLinks),
       h('div', { class: 'top-right' },
-        select,
+        picker.el,
         h('nav', { class: 'admin-links', 'aria-label': 'Quản trị' }, adminLinks),
         themeBtn,
         h('div', { class: 'chip-user', title: admin ? 'Quản trị viên' : 'Giảng viên' },
@@ -68,25 +74,19 @@ function buildShell() {
           h('button', { class: 'icon-btn', title: 'Đăng xuất', 'aria-label': 'Đăng xuất',
             onclick: async () => { await post('/api/auth/logout'); state.user = null; shell = null; route(); } }, icon('logout'))))),
     h('main', { class: 'content' }, view));
-  shell = { root, view, select, navLinks, adminLinks, progress, active: null, classKey: null };
+  shell = { root, view, picker, homeLink, navLinks, adminLinks, progress, active: null };
 }
 
 // Cập nhật thanh điều hướng/chọn lớp mà không dựng lại.
 function updateShell(active, classId) {
   shell.active = active;
+  shell.homeLink.classList.toggle('active', active === 'home');
   for (const a of shell.navLinks) {
-    a.href = `#/c/${classId}/${a.dataset.key}`;
+    a.href = classId ? `#/c/${classId}/${a.dataset.key}` : '#/';
     a.classList.toggle('active', a.dataset.key === active);
   }
   for (const a of shell.adminLinks) a.classList.toggle('active', a.dataset.key === active);
-  const key = state.classes.map((c) => c.id).join(',');
-  if (shell.classKey !== key) { // danh sách lớp đổi → dựng lại tùy chọn
-    shell.select.replaceChildren(...(state.classes.length
-      ? state.classes.map((c) => h('option', { value: c.id }, c.code))
-      : [h('option', {}, '(chưa có lớp)')]));
-    shell.classKey = key;
-  }
-  shell.select.value = classId ?? '';
+  shell.picker.update();
 }
 
 // ---------- Chuyển trang mượt: mờ dần nội dung cũ → tải → hiện nội dung mới ----------
@@ -145,7 +145,10 @@ async function route() {
   }
 
   let result;
-  if (parts[0] === 'classes' && admin) {
+  if (parts.length === 0 || parts[0] === 'home') {
+    updateShell('home', store.get('classId'));
+    result = await transitionTo(() => renderHome(ctx));
+  } else if (parts[0] === 'classes' && admin) {
     updateShell('classes', store.get('classId'));
     result = await transitionTo(() => renderClasses(ctx));
   } else if (parts[0] === 'users' && admin) {

@@ -45,7 +45,8 @@ Chỉ lưu **sự kiện đã ghi nhận**; tỉ lệ luôn được tính, khô
 |---|---|---|
 | `POST /auth/login` · `POST /auth/logout` · `GET /auth/me` · `POST /auth/password` | – / đăng nhập | Phiên cookie, giới hạn 8 lần sai/15 phút |
 | `GET/POST /users` · `PUT /users/:id/classes` · `PUT /users/:id/active` | admin | Quản lý người dùng, phân lớp, khóa tài khoản |
-| `GET /classes` · `POST /classes` | đăng nhập / admin | Danh sách lớp được phép; tạo lớp (+ buổi, HW, Capstone) |
+| `GET /classes` · `POST /classes` | đăng nhập / admin | Danh sách lớp được phép (kèm `timing` = running/upcoming/finished/unknown theo ngày, múi giờ VN; thiếu ngày kết thúc coi là 90 ngày); tạo lớp (+ buổi, HW, Capstone) |
+| `GET /overview` | đăng nhập | Cho trang Home: số lớp/học viên/chuyên cần của lớp **đang diễn ra** trong phạm vi quyền, danh sách lớp nổi bật và sắp khai giảng |
 | `GET/PUT /classes/:classId` | lớp / admin | Chi tiết, sửa lớp |
 | `GET /classes/:classId/dashboard` | lớp | KPI + số liệu biểu đồ + danh sách cần chú ý |
 | `GET /classes/:classId/sessions` · `PUT …/sessions/:sid` | lớp | Tên/ngày buổi |
@@ -79,6 +80,8 @@ Chỉ lưu **sự kiện đã ghi nhận**; tỉ lệ luôn được tính, khô
 - **Phong cách (theo ảnh tham khảo "Haven Realty"):** nền tối xanh navy + vầng sáng vàng/xanh, vàng champagne làm màu nhấn, thẻ kính mờ (`backdrop-filter`), nút vàng bo tròn, nhãn nhỏ viết hoa giãn chữ (`.eyebrow`), thẻ lối tắt có nút mũi tên tròn. Mặc định **tối**; nút mặt trời/mặt trăng đổi sang **sáng** (lưu `localStorage.theme`, gán `data-theme` trước khi CSS tải để không chớp).
 - **Màu:** chỉ dùng biến CSS ở `:root` / `:root[data-theme="light"]` trong `style.css`: `--gold*`, `--glass*`, `--solid*`, `--bg-glow-*`, 4 màu trạng thái cố định `--ok/--warn/--bad/--info`, `--cat-1..4` cho biểu đồ phân loại. Không viết mã màu trực tiếp trong JS/CSS ngoài hai khối đó. Biểu đồ đọc màu từ biến lúc vẽ → đổi giao diện thì `route()` được gọi lại để vẽ lại.
 - **Bố cục:** thanh điều hướng ngang (logo · Dashboard/Học viên/Điểm danh/Bài tập · chọn lớp · quản trị · đổi giao diện · người dùng). Dưới 900px thanh này chia thành các hàng, menu cuộn ngang.
+- **Chọn lớp (`class-picker.js` + `class-filter.mjs`):** thay dropdown liệt kê toàn bộ lớp. Nút hiện lớp hiện tại; bấm mở bảng có ô tìm (không phân biệt dấu/hoa thường, nhiều từ khóa là AND, tìm được cả ngày `dd/mm/yy`), chip lọc **thời gian** (Đang học / Sắp mở / Đã kết thúc / Tất cả — mặc định chỉ "Đang học" nếu có) và **chương trình** (BIE, BIH, EBA...), tối đa 60 dòng, điều khiển bàn phím (↑ ↓ Enter Esc). Bộ lọc được nhớ trong `localStorage`. Logic lọc thuần nằm ở `class-filter.mjs` (có test); trang **Lớp học** của admin dùng chung.
+- **Trang chủ (`pages/home.js`, route `#/`):** hero có minh họa SVG động (mặt trời, núi, cột số liệu mọc lên, đường xu hướng vẽ dần), chữ xoay, thị sai theo con trỏ, số liệu đếm lên, băng chuyền lớp đang học tự chạy (dừng khi rê chuột/tab ẩn), hàng lớp sắp khai giảng. Mọi chuyển động tắt khi `prefers-reduced-motion`.
 - **Chuyển trang mượt (`main.js`):** khung (`buildShell`) dựng **một lần**; mỗi lần đổi tab chỉ `transitionTo()` vùng `.view`: mờ dần nội dung cũ (140ms) → tải trang mới song song → hiện nội dung mới với hiệu ứng `rise` lần lượt từng khối. Thanh tiến trình vàng chỉ hiện nếu tải > 180ms. Có token chống chạy chồng khi bấm nhanh; tôn trọng `prefers-reduced-motion`. Danh sách lớp được cache, chỉ tải lại ở trang Lớp học/Người dùng.
 - Biểu tượng SVG dựng bằng DOM (`icon(name)` trong `ui.js`).
 - Chart.js phục vụ tại `/vendor/chart.umd.min.js` từ `public/vendor/` (Vercel không phục vụ `node_modules`; cập nhật bằng `npm run vendor`).

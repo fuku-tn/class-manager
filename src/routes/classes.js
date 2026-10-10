@@ -2,6 +2,7 @@ const express = require('express');
 const { requireAdmin, requireClassAccess } = require('../auth');
 const { buildDashboard } = require('../services/stats');
 const realtime = require('../services/realtime');
+const { TIMING_SQL } = require('../services/timing');
 
 const isDate = (v) => v == null || v === '' || /^\d{4}-\d{2}-\d{2}$/.test(v);
 
@@ -10,7 +11,7 @@ module.exports = (db) => {
   const access = requireClassAccess(db);
 
   router.get('/', async (req, res) => {
-    const base = 'select c.*, (select count(*)::int from enrollments e where e.class_id = c.id) as student_count from classes c';
+    const base = `select c.*, ${TIMING_SQL} as timing, (select count(*)::int from enrollments e where e.class_id = c.id) as student_count from classes c`;
     const rows = req.user.role === 'admin'
       ? await db.all(`${base} order by c.start_date desc nulls last, c.id desc`)
       : await db.all(`${base} join class_instructors ci on ci.class_id = c.id and ci.user_id = $1 order by c.start_date desc nulls last, c.id desc`, [req.user.id]);
