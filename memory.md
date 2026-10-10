@@ -27,6 +27,7 @@ Cập nhật file này mỗi khi chốt quyết định mới. Mục lỗi thờ
 | 10 | Một sheet có thể chứa nhiều lớp (tách theo `COURSE ID`); giá trị lạ như `O` ở ô buổi/bài (2 học viên P104 buổi 1) tính là vắng — khớp ATTENDANCE RATE = 0 trong Excel. Cột ATTENDANCE RATE của Excel chia cho **tổng số buổi (8)**, webapp chia cho **số buổi đã diễn ra** nên P104 hiện ~100% thay vì 13% | Cần xác nhận cách tính nào đúng |
 
 ## Việc còn dở / ý tưởng
+- [ ] Thêm nút "Đổi mật khẩu" trên giao diện để giảng viên tự đổi mật khẩu cấp ban đầu.
 - [ ] Thêm `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` vào Vercel (Production) để bật realtime, rồi Redeploy.
 - [ ] Deploy lên Vercel theo `Documents/deploy-vercel.md` (dùng Transaction pooler cổng 6543 cho `DATABASE_URL` trên Vercel); sau đó kiểm tra bản live.
 - [ ] Đặt lại mật khẩu database Supabase (đã lộ trong chat) và cập nhật `DATABASE_URL` trong `.env`.
@@ -56,5 +57,6 @@ Cập nhật file này mỗi khi chốt quyết định mới. Mục lỗi thờ
 | 2026-10-10 | Kết nối Claude ↔ Supabase: thêm MCP server `supabase` (project scope, `.mcp.json`, git-ignore) và cài skill chính thức `supabase`, `supabase-postgres-best-practices` vào `.claude/skills/` | MCP đang chờ phê duyệt + đăng nhập (chủ dự án làm ở terminal thường). URL hiện **chưa** có `read_only=true` |
 | 2026-10-10 | **Đồng bộ thời gian thực** điểm danh/bài tập: Supabase Realtime Broadcast (tín hiệu, không chứa dữ liệu) + tải lại ô thay đổi; chặn ghi đè bằng `expected`/409; cột `updated_by` (đã `alter table` trên Supabase) + tooltip người sửa; huy hiệu Trực tiếp | Đo bằng 2 trình duyệt trên dữ liệu thật: B thấy sau 0,8–1,1s; xung đột báo đúng. 24 test pass. **Cần đặt `SUPABASE_URL` + `SUPABASE_PUBLISHABLE_KEY` trên Vercel** thì bản live mới có realtime tức thì |
 | 2026-10-10 | Buổi 2–3 của P104 là dữ liệu thử của chủ dự án đã xóa → đặt `held=false` trên Supabase; code: xóa bản ghi cuối của một buổi/bài thì `held`/`collected` tự về false | P104 còn 1/8 buổi đã diễn ra; 25 test pass |
+| 2026-10-10 | Tạo 3 tài khoản giảng viên trên Supabase, phân cả 2 lớp (thông tin đăng nhập gửi riêng cho từng người, không ghi vào repo) | Chưa có giao diện tự đổi mật khẩu (API `POST /api/auth/password` đã có) |
 
 Chưa làm / chưa kiểm: thử tay thao tác ghi trên giao diện mới (bấm ô điểm danh, modal sửa) bằng chuột thật; Supabase Auth; upload Excel trên web; triển khai.
