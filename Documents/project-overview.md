@@ -8,7 +8,7 @@ Một webapp nội bộ để quản lý học viên theo lớp, điểm danh t�
 |---|---|
 | Truy cập | Đăng nhập; vai trò admin / giảng viên; phân lớp cho giảng viên |
 | Lớp | Danh sách lớp, tạo lớp (tự sinh buổi + HW + Capstone), chọn lớp nhanh |
-| Học viên | Danh sách + tìm kiếm + lọc trạng thái/hình thức; thêm, sửa, bảo lưu, xóa khỏi lớp; voucher; xuất CSV |
+| Học viên | Danh sách + tìm kiếm + lọc trạng thái/hình thức; thêm, sửa, bảo lưu, xóa khỏi lớp; xuất CSV |
 | Điểm danh | Ma trận học viên × buổi; bấm để đổi trạng thái; Shift+bấm để ghi chú; "Cả lớp ✓"; sửa tên/ngày buổi |
 | Bài tập | Ma trận học viên × HW/Capstone; trạng thái, cờ Challenge, ghi chú |
 | Dashboard | KPI (số học viên, điểm danh TB, HW TB, cần chú ý), biểu đồ điểm danh theo buổi, nộp bài theo HW, hình thức học, danh sách học viên cần chú ý |
@@ -26,7 +26,7 @@ Node.js ≥ 22.13 · Express · Supabase Postgres (`pg`) · HTML/CSS/JS thuần 
 ## Lộ trình
 1. ✅ Nền tảng: schema, auth, API, import, 4 màn hình lớp, test API.
 2. ⏳ Chủ dự án chạy thử, xác nhận giả định ([memory.md](../memory.md)), chỉnh quy tắc tính.
-3. Upload Excel trên web, trang chi tiết học viên, cảnh báo voucher hết hạn.
+3. Upload Excel trên web, trang chi tiết học viên.
 4. ✅ Chuyển Supabase (Postgres, RLS bật). Còn lại: Supabase Auth — xem [code-guide.md](code-guide.md#supabase-đã-chuyển--2026-10-09).
 5. Triển khai (VPS/Render/Railway), sao lưu tự động.
 

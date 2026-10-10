@@ -44,14 +44,14 @@ function mapCourseStatus(v) {
   return 'active';
 }
 
-// Giá trị ô điểm danh → { mark: 'present'|'excused'|'absent'|'unknown', multi }
+// Giá trị ô điểm danh → { mark: 'present'|'excused'|'absent'|'unknown' }
 function parseAttendanceCell(raw) {
   if (raw == null) return { mark: 'absent' };
   const s = String(raw).trim().toUpperCase();
   if (s === '') return { mark: 'absent' };
   if (s === 'X') return { mark: 'present' };
   if (s === 'O') return { mark: 'excused' };
-  if (/^X([\s\n]+X)+$/.test(s)) return { mark: 'present', multi: true }; // vd "X\nX": lỗi gõ, coi là có mặt
+  if (/^X([\s]+X)+$/.test(s)) return { mark: 'present' };            // vd "X\nX": gõ thừa dấu X, coi là một X
   return { mark: 'unknown' };                                           // chữ khác → vắng, kèm cảnh báo
 }
 const isX = (raw) => parseAttendanceCell(raw).mark === 'present';
@@ -138,7 +138,6 @@ async function importClass(t, { code, sheet, col, rows: allRows }, ctx) {
   for (const x of rows) for (const n of sessionNos) {
     const p = parseAttendanceCell(x.get(`SESSION ${n}`));
     if (p.mark === 'unknown') warn(`Dòng ${x.r}, SESSION ${n}: giá trị "${String(x.get(`SESSION ${n}`)).replace(/\n/g, '⏎')}" không phải X/O — tính là vắng`);
-    if (p.multi) warn(`Dòng ${x.r}, SESSION ${n}: nhiều dấu X trong một ô — tính là có mặt`);
   }
 
   // Buổi nào có ít nhất 1 dấu X hoặc O mới coi là đã diễn ra

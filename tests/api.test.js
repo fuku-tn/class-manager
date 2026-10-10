@@ -110,13 +110,12 @@ test('thêm học viên trùng trong lớp bị chặn; sửa & bảo lưu', asy
   const dup = await admin.post(`/api/classes/${classId}/students`, { student_code: 'S1', full_name: 'An' });
   assert.equal(dup.status, 409);
   const e = students[2];
-  const r = await admin.put(`/api/classes/${classId}/students/${e.id}`, { course_status: 'deferred', voucher: { amount: 500000, expiration_date: '2026-10-20' } });
+  const r = await admin.put(`/api/classes/${classId}/students/${e.id}`, { course_status: 'deferred' });
   assert.equal(r.status, 200);
   const row = (await admin.get(`/api/classes/${classId}/students`)).body.find((s) => s.id === e.id);
   assert.equal(row.course_status, 'deferred');
-  assert.equal(row.voucher_amount, 500000);
+  assert.equal('voucher_amount' in row, false); // không còn dữ liệu voucher/tiền
   assert.equal((await admin.put(`/api/classes/${classId}/students/${e.id}`, { course_status: 'lạ' })).status, 400);
-  assert.equal((await admin.put(`/api/classes/${classId}/students/${e.id}`, { voucher: { sent_date: '20/09/2026' } })).status, 400);
 });
 
 test('XSS: tên chứa HTML được lưu nguyên văn dưới dạng text', async () => {

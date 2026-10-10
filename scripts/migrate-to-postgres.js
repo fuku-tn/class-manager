@@ -20,7 +20,6 @@ const TABLES = [
   ['attendance', ['id', 'enrollment_id', 'session_id', 'status', 'note', 'updated_at'], []],
   ['assignments', ['id', 'class_id', 'kind', 'seq', 'title', 'due_date', 'collected'], ['collected']],
   ['submissions', ['id', 'enrollment_id', 'assignment_id', 'status', 'challenge', 'note', 'updated_at'], ['challenge']],
-  ['vouchers', ['enrollment_id', 'amount', 'sent_date', 'expiration_date', 'status'], []],
 ];
 const HAS_IDENTITY = new Set(['users', 'classes', 'students', 'enrollments', 'sessions', 'attendance', 'assignments', 'submissions']);
 

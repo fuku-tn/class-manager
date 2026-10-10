@@ -20,3 +20,8 @@ Mẫu mỗi mục: `### [ngày] Tiêu đề` → *Nội dung cũ* → *Lý do b�
 - React (Vite), Next.js: bỏ vì phức tạp hơn nhu cầu giai đoạn đầu; cân nhắc lại nếu giao diện lớn lên.
 - Đọc/ghi thẳng Excel: bỏ vì dễ hỏng dữ liệu khi nhiều người dùng và không chuyển Supabase được.
 - Nối Supabase ngay: hoãn vì chưa có project Supabase; thiết kế sẵn để chuyển sau.
+
+### [2026-10-10] Voucher (bảng `vouchers`, cột `VOUCHER GG MAPS`...)
+- **Nội dung cũ:** bảng `vouchers` (số tiền, ngày gửi, hạn, trạng thái) nhập từ file điểm danh đầu tiên (18 dòng); có ô nhập trong hộp thoại học viên và cột "Voucher" trong danh sách học viên.
+- **Lý do bỏ:** chủ dự án yêu cầu không lưu dữ liệu liên quan đến tiền và bảo bỏ hẳn voucher.
+- **Thay bằng:** không có. Bảng bị xóa vĩnh viễn trên Supabase (không sao lưu số tiền); bộ nhập không đọc các cột `VOUCHER*`/`EXPIRATION*`.

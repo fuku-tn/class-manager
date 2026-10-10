@@ -24,17 +24,14 @@ Cập nhật file này mỗi khi chốt quyết định mới. Mục lỗi thờ
 | 5 | Học viên "cần chú ý": điểm danh < 80% **hoặc** thiếu ≥ 2 HW (đổi bằng `ATTENDANCE_THRESHOLD`, `MISSING_HW_ALERT`) | Danh sách at-risk (mẫu đang ra 20/44 — có thể quá nhạy) |
 | 6 | Ghi chú "Vào trễ" ở ô có mặt → trạng thái `late` khi import | Import |
 | 7 | Chỉ học viên `active`/`completed` được tính trong Dashboard; `deferred`/`dropped` loại ra | Dashboard |
-| 8 | Cột `VOUCHER GG MAPS` là **số tiền** (500000); cột `SUBINDEX`, `CUSTOMER ID`, `FORM`, `CERTIFICATE STATUS` chưa rõ nghĩa → chỉ lưu, chưa dùng | Cần hỏi |
+| 8 | Các cột `SUBINDEX` (= số lần học, tự tính), `CUSTOMER ID`, `FORM`, `CERTIFICATE STATUS`: chỉ lưu. Cột `VOUCHER*` bị bỏ hẳn (2026-10-10) | — |
 | 9 | Chưa có ngày học của từng buổi (Excel không có) → để trống, nhập tay trong tab Điểm danh (nút ✎) | — |
 | 10 | Một sheet có thể chứa nhiều lớp (tách theo `COURSE ID`); giá trị lạ như `O` ở ô buổi/bài (2 học viên P104 buổi 1) tính là vắng — khớp ATTENDANCE RATE = 0 trong Excel. Cột ATTENDANCE RATE của Excel chia cho **tổng số buổi (8)**, webapp chia cho **số buổi đã diễn ra** nên P104 hiện ~100% thay vì 13% | Cần xác nhận cách tính nào đúng |
 
 ## Việc còn dở / ý tưởng
 
 - [ ] Thêm nút "Đổi mật khẩu" trên giao diện để giảng viên tự đổi mật khẩu cấp ban đầu.
-- [ ] Lớp **BIE104 (P104)**: buổi 2–3 đang `held` do người dùng nhập thử trực tiếp trên app, nên TB chuyên cần hiện ~26%. Excel chỉ có buổi 1. Hỏi chủ dự án: xóa dữ liệu thử buổi 2–3 và đặt lại chưa diễn ra?
-- [ ] Sheet **ẩn** chưa nhập: `Sheet1` (BIE067, BIE068…), `BIH-Pre` (BIH069), `BSM-Pre` (BSM071), `SQL` (SQL001–003), `BSM`. Các lớp đó chưa có điểm danh trong app. Hỏi chủ dự án có cần không.
 - [ ] Xác nhận lớp dùng mẫu BIE-12 theo sheet: BIE068, 075 (B075), 078, 081, 085, 090, 092, 102 (đã đổi theo tên sheet, thay quy tắc mặc định BIE-8).
-- [ ] **Tiền còn sót:** bảng `vouchers.amount` (từ file điểm danh ban đầu, cột `VOUCHER GG MAPS`) vẫn lưu số tiền. Chờ chủ dự án quyết định bỏ cột `amount` (và ẩn khỏi giao diện).
 - [ ] Chương trình chưa có giáo trình (EBA, SIA/SCA, PBM, DDM, SQL...): 86 lớp chưa có buổi học → chưa điểm danh được. Cần giáo trình hoặc số buổi mặc định (Form gợi ý EBA 6, SIA 8, PBM 10).
 - [ ] 122 lớp mới chưa phân cho 3 giảng viên (mới chỉ P101, P104); admin thấy tất cả. Cần quy tắc phân lớp.
 - [ ] Bài tập (HW/Capstone) chỉ có ở P101/P104; chưa có giao diện thêm bài tập cho lớp khác.
@@ -49,7 +46,6 @@ Cập nhật file này mỗi khi chốt quyết định mới. Mục lỗi thờ
 - [ ] **Chưa kiểm thử giao diện trên trình duyệt thật** — mới test API (15 test, Postgres) và kiểm tra cú pháp JS; API đã thử trực tiếp trên Supabase. Cần mở thử `npm start` và duyệt các tab.
 - [ ] Upload Excel trực tiếp trên web (hiện chỉ có CLI `npm run import`).
 - [ ] Thêm tab xem chi tiết 1 học viên (lịch sử điểm danh/HW qua các lớp).
-- [ ] Nhắc/xuất danh sách voucher sắp hết hạn.
 
 ## Nhật ký những gì đã làm
 
@@ -74,5 +70,6 @@ Cập nhật file này mỗi khi chốt quyết định mới. Mục lỗi thờ
 | 2026-10-10 | Chủ dự án chia sẻ flow đăng ký + `Transacitons.xlsx` (4 sheet) + `session-management.xlsx`; chốt: ca MM/AA/EE/MA = sáng/chiều/tối/cả ngày; không lưu trạng thái thanh toán; Company làm sau; lớp BI cũ theo mẫu của lớp mới | Xem Documents/context.md |
 | 2026-10-10 | Thêm `curricula`, `curriculum_items`, cột mở rộng cho `classes`/`students`/`enrollments` (migration chỉ thêm) và **nhập 124 lớp, 4 giáo trình, 1.892 học viên, 2.359 lượt ghi danh, 441 buổi** vào Supabase (`npm run import-tx`) | Đối soát: P101 vẫn 35,38,40,36,38,32,35,33; điểm danh/bài tập/voucher cũ không bị xóa; 30 test pass. Cột tiền không được đọc |
 | 2026-10-10 | Chủ dự án cập nhật `danh-sach-hoc-vien-mau.xlsx` thành workbook 16 sheet; chốt quy tắc ô **X = đi học, O = vắng có phép, trống = vắng**; viết lại bộ nhập điểm danh (nhiều sheet, bỏ sheet ẩn, bỏ cột voucher, không ghi đè ô sửa trên app) và nhập 54 lớp / 1.678 dòng học viên vào Supabase | Có mặt 12.394 (gồm 17 trễ), có phép 23, vắng 3.945; tạo thêm 202 buổi; +421 học viên (lớp `B…`/doanh nghiệp); vouchers 18 giữ nguyên; 33 test pass |
+| 2026-10-10 | Chủ dự án chốt: sheet ẩn (Sheet1, BIH-Pre, BSM-Pre, SQL, BSM) **bỏ qua**; ô `X` gõ hai lần = một `X`; **bỏ hẳn voucher** → xóa bảng `vouchers` (18 dòng), gỡ khỏi API/giao diện/schema/test; P104 đã được chủ dự án sửa trên giao diện (1/8 buổi, TB 86%) | Migration `2026-10-10-drop-vouchers.sql`; 33 test pass |
 
 Chưa làm / chưa kiểm: thử tay thao tác ghi trên giao diện mới (bấm ô điểm danh, modal sửa) bằng chuột thật; Supabase Auth; upload Excel trên web; triển khai.

@@ -20,7 +20,6 @@ users ─< class_instructors >─ classes ─< sessions
                                   └< enrollments >─ students
                                         ├< attendance  (enrollment × session)
                                         ├< submissions (enrollment × assignment)
-                                        └─ vouchers (1-1)
 ```
 | Bảng | Ghi chú |
 |---|---|
@@ -30,7 +29,6 @@ users ─< class_instructors >─ classes ─< sessions
 | `attendance` | `status` ∈ present/late/absent/excused + `note`; `UNIQUE(enrollment_id, session_id)` |
 | `assignments` | `kind` hw/capstone, `seq`, `collected` |
 | `submissions` | `status` ∈ submitted/resubmit/missing, `challenge`, `note` |
-| `vouchers` | Số tiền, ngày gửi, hạn, trạng thái |
 | `users`, `auth_sessions` | Tài khoản + phiên đăng nhập (băm SHA-256 của token) |
 | `curricula`, `curriculum_items` | Mẫu giáo trình (BIE-8…): mỗi dòng item = module/công cụ/giờ/nội dung của một buổi |
 | `classes` (mở rộng) | `short_code`, `program`, `delivery_mode`, `shift`, `end_date`, `next_short_code`, `curriculum_id` |

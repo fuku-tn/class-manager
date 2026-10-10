@@ -9,12 +9,9 @@ async function loadClassData(db, classId) {
     db.all('select * from sessions where class_id = $1 order by session_no', [classId]),
     db.all('select * from assignments where class_id = $1', [classId]),
     db.all(`
-      select e.*, s.student_code, s.full_name, s.email, s.phone,
-             v.amount as voucher_amount, v.sent_date as voucher_sent_date,
-             v.expiration_date as voucher_expiration_date, v.status as voucher_status
+      select e.*, s.student_code, s.full_name, s.email, s.phone
       from enrollments e
       join students s on s.id = e.student_id
-      left join vouchers v on v.enrollment_id = e.id
       where e.class_id = $1 order by lower(s.full_name), s.id`, [classId]),
     db.all(`select a.*, u.name as updated_by_name from attendance a join sessions s on s.id = a.session_id
       left join users u on u.id = a.updated_by where s.class_id = $1`, [classId]),

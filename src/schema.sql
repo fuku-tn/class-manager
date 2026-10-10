@@ -133,14 +133,6 @@ create table if not exists submissions (
   unique (enrollment_id, assignment_id)
 );
 
-create table if not exists vouchers (
-  enrollment_id   bigint primary key references enrollments(id) on delete cascade,
-  amount          integer,
-  sent_date       date,
-  expiration_date date,
-  status          text
-);
-
 create index if not exists idx_enrollments_class on enrollments(class_id);
 create index if not exists idx_attendance_session on attendance(session_id);
 create index if not exists idx_submissions_assignment on submissions(assignment_id);
@@ -161,4 +153,3 @@ alter table sessions          enable row level security;
 alter table attendance        enable row level security;
 alter table assignments       enable row level security;
 alter table submissions       enable row level security;
-alter table vouchers          enable row level security;

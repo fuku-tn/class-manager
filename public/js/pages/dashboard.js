@@ -95,7 +95,7 @@ export async function renderDashboard({ cls }) {
 
   root.append(h('div', { class: 'shortcuts' },
     shortcut(`#/c/${cls.id}/attendance`, 'attendance', 'Điểm danh', 'Ghi nhận chuyên cần từng buổi chỉ với một cú bấm.'),
-    shortcut(`#/c/${cls.id}/students`, 'students', 'Học viên', 'Danh sách, bảo lưu, voucher và xuất CSV.'),
+    shortcut(`#/c/${cls.id}/students`, 'students', 'Học viên', 'Danh sách, bảo lưu và xuất CSV.'),
     shortcut(`#/c/${cls.id}/homework`, 'homework', 'Bài tập', 'Theo dõi HW, Challenge và Capstone.')));
   return root;
 }

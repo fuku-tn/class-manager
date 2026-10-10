@@ -27,19 +27,6 @@ module.exports = (db) => {
     res.json(data.enrollments.map((e) => ({ ...e, ...stats.get(e.id) })));
   });
 
-  async function writeVoucher(t, enrollmentId, v) {
-    if (!v) return;
-    if (!isDate(v.sent_date) || !isDate(v.expiration_date)) throw httpError(400, 'Ngày voucher phải dạng yyyy-mm-dd');
-    if (!v.amount && !v.sent_date && !v.expiration_date && !v.status) {
-      await t.run('delete from vouchers where enrollment_id = $1', [enrollmentId]);
-      return;
-    }
-    await t.run(`insert into vouchers (enrollment_id, amount, sent_date, expiration_date, status) values ($1, $2, $3, $4, $5)
-      on conflict (enrollment_id) do update set amount = excluded.amount, sent_date = excluded.sent_date,
-      expiration_date = excluded.expiration_date, status = excluded.status`,
-    [enrollmentId, v.amount ? Number(v.amount) : null, str(v.sent_date), str(v.expiration_date), str(v.status)]);
-  }
-
   router.post('/students', async (req, res) => {
     const code = str(req.body.student_code);
     const fullName = str(req.body.full_name);
@@ -77,7 +64,6 @@ module.exports = (db) => {
           [str(b.full_name) || s.full_name, b.email === undefined ? s.email : str(b.email),
             b.phone === undefined ? s.phone : str(b.phone), s.id]);
       }
-      await writeVoucher(t, e.id, b.voucher);
     });
     res.json({ ok: true });
   });

@@ -15,7 +15,7 @@ description: Nhập hoặc đối soát điểm danh, bài tập, danh sách h�
 1. **Khảo sát file trước** (python `-I -X utf8`, bỏ cảnh báo openpyxl): liệt kê sheet (trạng thái hiện/ẩn), dòng tiêu đề, số lớp, **tập giá trị** của các ô SESSION/HOMEWORK. Ký hiệu lạ ngoài X/O/trống phải báo lại. Không in họ tên/email/SĐT hàng loạt.
 2. **Chạy thử:** `npm run import -- <file> --dry-run`. Đọc bảng theo lớp (có mặt/trễ/có phép/vắng/giữ từ app), danh sách cảnh báo, lớp mới, lớp đổi giáo trình.
 3. **Báo người dùng** các điểm bất thường (lớp tạo mới, cột bị bỏ vì vượt giáo trình, học viên trùng, học viên mới hàng loạt) rồi mới chạy thật: `npm run import -- <file>`.
-4. **Đối soát:** đếm X/O/trống của file với số trong bảng kết quả; với lớp có `O`, so tỉ lệ cũ (coi O là vắng) và mới. Số liệu cũ đã nhập không được mất (điểm danh, bài tập, voucher).
+4. **Đối soát:** đếm X/O/trống của file với số trong bảng kết quả; với lớp có `O`, so tỉ lệ cũ (coi O là vắng) và mới. Số liệu cũ đã nhập không được mất (điểm danh, bài tập).
 5. Cập nhật `memory.md`; commit khi người dùng yêu cầu.
 
 ## An toàn

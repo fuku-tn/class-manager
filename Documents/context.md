@@ -19,7 +19,6 @@ Chủ dự án (giảng viên/quản lý đào tạo) hiện lưu danh sách h�
 | Capstone | Dự án cuối khóa, tính riêng, không nằm trong tỉ lệ HW |
 | Challenge | Phần bài làm thêm tùy chọn trong HW (ghi nhận bằng cờ ★) |
 | Hình thức (mode) | Online / Offline / Hybrid |
-| Voucher GG Maps | Voucher tặng học viên (số tiền, ngày gửi, hạn, trạng thái) |
 
 ## Trạng thái
 - Điểm danh: `present` Có mặt · `late` Đi trễ · `absent` Vắng · `excused` Có phép

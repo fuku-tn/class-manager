@@ -84,7 +84,7 @@ test('quy tắc ô: X/x = đi học, O = vắng có phép, trống = vắng, ch�
   assert.equal(parseAttendanceCell(null).mark, 'absent');
   assert.equal(parseAttendanceCell('').mark, 'absent');
   assert.equal(parseAttendanceCell('Đã báo trước').mark, 'unknown');
-  assert.deepEqual(parseAttendanceCell('X\nX'), { mark: 'present', multi: true });
+  assert.deepEqual(parseAttendanceCell('X\nX'), { mark: 'present' }); // gõ thừa X = một X
 });
 
 test('nhập: sheet ẩn bị bỏ qua, ô đúng quy tắc, có phép không tính vào mẫu số', async () => {
@@ -103,7 +103,7 @@ test('nhập: sheet ẩn bị bỏ qua, ô đúng quy tắc, có phép không t�
   assert.deepEqual(m['P.3'], { 1: 'absent', 2: 'present', 3: 'present' }); // 'abc' ở buổi 4 chưa diễn ra
   assert.deepEqual(m['P.4'], { 1: 'present', 2: 'present', 3: 'present' }); // "X\nX" → có mặt
   assert.ok(r.warnings.some((w) => /abc/.test(w)));
-  assert.ok(r.warnings.some((w) => /nhiều dấu X/.test(w)));
+  assert.ok(!r.warnings.some((w) => /nhiều dấu X/.test(w))); // gõ hai chữ X trong một ô = một X, không cảnh báo
 
   // Buổi 4 không ai có X/O → chưa diễn ra, không bị tính là vắng của cả lớp
   const cls = await db.one("select id from classes where short_code = 'BIE070'");
@@ -119,7 +119,7 @@ test('nhập: sheet ẩn bị bỏ qua, ô đúng quy tắc, có phép không t�
   await db.close();
 });
 
-test('nhập: không đọc cột voucher/tiền; voucher có sẵn không bị đụng', async () => {
+test('nhập: không đọc cột voucher/tiền và database không có bảng voucher', async () => {
   const file = await makeWorkbook();
   const { db } = await setupDb();
   await importExcel(db, file);
@@ -127,12 +127,8 @@ test('nhập: không đọc cột voucher/tiền; voucher có sẵn không bị 
     const hit = await db.one(`select count(*)::int n from ${table} x where to_jsonb(x)::text like $1`, [`%${MONEY}%`]);
     assert.equal(hit.n, 0, `bảng ${table} chứa dữ liệu cột tiền`);
   }
-  assert.equal((await db.one('select count(*)::int n from vouchers')).n, 0); // không tạo voucher từ file
-  // voucher có sẵn giữ nguyên sau khi nhập lại
-  const e = await db.one("select e.id from enrollments e join students s on s.id = e.student_id where s.student_code = 'P.1'");
-  await db.run("insert into vouchers (enrollment_id, amount, status) values ($1, 111, 'Used')", [e.id]);
-  await importExcel(db, file);
-  assert.deepEqual(await db.one('select amount, status from vouchers'), { amount: 111, status: 'Used' });
+  const t = await db.one("select count(*)::int n from information_schema.tables where table_name = 'vouchers'");
+  assert.equal(t.n, 0);
   await db.close();
 });
 

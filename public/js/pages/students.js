@@ -30,10 +30,6 @@ export async function renderStudents({ cls, state }) {
       { name: 'mode', label: 'Hình thức', type: 'select', options: MODE_OPTIONS, value: r.mode ?? '' },
       { name: 'course_status', label: 'Trạng thái khóa học', type: 'select', options: STATUS_OPTIONS, value: r.course_status },
       { name: 'certificate_status', label: 'Chứng chỉ', value: r.certificate_status },
-      { name: 'voucher_amount', label: 'Voucher (VND)', type: 'number', value: r.voucher_amount },
-      { name: 'voucher_sent_date', label: 'Ngày gửi voucher', type: 'date', value: r.voucher_sent_date },
-      { name: 'voucher_expiration_date', label: 'Hạn voucher', type: 'date', value: r.voucher_expiration_date },
-      { name: 'voucher_status', label: 'Trạng thái voucher', value: r.voucher_status },
       { name: 'note', label: 'Ghi chú', type: 'textarea', value: r.note, full: true }],
     extra: state.user.role === 'admin' && h('button', { type: 'button', class: 'danger', onclick: async () => {
       if (!await confirmModal(`Xóa ${r.full_name} khỏi lớp ${cls.code}? Toàn bộ điểm danh và bài tập của bạn này trong lớp sẽ mất.`)) return;
@@ -45,7 +41,6 @@ export async function renderStudents({ cls, state }) {
       await put(`${base}/students/${r.id}`, {
         full_name: v.full_name, email: v.email, phone: v.phone, mode: v.mode, course_status: v.course_status,
         certificate_status: v.certificate_status, note: v.note,
-        voucher: { amount: v.voucher_amount, sent_date: v.voucher_sent_date, expiration_date: v.voucher_expiration_date, status: v.voucher_status },
       });
       await reload(); toast('Đã lưu');
     } catch (e) { toast(e.message, true); }
@@ -69,9 +64,8 @@ export async function renderStudents({ cls, state }) {
       h('td', {}, r.student_code), h('td', {}, r.full_name), h('td', {}, r.email || '—'), h('td', {}, r.phone || '—'),
       h('td', {}, r.mode || '—'),
       h('td', {}, h('span', { class: `badge ${COURSE_STATUS_BADGE[r.course_status] || ''}` }, COURSE_STATUS_LABEL[r.course_status])),
-      h('td', { class: 'num' }, pct(r.attendance_rate)), h('td', { class: 'num' }, pct(r.hw_rate)),
-      h('td', {}, r.voucher_amount ? `${r.voucher_amount.toLocaleString('vi-VN')}đ${r.voucher_expiration_date ? ` · hạn ${r.voucher_expiration_date}` : ''}` : '—'))));
-    if (!list.length) body.append(h('tr', {}, h('td', { colspan: 9, class: 'empty-state' }, rows.length ? 'Không có học viên khớp bộ lọc.' : 'Chưa có học viên. Bấm "Thêm học viên".')));
+      h('td', { class: 'num' }, pct(r.attendance_rate)), h('td', { class: 'num' }, pct(r.hw_rate)))));
+    if (!list.length) body.append(h('tr', {}, h('td', { colspan: 8, class: 'empty-state' }, rows.length ? 'Không có học viên khớp bộ lọc.' : 'Chưa có học viên. Bấm "Thêm học viên".')));
   }
 
   [search, status, mode].forEach((el) => el.addEventListener('input', paint));
@@ -84,6 +78,6 @@ export async function renderStudents({ cls, state }) {
       h('button', { class: 'primary', onclick: add }, '+ Thêm học viên')),
     h('div', { class: 'toolbar' }, search, status, mode, count),
     h('div', { class: 'table-wrap' }, h('table', {},
-      h('thead', {}, h('tr', {}, ['Mã', 'Họ tên', 'Email', 'SĐT', 'Hình thức', 'Trạng thái', 'Điểm danh', 'HW', 'Voucher'].map((x) => h('th', {}, x)))),
+      h('thead', {}, h('tr', {}, ['Mã', 'Họ tên', 'Email', 'SĐT', 'Hình thức', 'Trạng thái', 'Điểm danh', 'HW'].map((x) => h('th', {}, x)))),
       body)));
 }
