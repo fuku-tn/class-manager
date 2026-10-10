@@ -7,6 +7,7 @@ import { renderAttendance } from './pages/attendance.js';
 import { renderHomework } from './pages/homework.js';
 import { renderClasses } from './pages/classes.js';
 import { renderUsers } from './pages/users.js';
+import { renderImport } from './pages/import.js';
 import { renderHome } from './pages/home.js';
 import { createClassPicker } from './class-picker.js';
 
@@ -50,6 +51,7 @@ function buildShell() {
   const adminLinks = admin ? [
     h('a', { class: 'nav-link', 'data-key': 'classes', href: '#/classes', title: 'Quản lý lớp học' }, icon('classes'), h('span', {}, 'Lớp học')),
     h('a', { class: 'nav-link', 'data-key': 'users', href: '#/users', title: 'Quản lý người dùng' }, icon('users'), h('span', {}, 'Người dùng')),
+    h('a', { class: 'nav-link', 'data-key': 'import', href: '#/import', title: 'Nhập dữ liệu từ Excel' }, icon('import'), h('span', {}, 'Nhập Excel')),
   ] : [];
   const themeBtn = h('button', { class: 'icon-btn', title: 'Đổi giao diện sáng/tối', 'aria-label': 'Đổi giao diện sáng/tối' });
   const paintTheme = () => themeBtn.replaceChildren(icon(document.documentElement.dataset.theme === 'light' ? 'moon' : 'sun'));
@@ -151,6 +153,9 @@ async function route() {
   } else if (parts[0] === 'classes' && admin) {
     updateShell('classes', store.get('classId'));
     result = await transitionTo(() => renderClasses(ctx));
+  } else if (parts[0] === 'import' && admin) {
+    updateShell('import', store.get('classId'));
+    result = await transitionTo(() => renderImport(ctx));
   } else if (parts[0] === 'users' && admin) {
     updateShell('users', store.get('classId'));
     result = await transitionTo(() => renderUsers(ctx));

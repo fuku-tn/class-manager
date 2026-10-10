@@ -126,6 +126,7 @@ const ICONS = {
   classes: [['path', { d: 'm12 2 10 5-10 5L2 7z' }], ['path', { d: 'm2 17 10 5 10-5M2 12l10 5 10-5' }]],
   users: [['path', { d: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' }]],
   arrow: [['path', { d: 'M5 12h14M12 5l7 7-7 7' }]],
+  import: [['path', { d: 'M12 3v12M7 10l5 5 5-5' }], ['path', { d: 'M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2' }]],
   home: [['path', { d: 'm3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z' }]],
   chevron: [['path', { d: 'm6 9 6 6 6-6' }]],
   search: [['circle', { cx: 11, cy: 11, r: 7 }], ['path', { d: 'm21 21-4.3-4.3' }]],

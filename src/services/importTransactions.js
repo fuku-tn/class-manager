@@ -179,19 +179,41 @@ function parseTransactions(ws, classByShort) {
 }
 
 async function loadWorkbook(file) {
-  if (!fs.existsSync(file)) throw new Error(`Không thấy file: ${file}`);
   const wb = new ExcelJS.Workbook();
+  if (Buffer.isBuffer(file)) { await wb.xlsx.load(file); return wb; } // file tải lên từ web
+  if (!fs.existsSync(file)) throw new Error(`Không thấy file: ${file}`);
   await wb.xlsx.readFile(file);
   return wb;
 }
 
+// Không kèm file giáo trình: dùng giáo trình đã có trong database (đã nhập trước đó).
+async function curriculaFromDb(db) {
+  const cur = await db.all('select id, code, program, name, session_count, total_hours from curricula');
+  const items = await db.all('select curriculum_id, session_no, module from curriculum_items order by curriculum_id, session_no, seq');
+  return cur.map((c) => {
+    const mine = items.filter((i) => i.curriculum_id === c.id);
+    const sessions = [...new Set(mine.map((i) => i.session_no))].sort((a, b) => a - b);
+    return {
+      ...c, items: [], fromDb: true,
+      titles: Object.fromEntries(sessions.map((n) => {
+        const mods = [];
+        for (const i of mine) if (i.session_no === n && i.module && !mods.includes(i.module)) mods.push(i.module);
+        return [n, `Buổi ${n}${mods.length ? ` — ${mods.join(' + ')}` : ''}`];
+      })),
+    };
+  });
+}
+
 // opts: { transactionsFile, curriculumFile, dryRun }
+// Mã các lớp có ghi danh trong file (để báo realtime cho trình duyệt đang mở lớp đó).
+const en0 = (enrolls, classId) => enrolls.map((e) => classId.get(e.short_code)).filter(Boolean);
+
 async function importTransactions(db, { transactionsFile, curriculumFile, dryRun = false }) {
   const tw = await loadWorkbook(transactionsFile);
   const courseWs = tw.getWorksheet('Course');
   const txWs = tw.getWorksheet('Transactions');
   if (!courseWs || !txWs) throw new Error('Transactions.xlsx cần có sheet "Course" và "Transactions"');
-  const curricula = curriculumFile ? parseCurricula(await loadWorkbook(curriculumFile)) : [];
+  const curricula = curriculumFile ? parseCurricula(await loadWorkbook(curriculumFile)) : await curriculaFromDb(db);
   const classes = parseCourse(courseWs);
   const classByShort = new Map(classes.map((c) => [c.short_code, c]));
   const parsed = parseTransactions(txWs, classByShort);
@@ -200,7 +222,7 @@ async function importTransactions(db, { transactionsFile, curriculumFile, dryRun
   if (missingTemplates.length) throw new Error(`Thiếu giáo trình cho mẫu: ${missingTemplates.join(', ')}`);
 
   const summary = {
-    curricula: curricula.length, classes: classes.length, students: parsed.students.length, enrollments: parsed.enrolls.length,
+    curricula: curricula.length, curricula_from_db: !curriculumFile, classes: classes.length, students: parsed.students.length, enrollments: parsed.enrolls.length,
     transactions_rows: parsed.total_rows, skipped_no_course: parsed.skipped.no_course,
     skipped_unknown_course: Object.fromEntries(parsed.skipped.unknown_course),
     classes_with_default_template: classes.filter((c) => c.template && !c.template_known).length,
@@ -223,6 +245,7 @@ async function importTransactions(db, { transactionsFile, curriculumFile, dryRun
 
       // 1) Giáo trình
       for (const c of curricula) {
+        if (c.fromDb) continue; // giáo trình có sẵn trong database: không ghi lại
         const row = await t.one(
           `insert into curricula (code, program, name, session_count, total_hours) values ($1, $2, $3, $4, $5)
            on conflict (code) do update set program = excluded.program, name = excluded.name,
@@ -254,6 +277,7 @@ async function importTransactions(db, { transactionsFile, curriculumFile, dryRun
           classes.map((c) => c.delivery_mode), classes.map((c) => c.shift), classes.map((c) => c.start_date), classes.map((c) => c.end_date),
           classes.map((c) => c.next_short_code), classes.map((c) => c.template)]);
       const classId = new Map(classRows.map((r) => [r.short_code, r.id]));
+      summary.class_ids = [...new Set(en0(parsed.enrolls, classId))];
 
       // 3) Buổi học theo giáo trình (không ghi đè tên buổi do người dùng tự đặt)
       const ses = { c: [], n: [], title: [] };

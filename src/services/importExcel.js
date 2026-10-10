@@ -102,6 +102,7 @@ async function importClass(t, { code, sheet, col, rows: allRows }, ctx) {
     if (!x.get('FULL NAME')) { warn(`Dòng ${x.r}: thiếu họ tên, bỏ qua`); continue; }
     rows.push(x);
   }
+  rows.sort((a, b) => (a.sid < b.sid ? -1 : a.sid > b.sid ? 1 : 0)); // thứ tự khóa cố định giữa các lớp chạy song song
 
   // Lớp (đã có từ sheet Course) và số buổi theo giáo trình
   const findClass = (field, value) => t.one(
@@ -146,6 +147,7 @@ async function importClass(t, { code, sheet, col, rows: allRows }, ctx) {
   summary.sessions_held = heldNos.length;
 
   // Buổi học: đủ 1..maxSessions, không đổi tên buổi đã có
+  summary.class_id = cls.id;
   const before = (await t.one('select count(*)::int n from sessions where class_id = $1', [cls.id])).n;
   await t.run(`insert into sessions (class_id, session_no, title)
                select $1::bigint, n, 'Buổi ' || n from generate_series(1, $2::int) n on conflict (class_id, session_no) do nothing`, [cls.id, maxSessions]);
@@ -165,16 +167,18 @@ async function importClass(t, { code, sheet, col, rows: allRows }, ctx) {
   const hwNos = Object.keys(col).map((k) => /^HOMEWORK (\d+)$/.exec(k)?.[1]).filter(Boolean).map(Number).sort((a, b) => a - b);
   const hasCapstone = !!col['CAPSTONE PROJECT'];
   const assignmentId = {};
-  const ensureAssignment = async (kind, seq, title, markName) => {
-    const collected = rows.some((x) => isX(x.get(markName)));
-    const a = await t.one(
-      `insert into assignments (class_id, kind, seq, title, collected) values ($1, $2, $3, $4, $5)
-       on conflict (class_id, kind, seq) do update set collected = assignments.collected or excluded.collected returning id`,
-      [cls.id, kind, seq, title, collected]);
-    return a.id;
-  };
-  for (const n of hwNos) assignmentId[`HOMEWORK ${n}`] = await ensureAssignment('hw', n, `HW ${n}`, `HOMEWORK ${n}`);
-  if (hasCapstone) assignmentId['CAPSTONE PROJECT'] = await ensureAssignment('capstone', 1, 'Capstone Project', 'CAPSTONE PROJECT');
+  const asg = hwNos.map((n) => ({ key: `HOMEWORK ${n}`, kind: 'hw', seq: n, title: `HW ${n}` }));
+  if (hasCapstone) asg.push({ key: 'CAPSTONE PROJECT', kind: 'capstone', seq: 1, title: 'Capstone Project' });
+  if (asg.length) {
+    const got = await t.all(
+      `insert into assignments (class_id, kind, seq, title, collected)
+       select $1::bigint, * from unnest($2::text[], $3::int[], $4::text[], $5::boolean[])
+       on conflict (class_id, kind, seq) do update set collected = assignments.collected or excluded.collected
+       returning id, kind, seq`,
+      [cls.id, asg.map((a) => a.kind), asg.map((a) => a.seq), asg.map((a) => a.title), asg.map((a) => rows.some((x) => isX(x.get(a.key))))]);
+    const idOf = new Map(got.map((g) => [`${g.kind}:${g.seq}`, g.id]));
+    for (const a of asg) assignmentId[a.key] = idOf.get(`${a.kind}:${a.seq}`);
+  }
 
   // Học viên (không ghi đè dữ liệu có sẵn bằng ô trống)
   const existing = new Set((await t.all('select student_code from students where student_code = any($1::text[])', [rows.map((x) => x.sid)])).map((r) => r.student_code));
@@ -264,9 +268,11 @@ async function importClass(t, { code, sheet, col, rows: allRows }, ctx) {
 }
 
 // opts: { dryRun, sheets: ['BIE-8', ...] } — mặc định: mọi sheet đang HIỆN có cột SESSION (bỏ sheet ẩn = bản cũ)
+const CONCURRENCY = 3; // bằng số kết nối tối thiểu của pool (Vercel: 3)
+
 async function importExcel(db, filePath, { dryRun = false, sheets = null } = {}) {
   const wb = new ExcelJS.Workbook();
-  await wb.xlsx.readFile(filePath);
+  if (Buffer.isBuffer(filePath)) await wb.xlsx.load(filePath); else await wb.xlsx.readFile(filePath); // Buffer: file tải lên từ web
   const warnings = [];
   const skippedSheets = [];
   const groups = new Map(); // mã lớp -> { code, sheet, col, rows }
@@ -289,16 +295,31 @@ async function importExcel(db, filePath, { dryRun = false, sheets = null } = {})
   }
   if (!groups.size) throw new Error('Không tìm thấy sheet điểm danh nào (cần cột STUDENT ID, COURSE ID, FULL NAME, SESSION n)');
 
+  // Mỗi lớp một transaction riêng, chạy song song (mỗi vòng tới database mất ~50-100ms nên tuần tự rất chậm).
+  // Chạy thử: mỗi transaction đều bị hoàn tác. Nhập thật: lớp nào xong là được ghi; lỗi giữa chừng thì nhập lại là an toàn.
   const ROLLBACK = Symbol('dry-run');
-  const classes = [];
-  try {
-    await db.tx(async (t) => {
-      for (const g of groups.values()) classes.push(await importClass(t, g, { warnings }));
-      if (dryRun) throw ROLLBACK;
-    });
-  } catch (e) {
-    if (e !== ROLLBACK) throw e;
+  const list = [...groups.values()];
+  const classes = new Array(list.length);
+  let next = 0;
+  let failed = false;
+  async function worker() {
+    while (!failed) {
+      const i = next++;
+      if (i >= list.length) return;
+      try {
+        classes[i] = await db.tx(async (t) => {
+          const summary = await importClass(t, list[i], { warnings });
+          if (dryRun) throw Object.assign(new Error('dry-run'), { [ROLLBACK]: summary });
+          return summary;
+        });
+      } catch (e) {
+        if (e[ROLLBACK]) { classes[i] = e[ROLLBACK]; continue; }
+        failed = true;
+        throw Object.assign(e, { message: `Lớp ${list[i].code}: ${e.message}` });
+      }
+    }
   }
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, list.length) }, worker));
   return { classes, warnings, skipped_sheets: skippedSheets, skipped_rows: skippedRows, dry_run: dryRun };
 }
 

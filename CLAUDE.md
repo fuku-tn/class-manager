@@ -23,13 +23,14 @@ npm run create-admin -- email "Họ tên" matkhau   # tạo/đặt lại admin
 npm run create-guest -- email "Họ tên" matkhau   # tạo/đặt lại tài khoản KHÁCH (chỉ xem)
 npm run import -- danh-sach-hoc-vien-mau.xlsx [--dry-run]   # điểm danh + bài tập từ workbook nhiều sheet (chỉ sheet đang HIỆN); X=đi học, O=vắng có phép, trống=vắng
 npm run import-tx -- Transacitons.xlsx session-management.xlsx [--dry-run]   # lớp, giáo trình, học viên, ghi danh (KHÔNG đọc cột tiền)
+# Hoặc nhập qua web: đăng nhập admin → mục "Nhập Excel" (#/import): Chạy thử → Nhập thật; xong thì màn hình đang mở tự cập nhật
 npm start        # http://localhost:3000   (PORT=3100 npm start nếu cổng bận; npm run dev: tự reload)
 npm test         # node:test, Postgres trong bộ nhớ (PGlite) — KHÔNG đụng Supabase
 ```
 Cần Node >= 22.13. Dữ liệu thật nằm trên **Supabase (Postgres)**.
 
 ## Cấu trúc
-- `src/` backend: `create-app.js` (Express), `dev-server.js` (chạy máy nhà), `index.js` (điểm vào Vercel — **đừng thêm file tên app/index/server khác trong `src/`**), `routes/` (auth, users, classes, classData), `services/` (stats, importExcel), `schema.sql` (Postgres), `db.js` (pg Pool / PGlite), `auth.js`
+- `src/` backend: `create-app.js` (Express), `dev-server.js` (chạy máy nhà), `index.js` (điểm vào Vercel — **đừng thêm file tên app/index/server khác trong `src/`**), `routes/` (auth, users, classes, classData, overview, import), `services/` (stats, importExcel), `schema.sql` (Postgres), `db.js` (pg Pool / PGlite), `auth.js`
 - `public/` frontend ES modules thuần: `js/main.js` (router hash), `js/pages/*` (có `home.js` + `home-lake.js`), `js/lake-sim.mjs` (mô phỏng sóng hồ, thuần số học), `js/class-picker.js` + `js/class-filter.mjs` (chọn/lọc lớp), `js/ui.js` (helper DOM), `css/style.css`
 - `scripts/` CLI · `supabase/schema.sql` (bản dán vào SQL Editor, giữ giống `src/schema.sql`) · `legacy/` (SQLite cũ, chỉ để tham khảo) · `tests/` · `Documents/` · `.claude/skills/`
 
@@ -43,9 +44,10 @@ Cần Node >= 22.13. Dữ liệu thật nằm trên **Supabase (Postgres)**.
 7. **Header bảo mật/CSP** khai báo ở `src/security-headers.js` **và** `vercel.json` (file tĩnh không đi qua Express); test kiểm hai nơi khớp. Không thêm script inline hay `onclick=` vào HTML (CSP `script-src 'self'`); nguồn ngoài mới (CDN, API) phải được thêm vào CSP.
 8. Vercel **bỏ qua `express.static()`**: file tĩnh phải nằm trong `public/` (kể cả thư viện — Chart.js ở `public/vendor/`, cập nhật bằng `npm run vendor`).
 9. **KHÔNG lấy, lưu, hiển thị bất kỳ dữ liệu liên quan đến tiền** (giá, số tiền đã đóng, giảm giá, trạng thái thanh toán...) — yêu cầu của chủ dự án. Bộ nhập chỉ đọc cột trong danh sách cho phép (`ALLOWED_*`), không "đọc hết rồi bỏ". Cột `STATUS` của Transactions trộn thanh toán với trạng thái học: chỉ lấy "Không tham gia" và "Bảo lưu khóa trước". Bộ nhập điểm danh **không đọc cột voucher** (`VOUCHER*`, `EXPIRATION*`). Bảng `vouchers` đã bị xóa (2026-10-10); đừng thêm lại.
-10. **Ghi một ô điểm danh/bài tập** phải đi qua route có `expected` + `updated_by` và gọi `realtime.publish` sau khi ghi thành công; frontend cập nhật ô tại chỗ (không dựng lại bảng). Đừng bỏ cơ chế này khi thêm loại ô mới.
-11. Không commit `.env`, `node_modules/`, `legacy/*.db`, file `.xlsx/.csv` (dữ liệu học viên thật). Không đưa dữ liệu học viên thật vào repo/test ngoài file mẫu.
-12. Xong một thay đổi: chạy `npm test`; cập nhật [memory.md](memory.md) nếu có quyết định/giả định mới; nội dung lỗi thời chuyển sang [Archive.md](Archive.md).
+10. **Nhập Excel qua web** (`routes/import.js`, admin): file chỉ ở bộ nhớ, ≤4MB (giới hạn Vercel), importer dùng `exceljs` (nằm ở `dependencies`, nạp lười khi dùng) và vẫn chỉ đọc cột trong danh sách cho phép; sau khi nhập thật phải `realtime.publishMany`. Mỗi lớp một transaction chạy song song (≤3) nên **sắp học viên theo mã trước khi upsert** (tránh deadlock).
+11. **Ghi một ô điểm danh/bài tập** phải đi qua route có `expected` + `updated_by` và gọi `realtime.publish` sau khi ghi thành công; frontend cập nhật ô tại chỗ (không dựng lại bảng). Đừng bỏ cơ chế này khi thêm loại ô mới.
+12. Không commit `.env`, `node_modules/`, `legacy/*.db`, file `.xlsx/.csv` (dữ liệu học viên thật). Không đưa dữ liệu học viên thật vào repo/test ngoài file mẫu.
+13. Xong một thay đổi: chạy `npm test`; cập nhật [memory.md](memory.md) nếu có quyết định/giả định mới; nội dung lỗi thời chuyển sang [Archive.md](Archive.md).
 
 ## Skill của project (`.claude/skills/`)
 - `student-webapp-dev` — thêm/sửa tính năng đúng kiến trúc của project

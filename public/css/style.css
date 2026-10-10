@@ -229,6 +229,11 @@ th .small { text-transform: none; letter-spacing: 0; font-weight: 500; color: va
 .toast { background: var(--solid-2); color: var(--text); border: 1px solid color-mix(in srgb, var(--gold) 40%, var(--border)); padding: .75rem 1.15rem; border-radius: 14px; box-shadow: var(--shadow-lg); font-weight: 500; animation: rise .3s ease both; }
 .toast.bad { border-color: var(--bad); color: var(--bad); }
 .empty-state { text-align: center; padding: 3rem 1rem; color: var(--muted); }
+.kv-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: .6rem; margin: .8rem 0; }
+.kv { display: grid; gap: .1rem; padding: .55rem .75rem; border: 1px solid var(--border); border-radius: 12px; }
+.kv b { font-size: 1.15rem; }
+.import-out { margin-top: .6rem; }
+.import-out details { margin: .6rem 0; }
 
 /* ---------- Đăng nhập ---------- */
 .auth { min-height: 100vh; display: grid; grid-template-columns: minmax(340px, 1.1fr) 1fr; }

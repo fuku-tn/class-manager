@@ -40,4 +40,24 @@ async function publish(classId, payload) {
   }
 }
 
-module.exports = { publish, clientConfig, channelFor, enabled };
+// Gửi nhiều tin trong ít yêu cầu (sau khi nhập Excel cho nhiều lớp). items: [{ classId, payload }]. Không ném lỗi.
+async function publishMany(items) {
+  if (!enabled() || !items.length) return false;
+  let ok = true;
+  for (let i = 0; i < items.length; i += 100) {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 4000);
+    try {
+      const res = await fetch(`${supabaseUrl()}/realtime/v1/api/broadcast`, {
+        method: 'POST',
+        headers: { apikey: publicKey(), Authorization: `Bearer ${publicKey()}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: items.slice(i, i + 100).map((x) => ({ topic: channelFor(x.classId), event: 'changed', payload: x.payload, private: false })) }),
+        signal: ctl.signal,
+      });
+      ok = ok && res.ok;
+    } catch { ok = false; } finally { clearTimeout(timer); }
+  }
+  return ok;
+}
+
+module.exports = { publish, publishMany, clientConfig, channelFor, enabled };

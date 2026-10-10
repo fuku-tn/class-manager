@@ -39,6 +39,9 @@ Từ bản này, màn hình đăng nhập tự báo lý do nếu là lỗi datab
 | `chưa tạo bảng` | Chưa chạy `supabase/schema.sql` | Chạy trong SQL Editor |
 Sau khi sửa biến môi trường **phải Redeploy** thì mới có hiệu lực. Endpoint này chỉ trả về loại lỗi, không lộ chuỗi kết nối. Code cũng tự bỏ qua dấu nháy/khoảng trắng dán thừa và tham số `?pgbouncer=true`.
 
+## Nhập Excel trên web
+Mục "Nhập Excel" (admin) tải file lên hàm serverless: thân yêu cầu tối đa ~4,5MB trên Vercel (file điểm danh hiện ~1,3MB). File lớn hơn → dùng `npm run import` trên máy. Lượt nhập điểm danh mất ~20 giây cho 54 lớp; nếu gặp timeout, kiểm tra thời gian chạy tối đa của hàm (Settings → Functions → Max Duration) hoặc dùng lệnh trên máy. `exceljs` đã chuyển sang `dependencies` để có mặt khi chạy.
+
 ## Header bảo mật (CSP)
 `vercel.json` có khối `headers` áp cho mọi đường dẫn (file tĩnh do CDN phục vụ không đi qua Express). Nội dung giống `src/security-headers.js` — test kiểm hai nơi khớp. Nếu sau này thêm dịch vụ ngoài (analytics, font mới, API khác) mà trang bị chặn, mở Console của trình duyệt xem dòng "violates the following Content Security Policy" rồi thêm nguồn vào **cả hai** nơi.
 Khi nghi CSP gây lỗi: có thể tạm thời xóa khối `headers` trong `vercel.json` và triển khai lại để so sánh.

@@ -22,7 +22,15 @@ async function startTestApp() {
       try { json = await res.json(); } catch { /* không có body */ }
       return { status: res.status, body: json };
     };
+    // Gửi nội dung file thô (octet-stream), dùng cho /api/import.
+    const upload = async (url, buf) => {
+      const res = await fetch(base + url, { method: 'POST', headers: { 'Content-Type': 'application/octet-stream', ...(cookie ? { Cookie: cookie } : {}) }, body: buf });
+      let json = null;
+      try { json = await res.json(); } catch { /* không có body */ }
+      return { status: res.status, body: json };
+    };
     return {
+      upload,
       get: (u) => call('GET', u), post: (u, b) => call('POST', u, b ?? {}),
       put: (u, b) => call('PUT', u, b ?? {}), del: (u) => call('DELETE', u),
     };
