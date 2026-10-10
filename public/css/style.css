@@ -466,3 +466,25 @@ th .small { text-transform: none; letter-spacing: 0; font-weight: 500; color: va
 
 /* Hồ nước: con trỏ chạm mặt nước tạo sóng; chữ/nút vẫn bấm được */
 .home-hero.cosmic { cursor: default; touch-action: pan-y; }
+
+/* Hồ ban ngày (giao diện sáng): chữ tối, viền vàng đậm hơn, lớp phủ sáng thay cho lớp phủ tối */
+[data-theme="light"] .home-hero.cosmic { color: #15203a; background: #cfe0f2; }
+[data-theme="light"] .scene-vignette {
+  background: linear-gradient(90deg, rgba(246, 249, 253, .82) 0%, rgba(246, 249, 253, .5) 38%, rgba(246, 249, 253, 0) 62%),
+              linear-gradient(0deg, rgba(240, 245, 251, .5) 0%, rgba(240, 245, 251, 0) 26%); }
+[data-theme="light"] .home-hero.cosmic .eyebrow { color: #8a6424; }
+[data-theme="light"] .home-hero.cosmic .rotator { color: #a0712a; font-weight: 400; }
+[data-theme="light"] .home-hero.cosmic .muted-title { color: rgba(21, 32, 58, .78); }
+[data-theme="light"] .title-rule { background: rgba(21, 32, 58, .4); }
+[data-theme="light"] .home-hero.cosmic .home-lead { color: rgba(21, 32, 58, .78); font-weight: 400; }
+[data-theme="light"] .cta-circle { color: #15203a !important; }
+[data-theme="light"] .cta-ring { border-color: rgba(160, 113, 42, .85); color: #8a6424; }
+[data-theme="light"] .cta-circle:hover .cta-ring { background: #a0712a; color: #fff; }
+[data-theme="light"] .cta-link { color: rgba(21, 32, 58, .75) !important; }
+[data-theme="light"] .cta-link:hover { color: #8a6424 !important; }
+[data-theme="light"] .cta-link svg { color: #a0712a; }
+[data-theme="light"] .scroll-cue { color: rgba(21, 32, 58, .6); }
+[data-theme="light"] .scroll-cue i { background: linear-gradient(#a0712a, transparent); }
+@media (max-width: 1000px) {
+  [data-theme="light"] .scene-vignette { background: linear-gradient(180deg, rgba(246, 249, 253, .85) 0%, rgba(246, 249, 253, .45) 55%, rgba(246, 249, 253, .1) 100%); }
+}

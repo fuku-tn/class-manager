@@ -15,11 +15,12 @@ Dùng **PGlite** (Postgres thật chạy trong bộ nhớ) với `src/schema.sql
 | `tests/import-transactions.test.js` | Nhập Transactions + giáo trình: không lọt dữ liệu tiền, trạng thái, mẫu mặc định, chạy lại không trùng, dry-run |
 | `tests/overview-and-filter.test.js` | Logic lọc lớp (không dấu, thời gian, chương trình, sắp xếp), API tổng quan (đếm lớp, chuyên cần loại buổi có phép, phạm vi quyền), `timing` trong danh sách lớp |
 | `tests/security-headers.test.js` | Header/CSP từ Express khớp `vercel.json`; HTML không script inline; `public/js` không dùng `innerHTML`/`eval` |
+| `tests/lake-theme.test.js` | Bảng màu hồ chọn theo `data-theme`, hai bảng đủ khóa, màu nước hợp lệ, ban ngày sáng hơn |
 | `tests/lake-sim.test.js` | Mô phỏng sóng hồ: ổn định/tắt dần, vòng sóng dẹt, không lan lên trời, lịch giọt rơi thưa; gỡ cảnh cũ |
 | `tests/db-errors.test.js` | Phân loại lỗi cấu hình/kết nối DB; thiếu `DATABASE_URL` → đăng nhập trả 503 có lý do |
 | `tests/import.test.js` | Nhập điểm danh nhiều sheet (workbook dựng trong test): X/O/trống, có phép không tính mẫu số, bỏ sheet ẩn và cột tiền, giáo trình theo tên sheet, khớp mã lớp lệch P/B, không ghi đè ô sửa trên app, dry-run |
 
-## Đã được kiểm thử tự động (50 test)
+## Đã được kiểm thử tự động (52 test)
 - Chưa đăng nhập → 401; đăng nhập sai/đúng.
 - Giảng viên không truy cập được lớp chưa được phân (403), sau khi phân thì được; không tạo lớp / xem user được.
 - Tỉ lệ điểm danh: có phép không tính vào mẫu số (A=0.67, B=0.5).
