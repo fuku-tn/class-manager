@@ -50,6 +50,37 @@ Sheet duy nhất, **2 lớp** cùng sheet (tách theo `COURSE ID`): `P2.BIE.P101
 
 Import map theo **tên cột** (không theo vị trí), nên thêm buổi/bài mới vào file vẫn nhập được.
 
+## Nguồn dữ liệu của công ty (flow hiện tại)
+Sale chốt + học viên đóng tiền → học viên điền form → Google Sheet form → một người copy sang Sheet **Transactions** (gán/lấy lại mã học viên) → cập nhật file Excel điểm danh trên SharePoint → lớp mới có danh sách để điểm danh. Ba nơi lưu, hai lần copy tay; chưa có lịch sử sửa.
+
+### `Transacitons.xlsx` (4 sheet; app dùng 2 sheet đầu tiên)
+| Sheet | Dòng | Vai trò | App |
+|---|---|---|---|
+| **Course** | 124 | Danh sách lớp: mã ngắn (`BIE101`), mã đầy đủ (`COURSE ID`), ngày bắt đầu/kết thúc, khóa kế tiếp | ✅ nhập |
+| **Transactions** | 2.363 | Sổ ghi danh: học viên × khóa (1.892 học viên, 1–6 lần học) | ✅ nhập (chỉ cột cho phép) |
+| Form | 606 | Đăng ký từ form: hồ sơ cá nhân, công việc, nguồn biết đến | ⏳ chưa dùng |
+| Company | 754 | Học viên theo công ty (nhóm riêng, hầu hết offline) | ⏳ làm sau |
+
+- Khóa nối: `COURSE` (mã ngắn) ở Transactions/Form/Company ↔ `COURSE` ở Course.
+- `SUBINDEX` = số lần học → **tự tính** từ lịch sử ghi danh, không nhập tay.
+- Cặp (học viên, khóa) là duy nhất → khóa chống trùng. Trùng người còn lại rất ít: 1 email có 2 mã, 7 mã có >1 email, 2 SĐT có 2 mã (báo cáo local `data/bao-cao-trung-lap.csv`).
+- Cột đọc: Course = COURSE, COURSE ID, STARTDATE, ENDDATE, NEXT COURSE; Transactions = STUDENT ID, CUSTOMER ID, FULL NAME, EMAIL, PHONE, COURSE, MODE, GENDER, STATUS, REGISTRATION SOURCE. **Không có cột tiền nào được đọc.**
+- `STATUS`: `Đã thanh toán / Chưa thanh toán / Đã cọc / Scholarship` = thanh toán → **bỏ, không lưu**. `Không tham gia` → `course_status = dropped`. `Bảo lưu khóa trước` = học viên dùng suất chuyển từ một khóa đã thanh toán trước đó (126/128 trường hợp xuất hiện sau dòng "Đã thanh toán") → **không phải bảo lưu khóa này**; lưu cờ riêng `carried_over`, vẫn tính là đang học.
+
+### Mã lớp `P2.BIE.P101.HY.AA.260726`
+`P2` nhóm chương trình (P1 = EBA, P2 = BI) · `BIE` chương trình · `P101` số thứ tự (chữ `B` thay `P` = lớp riêng/doanh nghiệp, chưa xác nhận) · `HY/ON/OF` = Hybrid/Online/Offline · ca học `MM` sáng, `AA` chiều, `EE` tối, `MA` cả ngày (sáng + chiều) · `260726` = ngày bắt đầu 26/07/2026 (ddmmyy).
+
+### Chương trình và giáo trình
+| Mã | Tên | Số buổi \| giờ (theo Form) |
+|---|---|---|
+| BIE | Business Intelligence Essentials | 8 buổi (30–32 giờ) hoặc 12 buổi (30–32 giờ) |
+| BIH | Business Intelligence HR Analytics | 22 buổi (44 giờ) hoặc 11 buổi (44 giờ) |
+| EBA | Excel for Business Analytics | 6 buổi (12–15 giờ) |
+| SIA/SCA | Sales Incentive Analytics | 8 buổi (16 giờ) |
+| PBM | Practical Business Management | 10 buổi (20 giờ) |
+
+`session-management.xlsx` có 4 mẫu giáo trình BI (BIE-8, BIE-12, BIH-20 = 22 buổi, BIH-11): cùng nội dung, khác nhịp theo buổi. Mẫu của từng lớp: lớp 097–106 đã xác nhận theo số người đăng ký; lớp BI cũ hơn theo **lớp mới** (BIE → BIE-8, BIH → BIH-20). Chương trình khác chưa có giáo trình.
+
 ## Vì sao không giữ cấu trúc Excel khi lưu trữ
 Excel là bảng "rộng" (mỗi buổi = 2 cột). Cơ sở dữ liệu nên là bảng "dài": mỗi lượt điểm danh = 1 dòng `(học viên, buổi, trạng thái, ghi chú)`. Lợi ích: thêm buổi/bài không đổi cấu trúc, tính tỉ lệ bằng truy vấn, phân quyền theo lớp, lịch sử cập nhật, chuyển Supabase thẳng. Chi tiết: [code-guide.md](code-guide.md#mô-hình-dữ-liệu).
 

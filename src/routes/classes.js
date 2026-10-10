@@ -12,8 +12,8 @@ module.exports = (db) => {
   router.get('/', async (req, res) => {
     const base = 'select c.*, (select count(*)::int from enrollments e where e.class_id = c.id) as student_count from classes c';
     const rows = req.user.role === 'admin'
-      ? await db.all(`${base} order by c.created_at desc, c.id desc`)
-      : await db.all(`${base} join class_instructors ci on ci.class_id = c.id and ci.user_id = $1 order by c.created_at desc, c.id desc`, [req.user.id]);
+      ? await db.all(`${base} order by c.start_date desc nulls last, c.id desc`)
+      : await db.all(`${base} join class_instructors ci on ci.class_id = c.id and ci.user_id = $1 order by c.start_date desc nulls last, c.id desc`, [req.user.id]);
     res.json(rows);
   });
 

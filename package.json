@@ -12,6 +12,7 @@
     "dev": "node --watch --env-file-if-exists=.env --no-warnings=ExperimentalWarning src/dev-server.js",
     "migrate-pg": "node --env-file-if-exists=.env --no-warnings=ExperimentalWarning scripts/migrate-to-postgres.js",
     "vendor": "node scripts/copy-vendor.js",
+    "import-tx": "node --env-file-if-exists=.env --no-warnings=ExperimentalWarning scripts/import-transactions.js",
     "import": "node --env-file-if-exists=.env --no-warnings=ExperimentalWarning scripts/import-excel.js",
     "create-admin": "node --env-file-if-exists=.env scripts/create-admin.js",
     "test": "node --test --no-warnings=ExperimentalWarning tests/*.test.js"

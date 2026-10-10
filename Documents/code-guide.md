@@ -32,6 +32,9 @@ users ─< class_instructors >─ classes ─< sessions
 | `submissions` | `status` ∈ submitted/resubmit/missing, `challenge`, `note` |
 | `vouchers` | Số tiền, ngày gửi, hạn, trạng thái |
 | `users`, `auth_sessions` | Tài khoản + phiên đăng nhập (băm SHA-256 của token) |
+| `curricula`, `curriculum_items` | Mẫu giáo trình (BIE-8…): mỗi dòng item = module/công cụ/giờ/nội dung của một buổi |
+| `classes` (mở rộng) | `short_code`, `program`, `delivery_mode`, `shift`, `end_date`, `next_short_code`, `curriculum_id` |
+| `students.gender`, `enrollments.registration_source`, `enrollments.carried_over` | Nguồn: Transactions. Không có cột tiền |
 
 Schema nằm ở `src/schema.sql` (app + test dùng) và bản sao `supabase/schema.sql` (dán vào SQL Editor) — giữ hai file giống nhau. `create table if not exists` không thêm cột vào bảng đã có: đổi cột thì chạy `alter table …` trên Supabase.
 
@@ -85,6 +88,13 @@ Chỉ lưu **sự kiện đã ghi nhận**; tỉ lệ luôn được tính, khô
 ## Bảo mật (đã có)
 scrypt băm mật khẩu · token phiên ngẫu nhiên 256-bit, chỉ lưu băm · cookie HttpOnly + SameSite=Lax (+ Secure khi `NODE_ENV=production`) · SQL tham số hóa · DOM dựng bằng textContent · header `nosniff`, `X-Frame-Options` · giới hạn body 100KB · giới hạn đăng nhập sai.
 **Chưa có:** HTTPS (đặt sau reverse proxy khi triển khai), CSP, CSRF token (SameSite=Lax + API chỉ nhận JSON là lớp bảo vệ hiện tại), nhật ký kiểm toán.
+
+## Nhập Transactions + giáo trình (`services/importTransactions.js`)
+- CLI: `npm run import-tx -- <Transacitons.xlsx> <session-management.xlsx> [--dry-run]`. `--dry-run` chạy toàn bộ trong một transaction rồi hoàn tác, chỉ in số liệu.
+- **Danh sách cột cho phép** (`ALLOWED_COURSE`, `ALLOWED_TX`, `ALLOWED_CURRICULUM`): chỉ chỉ số cột nằm trong danh sách mới được đọc. Không đọc cột nào khác (kể cả cột tiền). Có test dùng "dữ liệu mồi" ở cột tiền để chứng minh không lọt vào DB.
+- Idempotent: upsert theo `classes.code`, `students.student_code`, `(class, student)`. Không ghi đè `course_status` đã đặt tay (`deferred`/`completed`) và tên buổi do người dùng tự đặt.
+- Tên buổi sinh từ module của giáo trình: `Buổi n — Module1 + Module2`. Lớp chưa có giáo trình (EBA, SIA, PBM...) chưa có buổi.
+- Di chuyển cấu trúc: `supabase/migrations/2026-10-10-curricula-and-class-fields.sql` (chỉ thêm), chạy bằng `node scripts/run-migration.js <file>`.
 
 ## Đồng bộ thời gian thực (nhiều người cùng điểm danh)
 Mục tiêu: người này đánh dấu thì người kia thấy trong ~1 giây và không vô tình ghi đè.

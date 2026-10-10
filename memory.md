@@ -28,6 +28,12 @@ Cập nhật file này mỗi khi chốt quyết định mới. Mục lỗi thờ
 
 ## Việc còn dở / ý tưởng
 - [ ] Thêm nút "Đổi mật khẩu" trên giao diện để giảng viên tự đổi mật khẩu cấp ban đầu.
+- [ ] **Tiền còn sót:** bảng `vouchers.amount` (từ file điểm danh ban đầu, cột `VOUCHER GG MAPS`) vẫn lưu số tiền. Chờ chủ dự án quyết định bỏ cột `amount` (và ẩn khỏi giao diện).
+- [ ] Chương trình chưa có giáo trình (EBA, SIA/SCA, PBM, DDM, SQL...): 86 lớp chưa có buổi học → chưa điểm danh được. Cần giáo trình hoặc số buổi mặc định (Form gợi ý EBA 6, SIA 8, PBM 10).
+- [ ] 122 lớp mới chưa phân cho 3 giảng viên (mới chỉ P101, P104); admin thấy tất cả. Cần quy tắc phân lớp.
+- [ ] Bài tập (HW/Capstone) chỉ có ở P101/P104; chưa có giao diện thêm bài tập cho lớp khác.
+- [ ] Bước tiếp: Form → đăng ký "chờ xác nhận" trong app; đồng bộ Sheet Transactions tự động (Apps Script đẩy hoặc service account đọc, chỉ các cột cho phép); Company.
+- [ ] Rà báo cáo trùng lặp (`data/bao-cao-trung-lap.csv`, chỉ máy bạn): 1 email 2 mã, 7 mã nhiều email, 2 SĐT 2 mã.
 - [ ] Thêm `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` vào Vercel (Production) để bật realtime, rồi Redeploy.
 - [ ] Deploy lên Vercel theo `Documents/deploy-vercel.md` (dùng Transaction pooler cổng 6543 cho `DATABASE_URL` trên Vercel); sau đó kiểm tra bản live.
 - [ ] Đặt lại mật khẩu database Supabase (đã lộ trong chat) và cập nhật `DATABASE_URL` trong `.env`.
@@ -58,5 +64,7 @@ Cập nhật file này mỗi khi chốt quyết định mới. Mục lỗi thờ
 | 2026-10-10 | **Đồng bộ thời gian thực** điểm danh/bài tập: Supabase Realtime Broadcast (tín hiệu, không chứa dữ liệu) + tải lại ô thay đổi; chặn ghi đè bằng `expected`/409; cột `updated_by` (đã `alter table` trên Supabase) + tooltip người sửa; huy hiệu Trực tiếp | Đo bằng 2 trình duyệt trên dữ liệu thật: B thấy sau 0,8–1,1s; xung đột báo đúng. 24 test pass. **Cần đặt `SUPABASE_URL` + `SUPABASE_PUBLISHABLE_KEY` trên Vercel** thì bản live mới có realtime tức thì |
 | 2026-10-10 | Buổi 2–3 của P104 là dữ liệu thử của chủ dự án đã xóa → đặt `held=false` trên Supabase; code: xóa bản ghi cuối của một buổi/bài thì `held`/`collected` tự về false | P104 còn 1/8 buổi đã diễn ra; 25 test pass |
 | 2026-10-10 | Tạo 3 tài khoản giảng viên trên Supabase, phân cả 2 lớp (thông tin đăng nhập gửi riêng cho từng người, không ghi vào repo) | Chưa có giao diện tự đổi mật khẩu (API `POST /api/auth/password` đã có) |
+| 2026-10-10 | Chủ dự án chia sẻ flow đăng ký + `Transacitons.xlsx` (4 sheet) + `session-management.xlsx`; chốt: ca MM/AA/EE/MA = sáng/chiều/tối/cả ngày; không lưu trạng thái thanh toán; Company làm sau; lớp BI cũ theo mẫu của lớp mới | Xem Documents/context.md |
+| 2026-10-10 | Thêm `curricula`, `curriculum_items`, cột mở rộng cho `classes`/`students`/`enrollments` (migration chỉ thêm) và **nhập 124 lớp, 4 giáo trình, 1.892 học viên, 2.359 lượt ghi danh, 441 buổi** vào Supabase (`npm run import-tx`) | Đối soát: P101 vẫn 35,38,40,36,38,32,35,33; điểm danh/bài tập/voucher cũ không bị xóa; 30 test pass. Cột tiền không được đọc |
 
 Chưa làm / chưa kiểm: thử tay thao tác ghi trên giao diện mới (bấm ô điểm danh, modal sửa) bằng chuột thật; Supabase Auth; upload Excel trên web; triển khai.
