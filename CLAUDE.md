@@ -29,7 +29,7 @@ Cần Node >= 22.13. Dữ liệu thật nằm trên **Supabase (Postgres)**.
 
 ## Cấu trúc
 - `src/` backend: `create-app.js` (Express), `dev-server.js` (chạy máy nhà), `index.js` (điểm vào Vercel — **đừng thêm file tên app/index/server khác trong `src/`**), `routes/` (auth, users, classes, classData), `services/` (stats, importExcel), `schema.sql` (Postgres), `db.js` (pg Pool / PGlite), `auth.js`
-- `public/` frontend ES modules thuần: `js/main.js` (router hash), `js/pages/*` (có `home.js`), `js/class-picker.js` + `js/class-filter.mjs` (chọn/lọc lớp), `js/ui.js` (helper DOM), `css/style.css`
+- `public/` frontend ES modules thuần: `js/main.js` (router hash), `js/pages/*` (có `home.js` + `home-lake.js`), `js/lake-sim.mjs` (mô phỏng sóng hồ, thuần số học), `js/class-picker.js` + `js/class-filter.mjs` (chọn/lọc lớp), `js/ui.js` (helper DOM), `css/style.css`
 - `scripts/` CLI · `supabase/schema.sql` (bản dán vào SQL Editor, giữ giống `src/schema.sql`) · `legacy/` (SQLite cũ, chỉ để tham khảo) · `tests/` · `Documents/` · `.claude/skills/`
 
 ## Quy tắc bắt buộc

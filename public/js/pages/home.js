@@ -2,7 +2,7 @@
 import { get } from '../api.js';
 import { h, icon, pct, BRAND } from '../ui.js';
 import { fmtDate, SHIFT_LABEL, PROGRAM_NAMES } from '../class-filter.mjs';
-import { scene } from './home-scene.js';
+import { createLake } from './home-lake.js';
 
 const WORDS = ['Điểm danh.', 'Bài tập.', 'Chuyên cần.', 'Giáo trình.'];
 const reduced = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -86,7 +86,6 @@ export async function renderHome({ state }) {
 
   const vClasses = h('span', {}), vStudents = h('span', {}), vRate = h('span', {});
   const hero = h('section', { class: 'home-hero cosmic' },
-    scene(),
     h('div', { class: 'scene-vignette' }),
     h('div', { class: 'home-copy' },
       h('div', { class: 'eyebrow' }, `${BRAND.name} · ${BRAND.tagline}`),
@@ -100,13 +99,6 @@ export async function renderHome({ state }) {
           : [h('a', { class: 'cta-circle', href: state.user.role === 'admin' ? '#/classes' : '#/' }, h('span', { class: 'cta-ring' }, icon('arrow')),
             h('span', { class: 'cta-text' }, state.user.role === 'admin' ? 'Quản lý lớp học' : 'Chưa có lớp đang học'))])),
     h('div', { class: 'scroll-cue', 'aria-hidden': 'true' }, h('span', {}, 'Cuộn'), h('i', {})));
-
-  // Thị sai theo con trỏ chuột
-  hero.addEventListener('pointermove', (e) => {
-    const r = hero.getBoundingClientRect();
-    hero.style.setProperty('--mx', ((e.clientX - r.left) / r.width - 0.5).toFixed(3));
-    hero.style.setProperty('--my', ((e.clientY - r.top) / r.height - 0.5).toFixed(3));
-  });
 
   const stats = h('section', { class: 'home-stats' },
     stat('classes', 'Lớp đang diễn ra', vClasses, `${t.upcoming} sắp mở`),
@@ -134,6 +126,7 @@ export async function renderHome({ state }) {
 
   // Hiệu ứng động sau khi gắn vào DOM
   setTimeout(() => {
+    if (hero.isConnected) createLake(hero);
     countUp(vClasses, t.running);
     countUp(vStudents, t.students_active, { format: (n) => Math.round(n).toLocaleString('vi-VN') });
     countUp(vRate, t.attendance_rate == null ? null : t.attendance_rate * 100, { format: (n) => `${Math.round(n)}%` });

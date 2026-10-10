@@ -426,7 +426,7 @@ th .small { text-transform: none; letter-spacing: 0; font-weight: 500; color: va
   display: block; min-height: clamp(580px, 80vh, 720px); padding: 0; border: 0; color: #f6f1e8;
   background: #10172b; box-shadow: var(--shadow-lg);
 }
-.home-hero.cosmic .scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.lake-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .scene-vignette { position: absolute; inset: 0; pointer-events: none;
   background: linear-gradient(90deg, rgba(10, 15, 32, .72) 0%, rgba(10, 15, 32, .38) 38%, rgba(10, 15, 32, 0) 62%),
               linear-gradient(0deg, rgba(8, 12, 26, .55) 0%, rgba(8, 12, 26, 0) 28%); }
@@ -454,31 +454,15 @@ th .small { text-transform: none; letter-spacing: 0; font-weight: 500; color: va
 .scroll-cue i { width: 1px; height: 38px; background: linear-gradient(#ecc995, transparent); transform-origin: top; animation: cue 2.4s ease-in-out infinite; }
 @keyframes cue { 0% { transform: scaleY(0); opacity: 0; } 40% { transform: scaleY(1); opacity: 1; } 100% { transform: scaleY(1); opacity: 0; } }
 
-/* chuyển động của cảnh: thị sai theo con trỏ + mây trôi, hành tinh nổi, sao nhấp nháy, ánh nước lung linh */
-.scene-layer { transition: transform .35s ease-out; }
-.scene-layer.l-far { transform: translate(calc(var(--mx, 0) * -6px), calc(var(--my, 0) * -4px)); }
-.scene-layer.l-mid { transform: translate(calc(var(--mx, 0) * -14px), calc(var(--my, 0) * -8px)); }
-.scene-layer.l-near { transform: translate(calc(var(--mx, 0) * -24px), calc(var(--my, 0) * -12px)); }
-.scene-cloud { animation: cloud-drift 40s ease-in-out infinite alternate; }
-@keyframes cloud-drift { from { transform: translateX(calc(var(--drift, 30px) * -1)); } to { transform: translateX(var(--drift, 30px)); } }
-.scene-float { animation: scene-float 9s ease-in-out infinite; }
-.scene-float.slow { animation-duration: 14s; }
-@keyframes scene-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
-.scene-star { animation: twinkle 4s ease-in-out infinite; }
-.scene-shaft { animation: shaft 5s ease-in-out infinite; }
-@keyframes shaft { 0%, 100% { opacity: .62; } 50% { opacity: 1; } }
-.scene-ripple { opacity: .3; animation: ripple 6s ease-in-out infinite; }
-.scene-figure { animation: breathe 6s ease-in-out infinite; transform-box: fill-box; transform-origin: bottom; }
-@keyframes breathe { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.012); } }
-
 @media (max-width: 1000px) {
   .home-hero.cosmic { min-height: 600px; }
   .home-hero.cosmic .home-copy { padding-bottom: 7.5rem; }
   .home-hero.cosmic .home-title { white-space: normal; }
   .scene-vignette { background: linear-gradient(180deg, rgba(10, 15, 32, .78) 0%, rgba(10, 15, 32, .35) 55%, rgba(10, 15, 32, .1) 100%); }
-  .home-hero.cosmic .scene { object-position: 70% 50%; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .scene-cloud, .scene-float, .scene-star, .scene-shaft, .scene-ripple, .scene-figure, .scroll-cue i { animation: none !important; }
-  .scene-layer { transition: none !important; transform: none !important; }
+  .scroll-cue i { animation: none !important; }
 }
+
+/* Hồ nước: con trỏ chạm mặt nước tạo sóng; chữ/nút vẫn bấm được */
+.home-hero.cosmic { cursor: default; touch-action: pan-y; }
