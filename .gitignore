@@ -11,3 +11,4 @@ legacy/*.db-*
 legacy/*.db
 legacy/*.db-*
 .claude/settings.local.json
+.mcp.json

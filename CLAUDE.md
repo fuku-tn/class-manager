@@ -39,10 +39,15 @@ Cần Node >= 22.13. Dữ liệu thật nằm trên **Supabase (Postgres)**.
 5. Đổi schema → sửa `src/schema.sql` **và** `supabase/schema.sql`, rồi **chạy SQL tương ứng (ALTER) trên Supabase** (schema chỉ dùng `if not exists`, không tự thêm cột); cập nhật `Documents/code-guide.md`, thêm test. Bảng mới phải `enable row level security`.
 6. Thông báo lỗi trả về cho người dùng bằng tiếng Việt.
 7. Vercel **bỏ qua `express.static()`**: file tĩnh phải nằm trong `public/` (kể cả thư viện — Chart.js ở `public/vendor/`, cập nhật bằng `npm run vendor`).
-8. Không commit `.env`, `node_modules/`, `legacy/*.db`, file `.xlsx/.csv` (dữ liệu học viên thật). Không đưa dữ liệu học viên thật vào repo/test ngoài file mẫu.
-9. Xong một thay đổi: chạy `npm test`; cập nhật [memory.md](memory.md) nếu có quyết định/giả định mới; nội dung lỗi thời chuyển sang [Archive.md](Archive.md).
+8. **Ghi một ô điểm danh/bài tập** phải đi qua route có `expected` + `updated_by` và gọi `realtime.publish` sau khi ghi thành công; frontend cập nhật ô tại chỗ (không dựng lại bảng). Đừng bỏ cơ chế này khi thêm loại ô mới.
+9. Không commit `.env`, `node_modules/`, `legacy/*.db`, file `.xlsx/.csv` (dữ liệu học viên thật). Không đưa dữ liệu học viên thật vào repo/test ngoài file mẫu.
+10. Xong một thay đổi: chạy `npm test`; cập nhật [memory.md](memory.md) nếu có quyết định/giả định mới; nội dung lỗi thời chuyển sang [Archive.md](Archive.md).
 
 ## Skill của project (`.claude/skills/`)
 - `student-webapp-dev` — thêm/sửa tính năng đúng kiến trúc của project
 - `import-excel` — nhập/đối soát dữ liệu từ file Excel của lớp
 - `run-tests` — chạy và đọc kết quả kiểm thử, thêm test cho thay đổi
+- `supabase`, `supabase-postgres-best-practices` — skill chính thức của Supabase (cài bằng `npx skills add supabase/agent-skills`; đã rà: chỉ gồm file markdown). Dùng khi đổi schema, RLS, index, truy vấn chậm, kết nối
+
+## MCP
+- `.mcp.json` (git-ignore): máy chủ MCP Supabase của project (mã project nằm trong URL). Cần đăng nhập 1 lần: chạy `claude` rồi `/mcp` ở terminal thường. Nên thêm `&read_only=true` vào URL nếu chỉ cần đọc — database chứa dữ liệu học viên thật.

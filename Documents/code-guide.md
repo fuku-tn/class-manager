@@ -50,9 +50,10 @@ Chỉ lưu **sự kiện đã ghi nhận**; tỉ lệ luôn được tính, khô
 | `GET /classes/:classId/sessions` · `PUT …/sessions/:sid` | lớp | Tên/ngày buổi |
 | `GET /classes/:classId/assignments` · `PUT …/assignments/:aid` | lớp | Tên/hạn bài |
 | `GET/POST /classes/:classId/students` · `PUT/DELETE …/students/:eid` | lớp (DELETE: admin) | Học viên + thống kê; xóa khỏi lớp |
-| `GET/PUT /classes/:classId/attendance` | lớp | Ma trận; ghi 1 ô (`status:null` = xóa) |
+| `GET/PUT /classes/:classId/attendance` | lớp | Ma trận (mỗi ô có `by`, `at`); ghi 1 ô (`status:null` = xóa). Body có thể kèm `expected` (trạng thái người dùng đang thấy): khác với DB → **409** + `current`, không ghi đè |
 | `POST /classes/:classId/sessions/:sid/attendance/bulk` | lớp | Điền trạng thái cho ô trống của học viên `active` |
-| `GET/PUT /classes/:classId/submissions` | lớp | Ma trận bài tập; ghi 1 ô |
+| `GET/PUT /classes/:classId/submissions` | lớp | Ma trận bài tập; ghi 1 ô (cùng cơ chế `expected`/409) |
+| `GET /classes/:classId/realtime` | lớp | `{url, key, channel}` để trình duyệt nghe tin thay đổi của lớp; `null` nếu server chưa cấu hình Supabase |
 
 ### Quy ước
 - Router `module.exports = (db) => router` để test truyền DB bộ nhớ (PGlite) vào. Express 5: handler `async` ném lỗi thì tự vào error handler.
@@ -84,6 +85,16 @@ Chỉ lưu **sự kiện đã ghi nhận**; tỉ lệ luôn được tính, khô
 ## Bảo mật (đã có)
 scrypt băm mật khẩu · token phiên ngẫu nhiên 256-bit, chỉ lưu băm · cookie HttpOnly + SameSite=Lax (+ Secure khi `NODE_ENV=production`) · SQL tham số hóa · DOM dựng bằng textContent · header `nosniff`, `X-Frame-Options` · giới hạn body 100KB · giới hạn đăng nhập sai.
 **Chưa có:** HTTPS (đặt sau reverse proxy khi triển khai), CSP, CSRF token (SameSite=Lax + API chỉ nhận JSON là lớp bảo vệ hiện tại), nhật ký kiểm toán.
+
+## Đồng bộ thời gian thực (nhiều người cùng điểm danh)
+Mục tiêu: người này đánh dấu thì người kia thấy trong ~1 giây và không vô tình ghi đè.
+1. **Phát tin:** sau mỗi lần ghi thành công (điểm danh, bài tập, "Cả lớp ✓", sửa buổi), server gọi `services/realtime.publish(classId, {kind})` → Supabase Realtime **Broadcast** (REST). Tin chỉ là tín hiệu `{kind}`, **không chứa dữ liệu học viên**.
+2. **Nghe tin:** trình duyệt (`public/js/live.js`) lấy cấu hình ở `GET …/realtime`, nạp `public/vendor/supabase.js`, đăng ký kênh của lớp. Nhận tin → tải lại ma trận qua API có đăng nhập → chỉ vẽ lại các ô thay đổi (nháy vàng). Đo thực tế: ~0,8–1,1 giây từ lúc A bấm đến lúc B thấy.
+3. **Kênh:** tên `cls-<id>-<hmac 20 ký tự>`, sinh từ bí mật của server; chỉ người đã đăng nhập và có quyền vào lớp mới lấy được. Kênh là public của Supabase nhưng vì tin không mang dữ liệu nên người ngoài nghe được cũng chỉ biết "có thay đổi".
+4. **Dự phòng:** mất kết nối realtime → hỏi lại mỗi 3s; bình thường vá tin lỡ mỗi ~20s; quay lại tab/kết nối lại → đồng bộ ngay. Huy hiệu "Trực tiếp / Đang kết nối… / Tự làm mới" ở đầu trang.
+5. **Chặn ghi đè:** client gửi `expected`; server khóa dòng (`select … for update`) và so sánh trong transaction; ô trống tạo đồng thời được chặn bằng `ON CONFLICT … WHERE`. Không gửi `expected` → ghi đè như API cũ.
+6. **Người sửa:** cột `updated_by` (attendance, submissions) → tooltip "Có mặt · An, 14:05".
+Biến môi trường: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` (hoặc `NEXT_PUBLIC_…` cùng tên) — khóa *publishable* vốn công khai, **không** dùng `service_role`. Tùy chọn `REALTIME_SECRET` (mặc định suy ra từ `DATABASE_URL`).
 
 ## Supabase (đã chuyển — 2026-10-09)
 - Webapp kết nối Postgres của Supabase qua `DATABASE_URL` (Session pooler, cổng 5432) bằng `pg.Pool` (tối đa 5 kết nối). SSL bật tự động (trừ localhost).

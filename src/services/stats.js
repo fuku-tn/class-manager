@@ -16,8 +16,10 @@ async function loadClassData(db, classId) {
       join students s on s.id = e.student_id
       left join vouchers v on v.enrollment_id = e.id
       where e.class_id = $1 order by lower(s.full_name), s.id`, [classId]),
-    db.all('select a.* from attendance a join sessions s on s.id = a.session_id where s.class_id = $1', [classId]),
-    db.all('select b.* from submissions b join assignments a on a.id = b.assignment_id where a.class_id = $1', [classId]),
+    db.all(`select a.*, u.name as updated_by_name from attendance a join sessions s on s.id = a.session_id
+      left join users u on u.id = a.updated_by where s.class_id = $1`, [classId]),
+    db.all(`select b.*, u.name as updated_by_name from submissions b join assignments a on a.id = b.assignment_id
+      left join users u on u.id = b.updated_by where a.class_id = $1`, [classId]),
   ]);
   assignments.sort((a, b) => (a.kind === b.kind ? a.seq - b.seq : a.kind === 'hw' ? -1 : 1)); // hw trước capstone
   return { sessions, assignments, enrollments, attendance, submissions };

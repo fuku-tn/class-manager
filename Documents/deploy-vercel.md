@@ -19,6 +19,7 @@ Webapp chạy được trên Vercel: Express trở thành một Vercel Function,
 3. Framework Preset: để **Express/Other** (tự nhận). Build/Output: để mặc định.
 4. **Environment Variables** — thêm:
    - `DATABASE_URL` = chuỗi **Transaction pooler** của Supabase (Connect → *Transaction pooler*, cổng **6543**), thay mật khẩu. Dùng 6543 cho serverless vì mỗi lần gọi có thể là một instance mới — Session pooler (5432) dễ cạn kết nối.
+   - `SUPABASE_URL` = `https://<mã-project>.supabase.co` và `SUPABASE_PUBLISHABLE_KEY` = khóa *publishable* (Supabase → Project Settings → API Keys). Hai biến này bật **đồng bộ thời gian thực** khi nhiều người cùng điểm danh; thiếu thì app vẫn chạy nhưng chỉ tự làm mới mỗi 3 giây. Không dùng khóa `service_role`.
    - (tuỳ chọn) `ATTENDANCE_THRESHOLD`, `MISSING_HW_ALERT`.
    - Không cần `NODE_ENV` — Vercel tự đặt `production` (cookie đăng nhập có cờ `Secure`).
 5. **Deploy**. Xong có địa chỉ `https://<tên>.vercel.app`.

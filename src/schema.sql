@@ -73,6 +73,7 @@ create table if not exists attendance (
   status        text not null check (status in ('present','late','absent','excused')),
   note          text,
   updated_at    timestamptz not null default now(),
+  updated_by    bigint references users(id) on delete set null,
   unique (enrollment_id, session_id)
 );
 
@@ -95,6 +96,7 @@ create table if not exists submissions (
   challenge     boolean not null default false,
   note          text,
   updated_at    timestamptz not null default now(),
+  updated_by    bigint references users(id) on delete set null,
   unique (enrollment_id, assignment_id)
 );
 

@@ -1,6 +1,7 @@
 const express = require('express');
 const { requireAdmin, requireClassAccess } = require('../auth');
 const { buildDashboard } = require('../services/stats');
+const realtime = require('../services/realtime');
 
 const isDate = (v) => v == null || v === '' || /^\d{4}-\d{2}-\d{2}$/.test(v);
 
@@ -56,7 +57,9 @@ module.exports = (db) => {
     if (!s) return res.status(404).json({ error: 'Không tìm thấy buổi học' });
     if (!isDate(req.body.session_date)) return res.status(400).json({ error: 'Ngày phải dạng yyyy-mm-dd' });
     const date = req.body.session_date === undefined ? s.session_date : (req.body.session_date || null);
-    res.json(await db.one('update sessions set title = $1, session_date = $2 where id = $3 returning *', [req.body.title ?? s.title, date, s.id]));
+    const updated = await db.one('update sessions set title = $1, session_date = $2 where id = $3 returning *', [req.body.title ?? s.title, date, s.id]);
+    await realtime.publish(req.cls.id, { kind: 'attendance' });
+    res.json(updated);
   });
 
   router.get('/:classId/assignments', access, async (req, res) =>

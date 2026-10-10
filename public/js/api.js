@@ -11,6 +11,7 @@ export async function api(method, url, body) {
   if (!res.ok) {
     const err = new Error(data?.error || `Lỗi ${res.status}`);
     err.status = res.status;
+    err.data = data; // phần thân lỗi (vd 409 kèm giá trị hiện tại của ô)
     throw err;
   }
   return data;

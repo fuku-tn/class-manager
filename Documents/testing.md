@@ -11,10 +11,11 @@ Dùng **PGlite** (Postgres thật chạy trong bộ nhớ) với `src/schema.sql
 |---|---|
 | `tests/helpers.js` | `startTestApp()`: `openDb({ memory: true })` + server cổng ngẫu nhiên + client có cookie, `addUser`, `login` |
 | `tests/api.test.js` | Auth, phân quyền, điểm danh, bài tập, dashboard, validation, XSS |
+| `tests/concurrency.test.js` | Chặn ghi đè (409) khi hai người cùng sửa, ghi nhận người sửa, phát tin realtime (giả lập), cấu hình kênh |
 | `tests/db-errors.test.js` | Phân loại lỗi cấu hình/kết nối DB; thiếu `DATABASE_URL` → đăng nhập trả 503 có lý do |
 | `tests/import.test.js` | Import file mẫu khớp số liệu Excel, chạy lại không trùng, lỗi thiếu cột |
 
-## Đã được kiểm thử tự động (17 test)
+## Đã được kiểm thử tự động (24 test)
 - Chưa đăng nhập → 401; đăng nhập sai/đúng.
 - Giảng viên không truy cập được lớp chưa được phân (403), sau khi phân thì được; không tạo lớp / xem user được.
 - Tỉ lệ điểm danh: có phép không tính vào mẫu số (A=0.67, B=0.5).
@@ -42,7 +43,8 @@ Dùng **PGlite** (Postgres thật chạy trong bộ nhớ) với `src/schema.sql
 7. F5 ở từng tab — vẫn đúng trang, không mất đăng nhập.
 8. Đổi tab nhanh nhiều lần liên tiếp: thanh điều hướng đứng yên, nội dung mờ dần rồi hiện lên, không chớp trắng, trang cuối cùng bấm là trang hiển thị.
 9. Nút mặt trời/mặt trăng: đổi sáng/tối, biểu đồ vẽ lại đúng màu; F5 vẫn giữ lựa chọn.
-10. Thu nhỏ cửa sổ ≤ 640px (hoặc mở trên điện thoại): thanh điều hướng, hero, bảng cuộn ngang không tràn.
+10. **Hai người cùng điểm danh:** mở tab Điểm danh trên hai trình duyệt/máy (hai tài khoản). Huy hiệu đều là "Trực tiếp". Người 1 bấm một ô → người 2 thấy đổi và nháy vàng trong ~1 giây; rê chuột vào ô thấy tên người sửa. Tắt mạng máy 2, đổi ô ở máy 1, bật mạng máy 2 rồi bấm cùng ô → báo "Ô này vừa được … đổi", không ghi đè.
+11. Thu nhỏ cửa sổ ≤ 640px (hoặc mở trên điện thoại): thanh điều hướng, hero, bảng cuộn ngang không tràn.
 
 ## Viết test mới
 - Mỗi tính năng/bug sửa → ít nhất 1 test: đường đi đúng + 1 đầu vào sai + 1 kiểm tra quyền (nếu có).

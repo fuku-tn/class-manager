@@ -1,8 +1,15 @@
-// Chép Chart.js vào public/vendor (Vercel không phục vụ node_modules; file tĩnh phải nằm trong public/).
-// Chạy lại sau khi nâng cấp chart.js: npm run vendor
+// Chép thư viện phía trình duyệt vào public/vendor (Vercel không phục vụ node_modules; file tĩnh phải nằm trong public/).
+// Chạy lại sau khi nâng cấp chart.js / @supabase/supabase-js: npm run vendor
 const fs = require('node:fs');
 const path = require('node:path');
-const dest = path.join(__dirname, '..', 'public', 'vendor');
+const root = path.join(__dirname, '..');
+const dest = path.join(root, 'public', 'vendor');
 fs.mkdirSync(dest, { recursive: true });
-fs.copyFileSync(path.join(__dirname, '..', 'node_modules', 'chart.js', 'dist', 'chart.umd.min.js'), path.join(dest, 'chart.umd.min.js'));
-console.log('Đã chép chart.umd.min.js vào public/vendor');
+const files = [
+  ['chart.js/dist/chart.umd.min.js', 'chart.umd.min.js'],
+  ['@supabase/supabase-js/dist/umd/supabase.js', 'supabase.js'],
+];
+for (const [from, to] of files) {
+  fs.copyFileSync(path.join(root, 'node_modules', from), path.join(dest, to));
+  console.log(`Đã chép ${to} vào public/vendor`);
+}

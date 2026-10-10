@@ -276,3 +276,14 @@ th .small { text-transform: none; letter-spacing: 0; font-weight: 500; color: va
   input[type="search"] { min-width: 0; width: 100%; }
   h1 { font-size: 1.4rem; }
 }
+
+/* ---------- Đồng bộ thời gian thực ---------- */
+.live { display: inline-flex; align-items: center; gap: .45rem; padding: .15rem .7rem; border-radius: 999px; font-size: .78rem; font-weight: 600; border: 1px solid var(--border); background: var(--glass); color: var(--muted); }
+.live::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--warn); }
+.live.live { color: var(--ok); }
+.live.live::before { background: var(--ok); box-shadow: 0 0 0 0 var(--ok); animation: pulse 2s infinite; }
+.live.polling::before { background: var(--info); }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 55%, transparent); } 70% { box-shadow: 0 0 0 7px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+.cell.flash, td.flash { animation: flash 1.2s ease-out; }
+@keyframes flash { 0% { box-shadow: 0 0 0 2px var(--gold), 0 0 18px var(--gold); transform: scale(1.18); } 100% { box-shadow: 0 0 0 0 transparent; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .live.live::before, .cell.flash, td.flash { animation: none !important; } }
