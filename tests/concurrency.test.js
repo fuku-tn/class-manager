@@ -105,3 +105,24 @@ test('cấu hình realtime: không lộ khi chưa cấu hình, có kênh riêng 
     set('NEXT_PUBLIC_SUPABASE_URL', saved.n1); set('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY', saved.n2);
   }
 });
+
+test('xóa bản ghi cuối cùng của buổi/bài → quay về "chưa diễn ra/chưa thu"', async () => {
+  const admin = await t.login('admin@x.com');
+  const cid = (await admin.post('/api/classes', { code: 'RT.02', session_count: 2, hw_count: 1 })).body.id;
+  await admin.post(`/api/classes/${cid}/students`, { student_code: 'Z1', full_name: 'HV Z' });
+  const enr = (await admin.get(`/api/classes/${cid}/students`)).body[0].id;
+  const ses = (await admin.get(`/api/classes/${cid}/sessions`)).body[0];
+  const asg = (await admin.get(`/api/classes/${cid}/assignments`)).body.find((x) => x.kind === 'hw');
+  const heldNow = async () => (await admin.get(`/api/classes/${cid}/sessions`)).body[0].held;
+  const collectedNow = async () => (await admin.get(`/api/classes/${cid}/assignments`)).body.find((x) => x.kind === 'hw').collected;
+
+  await admin.put(`/api/classes/${cid}/attendance`, { enrollment_id: enr, session_id: ses.id, status: 'present' });
+  assert.equal(await heldNow(), true);
+  await admin.put(`/api/classes/${cid}/attendance`, { enrollment_id: enr, session_id: ses.id, status: null });
+  assert.equal(await heldNow(), false);
+
+  await admin.put(`/api/classes/${cid}/submissions`, { enrollment_id: enr, assignment_id: asg.id, status: 'submitted' });
+  assert.equal(await collectedNow(), true);
+  await admin.put(`/api/classes/${cid}/submissions`, { enrollment_id: enr, assignment_id: asg.id, status: null });
+  assert.equal(await collectedNow(), false);
+});

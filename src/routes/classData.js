@@ -135,6 +135,8 @@ module.exports = (db) => {
 
       if (status === null) {
         await t.run('delete from attendance where enrollment_id = $1 and session_id = $2', [e.id, s.id]);
+        // Xóa bản ghi cuối cùng của buổi → buổi quay về "chưa diễn ra" (không kéo tụt tỉ lệ của cả lớp).
+        await t.run('update sessions set held = exists (select 1 from attendance where session_id = $1) where id = $1', [s.id]);
         return { cell: null };
       }
       // Phòng đua: hai người cùng tạo ô trống một lúc → bản ghi đến sau bị từ chối nếu có `expected`.
@@ -205,6 +207,7 @@ module.exports = (db) => {
 
       if (status === null) {
         await t.run('delete from submissions where enrollment_id = $1 and assignment_id = $2', [e.id, a.id]);
+        await t.run('update assignments set collected = exists (select 1 from submissions where assignment_id = $1) where id = $1', [a.id]);
         return { cell: null };
       }
       const rows = await t.all(`insert into submissions (enrollment_id, assignment_id, status, challenge, note, updated_by)
