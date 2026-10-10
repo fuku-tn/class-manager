@@ -5,6 +5,7 @@ const MODE_OPTIONS = [['', '(chưa rõ)'], ['Online', 'Online'], ['Offline', 'Of
 const STATUS_OPTIONS = Object.entries(COURSE_STATUS_LABEL);
 
 export async function renderStudents({ cls, state }) {
+  const readOnly = state.user.role === 'guest'; // khách chỉ xem
   const base = `/api/classes/${cls.id}`;
   let rows = await get(`${base}/students`);
   const search = h('input', { type: 'search', placeholder: 'Tìm theo tên, mã, email…', 'aria-label': 'Tìm học viên' });
@@ -59,13 +60,13 @@ export async function renderStudents({ cls, state }) {
   function paint() {
     const list = filtered();
     count.textContent = `${list.length}/${rows.length} học viên`;
-    body.replaceChildren(...list.map((r) => h('tr', { class: `clickable${r.course_status === 'active' ? '' : ' inactive'}`, tabindex: 0,
+    body.replaceChildren(...list.map((r) => h('tr', readOnly ? { class: r.course_status === 'active' ? '' : 'inactive' } : { class: `clickable${r.course_status === 'active' ? '' : ' inactive'}`, tabindex: 0,
       onclick: () => edit(r), onkeydown: (e) => { if (e.key === 'Enter') edit(r); } },
       h('td', {}, r.student_code), h('td', {}, r.full_name), h('td', {}, r.email || '—'), h('td', {}, r.phone || '—'),
       h('td', {}, r.mode || '—'),
       h('td', {}, h('span', { class: `badge ${COURSE_STATUS_BADGE[r.course_status] || ''}` }, COURSE_STATUS_LABEL[r.course_status])),
       h('td', { class: 'num' }, pct(r.attendance_rate)), h('td', { class: 'num' }, pct(r.hw_rate)))));
-    if (!list.length) body.append(h('tr', {}, h('td', { colspan: 8, class: 'empty-state' }, rows.length ? 'Không có học viên khớp bộ lọc.' : 'Chưa có học viên. Bấm "Thêm học viên".')));
+    if (!list.length) body.append(h('tr', {}, h('td', { colspan: 8, class: 'empty-state' }, rows.length ? 'Không có học viên khớp bộ lọc.' : (readOnly ? 'Chưa có học viên.' : 'Chưa có học viên. Bấm "Thêm học viên".'))));
   }
 
   [search, status, mode].forEach((el) => el.addEventListener('input', paint));
@@ -75,7 +76,7 @@ export async function renderStudents({ cls, state }) {
       h('button', { onclick: () => downloadCsv(`${cls.code}-hoc-vien.csv`, [
         ['Mã', 'Họ tên', 'Email', 'SĐT', 'Hình thức', 'Trạng thái', 'Điểm danh', 'HW'],
         ...filtered().map((r) => [r.student_code, r.full_name, r.email, r.phone, r.mode, COURSE_STATUS_LABEL[r.course_status], pct(r.attendance_rate), pct(r.hw_rate)])]) }, 'Xuất CSV'),
-      h('button', { class: 'primary', onclick: add }, '+ Thêm học viên')),
+      !readOnly && h('button', { class: 'primary', onclick: add }, '+ Thêm học viên')),
     h('div', { class: 'toolbar' }, search, status, mode, count),
     h('div', { class: 'table-wrap' }, h('table', {},
       h('thead', {}, h('tr', {}, ['Mã', 'Họ tên', 'Email', 'SĐT', 'Hình thức', 'Trạng thái', 'Điểm danh', 'HW'].map((x) => h('th', {}, x)))),

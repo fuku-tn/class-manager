@@ -6,7 +6,7 @@ create table if not exists users (
   email         text not null unique,
   name          text not null,
   password_hash text not null,
-  role          text not null default 'instructor' check (role in ('admin','instructor')),
+  role          text not null default 'instructor' check (role in ('admin','instructor','guest')),
   active        boolean not null default true,
   created_at    timestamptz not null default now()
 );

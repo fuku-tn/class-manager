@@ -1,6 +1,6 @@
 const path = require('node:path');
 const express = require('express');
-const { attachUser, requireAuth, requireAdmin } = require('./auth');
+const { attachUser, requireAuth, requireAdmin, blockGuestWrites } = require('./auth');
 const { describeDbError } = require('./db');
 const { HEADERS } = require('./security-headers');
 
@@ -14,6 +14,7 @@ function createApp(db) {
     next();
   });
   app.use(attachUser(db));
+  app.use('/api', blockGuestWrites);
 
   app.get('/api/health', (_req, res) => res.json({ ok: true }));
   // Chẩn đoán kết nối database: chỉ trả về LOẠI lỗi (không lộ chuỗi kết nối/mật khẩu). Chi tiết xem log máy chủ.

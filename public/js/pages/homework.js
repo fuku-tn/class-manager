@@ -12,7 +12,8 @@ const fmtTime = (iso) => {
 const sameCell = (a, b) => (a?.status ?? null) === (b?.status ?? null) && (a?.note ?? null) === (b?.note ?? null)
   && !!a?.challenge === !!b?.challenge && (a?.by ?? null) === (b?.by ?? null);
 
-export async function renderHomework({ cls }) {
+export async function renderHomework({ cls, state }) {
+  const readOnly = state.user.role === 'guest'; // khách chỉ xem
   const base = `/api/classes/${cls.id}`;
   const data = await get(`${base}/submissions`);
   const search = h('input', { type: 'search', placeholder: 'Tìm học viên…', 'aria-label': 'Tìm học viên' });
@@ -83,7 +84,7 @@ export async function renderHomework({ cls }) {
             const btn = h('button', { 'aria-label': `${row.full_name} ${a.title}` });
             buttons.set(key(row.enrollment_id, a.id), btn);
             paint(btn, row.cells[a.id]);
-            btn.addEventListener('click', () => edit(row, a, btn));
+            if (readOnly) { btn.classList.add('readonly'); btn.setAttribute('aria-readonly', 'true'); } else btn.addEventListener('click', () => edit(row, a, btn));
             return h('td', { class: 'num' }, btn);
           }), rate);
       }));
@@ -117,8 +118,8 @@ export async function renderHomework({ cls }) {
   const view = h('div', {},
     h('div', { class: 'page-head' }, h('h1', {}, 'Bài tập'), h('span', { class: 'muted' }, cls.code), liveBadge),
     h('div', { class: 'legend' },
-      h('span', {}, 'Bấm ô để cập nhật: '), ...Object.entries(LABEL).map(([k, v]) => h('span', {}, h('span', { class: `cell ${k}` }, SHORT[k]), ` ${v}`)),
-      h('span', { class: 'muted' }, '· ★ = có làm Challenge · "Nộp lại" chưa tính là hoàn thành · Rê chuột để xem ai đã cập nhật')),
+      h('span', {}, readOnly ? 'Chú thích: ' : 'Bấm ô để cập nhật: '), ...Object.entries(LABEL).map(([k, v]) => h('span', {}, h('span', { class: `cell ${k}` }, SHORT[k]), ` ${v}`)),
+      h('span', { class: 'muted' }, (readOnly ? '· Tài khoản khách chỉ xem ' : '') + '· ★ = có làm Challenge · "Nộp lại" chưa tính là hoàn thành · Rê chuột để xem ai đã cập nhật')),
     h('div', { class: 'toolbar' }, search),
     h('div', { class: 'table-wrap' }, h('table', {}, head, body)));
 

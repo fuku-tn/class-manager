@@ -12,7 +12,8 @@ const fmtTime = (iso) => {
 };
 const sameCell = (a, b) => (a?.status ?? null) === (b?.status ?? null) && (a?.note ?? null) === (b?.note ?? null) && (a?.by ?? null) === (b?.by ?? null);
 
-export async function renderAttendance({ cls }) {
+export async function renderAttendance({ cls, state }) {
+  const readOnly = state.user.role === 'guest'; // khách chỉ xem
   const base = `/api/classes/${cls.id}`;
   const data = await get(`${base}/attendance`);
   const search = h('input', { type: 'search', placeholder: 'Tìm học viên…', 'aria-label': 'Tìm học viên' });
@@ -68,7 +69,7 @@ export async function renderAttendance({ cls }) {
       h('th', { class: 'sticky' }, 'Học viên'),
       data.sessions.map((s) => h('th', { class: 'num', title: s.title || '' }, h('div', { class: 'sess-head' },
         h('div', { class: 'sess-title' }, `B${s.session_no}`,
-          h('button', { class: 'small', title: 'Sửa tên/ngày buổi học', onclick: async () => {
+          !readOnly && h('button', { class: 'small', title: 'Sửa tên/ngày buổi học', onclick: async () => {
             const v = await formModal({ title: `Buổi ${s.session_no}`, fields: [
               { name: 'title', label: 'Tên buổi', value: s.title, full: true },
               { name: 'session_date', label: 'Ngày học', type: 'date', value: s.session_date }] });
@@ -76,7 +77,7 @@ export async function renderAttendance({ cls }) {
             try { await put(`${base}/sessions/${s.id}`, v); await reload(); } catch (e) { toast(e.message, true); }
           } }, '✎')),
         h('div', { class: 'muted small' }, s.session_date || ''),
-        h('button', { class: 'small', title: 'Đánh dấu tất cả chưa điểm danh là Có mặt', onclick: async () => {
+        !readOnly && h('button', { class: 'small', title: 'Đánh dấu tất cả chưa điểm danh là Có mặt', onclick: async () => {
           try { await post(`${base}/sessions/${s.id}/attendance/bulk`, { status: 'present' }); toast(`Đã điểm danh cả lớp buổi ${s.session_no}`); await reload(); }
           catch (e) { toast(e.message, true); }
         } }, 'Cả lớp ✓')))),
@@ -97,6 +98,7 @@ export async function renderAttendance({ cls }) {
             const btn = h('button', { 'aria-label': `${row.full_name} buổi ${s.session_no}` });
             buttons.set(key(row.enrollment_id, s.id), btn);
             paintCell(btn, row.cells[s.id]);
+            if (readOnly) { btn.classList.add('readonly'); btn.setAttribute('aria-readonly', 'true'); return h('td', { class: 'num' }, btn); }
             btn.addEventListener('click', async (ev) => {
               if (ev.shiftKey) { // Shift+click: sửa ghi chú
                 const cur = row.cells[s.id];
@@ -150,8 +152,8 @@ export async function renderAttendance({ cls }) {
   const view = h('div', {},
     h('div', { class: 'page-head' }, h('h1', {}, 'Điểm danh'), h('span', { class: 'muted' }, cls.code), liveBadge),
     h('div', { class: 'legend' },
-      h('span', {}, 'Bấm ô để đổi: '), ...Object.entries(LABEL).map(([k, v]) => h('span', {}, h('span', { class: `cell ${k}` }, SHORT[k]), ` ${v}`)),
-      h('span', { class: 'muted' }, '· Shift+bấm để ghi chú · Rê chuột vào ô để xem ai đã điểm danh · Tỉ lệ = (có mặt + trễ) / (buổi đã diễn ra − có phép)')),
+      h('span', {}, readOnly ? 'Chú thích: ' : 'Bấm ô để đổi: '), ...Object.entries(LABEL).map(([k, v]) => h('span', {}, h('span', { class: `cell ${k}` }, SHORT[k]), ` ${v}`)),
+      h('span', { class: 'muted' }, (readOnly ? '· Tài khoản khách chỉ xem · ' : '· Shift+bấm để ghi chú · ') + 'Rê chuột vào ô để xem ai đã điểm danh · Tỉ lệ = (có mặt + trễ) / (buổi đã diễn ra − có phép)')),
     h('div', { class: 'toolbar' }, search),
     h('div', { class: 'table-wrap' }, h('table', { class: 'table-att' }, head, body)));
 

@@ -206,6 +206,8 @@ th .small { text-transform: none; letter-spacing: 0; font-weight: 500; color: va
 .cell.excused { background: var(--info-bg); color: var(--info); border-color: transparent; }
 .cell.has-note::after { content: "•"; margin-left: 2px; }
 .cell:hover { filter: brightness(1.2); }
+.cell.readonly { cursor: default; }
+.cell.readonly:hover { filter: none; }
 
 .badge { display: inline-block; padding: .08rem .65rem; border-radius: 99px; font-size: .78rem; font-weight: 600; background: var(--info-bg); color: var(--info); }
 .badge.ok { background: var(--ok-bg); color: var(--ok); }

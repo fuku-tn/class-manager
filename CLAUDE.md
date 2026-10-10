@@ -20,6 +20,7 @@ Giao diện và tài liệu bằng **tiếng Việt**; tên biến/hàm/bảng b
 npm install
 # .env cần DATABASE_URL (Supabase > Connect > Session pooler, cổng 5432) — xem Documents/supabase-guide.md
 npm run create-admin -- email "Họ tên" matkhau   # tạo/đặt lại admin
+npm run create-guest -- email "Họ tên" matkhau   # tạo/đặt lại tài khoản KHÁCH (chỉ xem)
 npm run import -- danh-sach-hoc-vien-mau.xlsx [--dry-run]   # điểm danh + bài tập từ workbook nhiều sheet (chỉ sheet đang HIỆN); X=đi học, O=vắng có phép, trống=vắng
 npm run import-tx -- Transacitons.xlsx session-management.xlsx [--dry-run]   # lớp, giáo trình, học viên, ghi danh (KHÔNG đọc cột tiền)
 npm start        # http://localhost:3000   (PORT=3100 npm start nếu cổng bận; npm run dev: tự reload)
@@ -36,7 +37,7 @@ Cần Node >= 22.13. Dữ liệu thật nằm trên **Supabase (Postgres)**.
 1. **Mọi công thức tỉ lệ** (điểm danh, HW) chỉ nằm ở `src/services/stats.js` (dùng `attendanceRate()` kể cả khi tổng hợp bằng SQL như `routes/overview.js`). Không tính lại ở frontend/route.
 2. **Frontend không dùng `innerHTML` với dữ liệu** — dựng DOM bằng `h()` trong `ui.js` (chống XSS).
 3. **SQL luôn dùng tham số `$1, $2…`** qua `db.all/one/run/tx`, không nối chuỗi. Mọi truy cập DB là `async`; nhiều lệnh ghi liên quan → `db.tx(async (t) => …)`. Nạp nhiều dòng → `unnest` (mỗi vòng tới Supabase ~50-100ms).
-4. Mọi route theo lớp phải qua `requireClassAccess` (giảng viên chỉ thấy lớp được phân công); thao tác xóa/tạo lớp/quản lý user chỉ admin.
+4. Vai trò `guest` **chỉ xem**: middleware `blockGuestWrites` (`src/auth.js`, gắn ở `create-app.js` cho `/api`) chặn mọi POST/PUT/DELETE trừ đăng xuất. Route ghi mới tự được bảo vệ; frontend phải ẩn nút ghi khi `state.user.role === 'guest'`. Mọi route theo lớp phải qua `requireClassAccess` (giảng viên chỉ thấy lớp được phân công); thao tác xóa/tạo lớp/quản lý user chỉ admin.
 5. Đổi schema → sửa `src/schema.sql` **và** `supabase/schema.sql`, rồi **chạy SQL tương ứng (ALTER) trên Supabase** (schema chỉ dùng `if not exists`, không tự thêm cột); cập nhật `Documents/code-guide.md`, thêm test. Bảng mới phải `enable row level security`.
 6. Thông báo lỗi trả về cho người dùng bằng tiếng Việt.
 7. **Header bảo mật/CSP** khai báo ở `src/security-headers.js` **và** `vercel.json` (file tĩnh không đi qua Express); test kiểm hai nơi khớp. Không thêm script inline hay `onclick=` vào HTML (CSP `script-src 'self'`); nguồn ngoài mới (CDN, API) phải được thêm vào CSP.

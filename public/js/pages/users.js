@@ -25,14 +25,14 @@ export async function renderUsers({ state, navigate }) {
         const v = await formModal({ title: 'Thêm giảng viên / admin', fields: [
           { name: 'name', label: 'Họ tên', required: true }, { name: 'email', label: 'Email', type: 'email', required: true },
           { name: 'password', label: 'Mật khẩu (≥ 8 ký tự)', type: 'password', required: true },
-          { name: 'role', label: 'Vai trò', type: 'select', value: 'instructor', options: [['instructor', 'Giảng viên'], ['admin', 'Admin']] }] });
+          { name: 'role', label: 'Vai trò', type: 'select', value: 'instructor', options: [['instructor', 'Giảng viên'], ['guest', 'Khách (chỉ xem)'], ['admin', 'Admin']] }] });
         if (!v) return;
         try { await post('/api/users', v); toast('Đã tạo'); location.reload(); } catch (e) { toast(e.message, true); }
       } }, '+ Thêm người dùng')),
     h('div', { class: 'table-wrap' }, h('table', {},
       h('thead', {}, h('tr', {}, ['Họ tên', 'Email', 'Vai trò', 'Lớp được phân', 'Trạng thái', ''].map((x) => h('th', {}, x)))),
       h('tbody', {}, users.map((u) => h('tr', { class: u.active ? '' : 'inactive' },
-        h('td', {}, u.name), h('td', {}, u.email), h('td', {}, u.role === 'admin' ? 'Admin' : 'Giảng viên'),
+        h('td', {}, u.name), h('td', {}, u.email), h('td', {}, ({ admin: 'Admin', guest: 'Khách (chỉ xem)' })[u.role] ?? 'Giảng viên'),
         h('td', {}, u.role === 'admin' ? 'Tất cả' : (u.class_ids.map(classOf).join(', ') || '—')),
         h('td', {}, u.active ? 'Hoạt động' : 'Đã khóa'),
         h('td', {},

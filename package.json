@@ -14,6 +14,7 @@
     "vendor": "node scripts/copy-vendor.js",
     "import-tx": "node --env-file-if-exists=.env --no-warnings=ExperimentalWarning scripts/import-transactions.js",
     "import": "node --env-file-if-exists=.env --no-warnings=ExperimentalWarning scripts/import-excel.js",
+    "create-guest": "node --env-file-if-exists=.env scripts/create-guest.js",
     "create-admin": "node --env-file-if-exists=.env scripts/create-admin.js",
     "test": "node --test --no-warnings=ExperimentalWarning tests/*.test.js"
   },

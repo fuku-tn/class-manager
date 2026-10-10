@@ -68,6 +68,14 @@ function requireAuth(req, res, next) {
   next();
 }
 
+// Tài khoản khách (guest) chỉ được xem: chặn mọi phương thức ghi, trừ đăng xuất.
+function blockGuestWrites(req, res, next) {
+  if (req.user?.role !== 'guest') return next();
+  if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return next();
+  if (req.method === 'POST' && req.path === '/auth/logout') return next();
+  return res.status(403).json({ error: 'Tài khoản khách chỉ được xem, không thể thay đổi dữ liệu' });
+}
+
 function requireAdmin(req, res, next) {
   if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Cần quyền admin' });
   next();
@@ -91,5 +99,5 @@ function requireClassAccess(db) {
 
 module.exports = {
   hashPassword, verifyPassword, createSession, setSessionCookie, clearSessionCookie,
-  attachUser, requireAuth, requireAdmin, requireClassAccess, sha256,
+  attachUser, requireAuth, requireAdmin, blockGuestWrites, requireClassAccess, sha256,
 };
