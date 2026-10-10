@@ -134,6 +134,10 @@ create table if not exists submissions (
 );
 
 create index if not exists idx_enrollments_class on enrollments(class_id);
+create index if not exists idx_enrollments_student on enrollments (student_id);
+create index if not exists idx_class_instructors_user on class_instructors (user_id);
+create index if not exists idx_auth_sessions_user on auth_sessions (user_id);
+create index if not exists idx_classes_curriculum on classes (curriculum_id);
 create index if not exists idx_attendance_session on attendance(session_id);
 create index if not exists idx_submissions_assignment on submissions(assignment_id);
 

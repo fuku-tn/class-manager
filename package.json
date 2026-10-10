@@ -5,7 +5,7 @@
   "private": true,
   "main": "src/dev-server.js",
   "engines": {
-    "node": ">=22.13"
+    "node": "22.x"
   },
   "scripts": {
     "start": "node --env-file-if-exists=.env --no-warnings=ExperimentalWarning src/dev-server.js",
@@ -20,11 +20,11 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.117.3",
     "chart.js": "^4.5.1",
-    "exceljs": "^4.4.0",
     "express": "^5.2.1",
     "pg": "^8.23.1"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "^0.5.8"
+    "@electric-sql/pglite": "^0.5.8",
+    "exceljs": "^4.4.0"
   }
 }

@@ -2,6 +2,7 @@ const path = require('node:path');
 const express = require('express');
 const { attachUser, requireAuth, requireAdmin } = require('./auth');
 const { describeDbError } = require('./db');
+const { HEADERS } = require('./security-headers');
 
 function createApp(db) {
   const app = express();
@@ -9,9 +10,7 @@ function createApp(db) {
   if (process.env.VERCEL) app.set('trust proxy', 1); // sau proxy của Vercel: req.ip là IP khách thật
   app.use(express.json({ limit: '100kb' }));
   app.use((_req, res, next) => {
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('X-Frame-Options', 'DENY');
-    res.setHeader('Referrer-Policy', 'same-origin');
+    for (const [k, v] of Object.entries(HEADERS)) res.setHeader(k, v);
     next();
   });
   app.use(attachUser(db));

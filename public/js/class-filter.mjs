@@ -69,3 +69,10 @@ export function countByTiming(list) {
 export function defaultTiming(list) {
   return list.some((c) => c.timing === 'running') ? 'running' : 'all';
 }
+
+// Phạm vi lọc của bộ chọn lớp: đang gõ tìm thì tìm trong TẤT CẢ lớp (bỏ chip thời gian/chương trình),
+// để lớp cũ/đã kết thúc vẫn ra kết quả khi gõ tên.
+export function pickerFilter(list, { q = '', program = '', timing = 'all' } = {}) {
+  const searching = String(q).trim() !== '';
+  return filterClasses(list, { q, program: searching ? '' : program, timing: searching ? 'all' : timing });
+}

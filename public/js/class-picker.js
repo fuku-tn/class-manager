@@ -2,7 +2,7 @@
 // và chương trình, danh sách giới hạn, điều khiển bằng bàn phím (↑ ↓ Enter Esc).
 import { h, icon } from './ui.js';
 import {
-  filterClasses, sortClasses, programsOf, countByTiming, defaultTiming, classLabel, fmtDate,
+  filterClasses, pickerFilter, sortClasses, programsOf, countByTiming, defaultTiming, classLabel, fmtDate,
   TIMING_LABEL, TIMING_ORDER, SHIFT_LABEL, PROGRAM_NAMES,
 } from './class-filter.mjs';
 
@@ -40,7 +40,8 @@ export function createClassPicker({ getClasses, getCurrentId, onSelect, storage 
 
   function render() {
     const all = getClasses();
-    const timing = effectiveTiming();
+    const searching = state.q.trim() !== '';
+    const timing = effectiveTiming();       // chip đang chọn (chỉ dùng khi không gõ tìm)
     const counts = countByTiming(all);
     timingChips.replaceChildren(
       ...['all', ...TIMING_ORDER.filter((t) => counts[t] > 0)].map((t) =>
@@ -52,7 +53,8 @@ export function createClassPicker({ getClasses, getCurrentId, onSelect, storage 
       ...programsOf(inTiming).map((p) => chip(p.program, state.program === p.program,
         () => { state.program = state.program === p.program ? '' : p.program; state.active = 0; persist(); render(); }, p.count)));
 
-    const matched = sortClasses(filterClasses(all, { q: state.q, program: state.program, timing }));
+    // Đang gõ tìm thì tìm trong TẤT CẢ lớp (lớp cũ/đã kết thúc cũng ra), không bị chip thời gian che.
+    const matched = sortClasses(pickerFilter(all, { q: state.q, program: state.program, timing }));
     state.shown = matched.slice(0, MAX_ROWS);
     if (state.active >= state.shown.length) state.active = Math.max(0, state.shown.length - 1);
     list.replaceChildren(...state.shown.map((c, i) => {
@@ -74,7 +76,7 @@ export function createClassPicker({ getClasses, getCurrentId, onSelect, storage 
     if (!state.shown.length) list.append(h('li', { class: 'picker-empty' }, 'Không có lớp khớp. Thử bỏ bớt bộ lọc.'));
     foot.textContent = matched.length > MAX_ROWS
       ? `Hiện ${MAX_ROWS}/${matched.length} lớp — gõ để thu hẹp`
-      : `${matched.length}/${all.length} lớp`;
+      : `${matched.length}/${all.length} lớp${searching ? ' · đang tìm trong tất cả lớp' : ''}`;
   }
 
   function markActive() {

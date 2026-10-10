@@ -39,6 +39,10 @@ Từ bản này, màn hình đăng nhập tự báo lý do nếu là lỗi datab
 | `chưa tạo bảng` | Chưa chạy `supabase/schema.sql` | Chạy trong SQL Editor |
 Sau khi sửa biến môi trường **phải Redeploy** thì mới có hiệu lực. Endpoint này chỉ trả về loại lỗi, không lộ chuỗi kết nối. Code cũng tự bỏ qua dấu nháy/khoảng trắng dán thừa và tham số `?pgbouncer=true`.
 
+## Header bảo mật (CSP)
+`vercel.json` có khối `headers` áp cho mọi đường dẫn (file tĩnh do CDN phục vụ không đi qua Express). Nội dung giống `src/security-headers.js` — test kiểm hai nơi khớp. Nếu sau này thêm dịch vụ ngoài (analytics, font mới, API khác) mà trang bị chặn, mở Console của trình duyệt xem dòng "violates the following Content Security Policy" rồi thêm nguồn vào **cả hai** nơi.
+Khi nghi CSP gây lỗi: có thể tạm thời xóa khối `headers` trong `vercel.json` và triển khai lại để so sánh.
+
 ## Trước khi mở cho người khác dùng (bắt buộc xem)
 - Trang sẽ **công khai trên Internet** và chứa email/SĐT học viên. Việc duy nhất ngăn người lạ là đăng nhập.
   - **Đổi mật khẩu tài khoản admin tạm** (hỏi chủ dự án), hoặc tạo admin riêng (`npm run create-admin`) rồi khóa tài khoản tạm.

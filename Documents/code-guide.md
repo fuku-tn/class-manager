@@ -34,6 +34,8 @@ users ─< class_instructors >─ classes ─< sessions
 | `classes` (mở rộng) | `short_code`, `program`, `delivery_mode`, `shift`, `end_date`, `next_short_code`, `curriculum_id` |
 | `students.gender`, `enrollments.registration_source`, `enrollments.carried_over` | Nguồn: Transactions. Không có cột tiền |
 
+Chỉ mục: ngoài khóa duy nhất còn `idx_enrollments_class/student`, `idx_attendance_session`, `idx_submissions_assignment`, `idx_class_instructors_user`, `idx_auth_sessions_user`, `idx_classes_curriculum`.
+
 Schema nằm ở `src/schema.sql` (app + test dùng) và bản sao `supabase/schema.sql` (dán vào SQL Editor) — giữ hai file giống nhau. `create table if not exists` không thêm cột vào bảng đã có: đổi cột thì chạy `alter table …` trên Supabase.
 
 Chỉ lưu **sự kiện đã ghi nhận**; tỉ lệ luôn được tính, không lưu (tránh lệch số).
@@ -87,8 +89,12 @@ Chỉ lưu **sự kiện đã ghi nhận**; tỉ lệ luôn được tính, khô
 - Chart.js phục vụ tại `/vendor/chart.umd.min.js` từ `public/vendor/` (Vercel không phục vụ `node_modules`; cập nhật bằng `npm run vendor`).
 
 ## Bảo mật (đã có)
-scrypt băm mật khẩu · token phiên ngẫu nhiên 256-bit, chỉ lưu băm · cookie HttpOnly + SameSite=Lax (+ Secure khi `NODE_ENV=production`) · SQL tham số hóa · DOM dựng bằng textContent · header `nosniff`, `X-Frame-Options` · giới hạn body 100KB · giới hạn đăng nhập sai.
-**Chưa có:** HTTPS (đặt sau reverse proxy khi triển khai), CSP, CSRF token (SameSite=Lax + API chỉ nhận JSON là lớp bảo vệ hiện tại), nhật ký kiểm toán.
+- **Xác thực:** scrypt băm mật khẩu · token phiên ngẫu nhiên 256-bit, chỉ lưu băm · cookie HttpOnly + SameSite=Lax (+ Secure khi `NODE_ENV=production`) · giới hạn 8 lần đăng nhập sai/15 phút (trong bộ nhớ từng instance).
+- **Dữ liệu:** SQL tham số hóa · RLS bật mọi bảng, không policy (chỉ server truy cập) · không lưu dữ liệu tiền.
+- **Trình duyệt:** DOM dựng bằng `textContent` (test chặn `innerHTML`/`eval` trong `public/js`) · **CSP** `script-src 'self'` (không script inline), `connect-src` chỉ `'self'` + `*.supabase.co`/`wss`, `frame-ancestors 'none'`, `object-src 'none'` · `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`. Nguồn: `src/security-headers.js`, lặp lại trong `vercel.json` cho file tĩnh; test `security-headers.test.js` giữ hai nơi khớp. Thêm nguồn ngoài (CDN, font, API) → sửa cả hai nơi.
+- **API:** giới hạn body 100KB · chặn ghi chéo lớp · ghi ô có `expected` chống ghi đè.
+- **Chưa có:** HTTPS ở máy nhà (Vercel có sẵn), CSRF token (hiện dựa vào SameSite=Lax + API chỉ nhận JSON), nhật ký kiểm toán đầy đủ, bộ đếm đăng nhập sai dùng chung nhiều instance.
+- **Phụ thuộc:** `npm audit --omit=dev` = 0 lỗ hổng; `exceljs` (chỉ dùng cho lệnh nhập, máy chủ web không nạp) nằm ở `devDependencies`.
 
 ## Nhập điểm danh (`services/importExcel.js`)
 - CLI: `npm run import -- <file.xlsx> [--dry-run] [--sheets "BIE-8,BIE-12"]`. Mặc định đọc mọi sheet **đang hiện** có cột `SESSION n` (sheet ẩn = bản cũ). Chạy trong **một transaction**: lỗi thì hoàn tác toàn bộ; `--dry-run` luôn hoàn tác.

@@ -4,6 +4,13 @@ const MISSING_HW_ALERT = Number(process.env.MISSING_HW_ALERT || 2);
 
 const round = (n) => (n == null ? null : Math.round(n * 100) / 100);
 
+// NGUỒN DUY NHẤT của công thức chuyên cần: (có mặt + trễ) ÷ (số lượt đã diễn ra − số lượt vắng có phép).
+// Vắng có phép không làm giảm tỉ lệ. Trả null khi chưa có mẫu số.
+function attendanceRate(attended, excused, held) {
+  const denom = held - excused;
+  return denom > 0 ? round(attended / denom) : null;
+}
+
 async function loadClassData(db, classId) {
   const [sessions, assignments, enrollments, attendance, submissions] = await Promise.all([
     db.all('select * from sessions where class_id = $1 order by session_no', [classId]),
@@ -45,7 +52,6 @@ function computeEnrollmentStats({ sessions, assignments, enrollments, attendance
       else if (st === 'excused') excused++;
       else absent++;
     }
-    const denom = heldIds.size - excused;
     let hwDone = 0, hwMissing = 0;
     for (const aid of hwIds) {
       const st = subIdx.get(`${e.id}:${aid}`)?.status ?? 'missing';
@@ -54,7 +60,7 @@ function computeEnrollmentStats({ sessions, assignments, enrollments, attendance
     const cap = capstone && subIdx.get(`${e.id}:${capstone.id}`)?.status;
     stats.set(e.id, {
       attended, absent, excused,
-      attendance_rate: denom > 0 ? round(attended / denom) : null,
+      attendance_rate: attendanceRate(attended, excused, heldIds.size),
       hw_done: hwDone, hw_missing: hwMissing,
       hw_rate: hwIds.size > 0 ? round(hwDone / hwIds.size) : null,
       capstone_status: cap ?? null,
@@ -76,10 +82,9 @@ async function buildDashboard(db, cls) {
       const recorded = new Map(data.attendance.filter((a) => a.session_id === s.id).map((a) => [a.enrollment_id, a.status]));
       for (const e of active) counts[recorded.get(e.id) ?? 'absent']++;
     }
-    const denom = active.length - counts.excused;
     return {
       session_id: s.id, session_no: s.session_no, title: s.title, held: !!s.held, ...counts,
-      rate: s.held && denom > 0 ? round((counts.present + counts.late) / denom) : null,
+      rate: s.held ? attendanceRate(counts.present + counts.late, counts.excused, active.length) : null,
     };
   });
 
@@ -128,4 +133,4 @@ async function buildDashboard(db, cls) {
   };
 }
 
-module.exports = { loadClassData, computeEnrollmentStats, buildDashboard, ATTENDANCE_THRESHOLD };
+module.exports = { loadClassData, computeEnrollmentStats, buildDashboard, attendanceRate, ATTENDANCE_THRESHOLD };

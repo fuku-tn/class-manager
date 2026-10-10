@@ -31,6 +31,14 @@ test('lọc lớp: theo thời gian và chương trình; đếm; mặc định',
   assert.deepEqual(F.programsOf(sample), [{ program: 'EBA', count: 3 }, { program: 'BIE', count: 1 }, { program: 'BIH', count: 1 }]);
 });
 
+test('bộ chọn lớp: đang gõ tìm thì tìm trong TẤT CẢ lớp, bỏ chip thời gian/chương trình', () => {
+  // chip "Đang học" + chương trình EBA: chưa gõ → chỉ EBA đang học
+  assert.deepEqual(F.pickerFilter(sample, { timing: 'running', program: 'EBA' }).map((c) => c.short_code), ['EBA120']);
+  // gõ "bie101" (lớp đã kết thúc): vẫn phải ra dù chip đang là "Đang học" + EBA
+  assert.deepEqual(F.pickerFilter(sample, { q: 'bie101', timing: 'running', program: 'EBA' }).map((c) => c.short_code), ['BIE101']);
+  assert.deepEqual(F.pickerFilter(sample, { q: '   ', timing: 'upcoming' }).map((c) => c.short_code), ['EBA121']); // toàn khoảng trắng = chưa gõ
+});
+
 test('sắp xếp: đang học → sắp mở (gần nhất trước) → đã xong (mới nhất trước) → chưa có ngày', () => {
   assert.deepEqual(F.sortClasses(sample).map((c) => c.short_code), ['EBA120', 'BIH103', 'EBA121', 'BIE101', 'EBA060']);
   assert.equal(F.fmtDate('2026-07-26'), '26/07/26');
@@ -98,4 +106,12 @@ test('danh sách lớp trả về timing để bộ lọc dùng', async () => {
   const list = (await admin.get('/api/classes')).body;
   const timing = Object.fromEntries(list.map((c) => [c.short_code, c.timing]));
   assert.deepEqual(timing, { RUN: 'running', SOON: 'upcoming', OLD: 'finished' });
+});
+
+test('công thức chuyên cần nằm ở stats.js: có phép không làm giảm tỉ lệ', () => {
+  const { attendanceRate } = require('../src/services/stats');
+  assert.equal(attendanceRate(6, 0, 8), 0.75);   // 6/8
+  assert.equal(attendanceRate(6, 1, 8), 0.86);   // 6/(8-1): vắng có phép không tính
+  assert.equal(attendanceRate(0, 3, 3), null);   // toàn có phép → chưa có mẫu số
+  assert.equal(attendanceRate(0, 0, 0), null);
 });

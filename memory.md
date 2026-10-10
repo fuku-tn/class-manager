@@ -38,12 +38,11 @@ Cập nhật file này mỗi khi chốt quyết định mới. Mục lỗi thờ
 - [ ] Bước tiếp: Form → đăng ký "chờ xác nhận" trong app; đồng bộ Sheet Transactions tự động (Apps Script đẩy hoặc service account đọc, chỉ các cột cho phép); Company.
 - [ ] Rà báo cáo trùng lặp (`data/bao-cao-trung-lap.csv`, chỉ máy bạn): 1 email 2 mã, 7 mã nhiều email, 2 SĐT 2 mã.
 - [ ] Thêm `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` vào Vercel (Production) để bật realtime, rồi Redeploy.
-- [ ] Deploy lên Vercel theo `Documents/deploy-vercel.md` (dùng Transaction pooler cổng 6543 cho `DATABASE_URL` trên Vercel); sau đó kiểm tra bản live.
+- [ ] Kiểm tra bản Vercel sau mỗi lần đẩy (đặc biệt sau khi thêm CSP): đăng nhập, Home, điểm danh realtime, biểu đồ.
 - [ ] Đặt lại mật khẩu database Supabase (đã lộ trong chat) và cập nhật `DATABASE_URL` trong `.env`.
 - [ ] Đổi mật khẩu tài khoản admin tạm (hỏi chủ dự án; không ghi mật khẩu vào repo) hoặc tạo admin riêng bằng `npm run create-admin`.
-- [ ] Postgres local (localhost:5432, PostgreSQL 17) từ chối đăng nhập `postgres`/`postgre` với mật khẩu đã cung cấp — không còn cần thiết vì đã dùng Supabase; bỏ qua trừ khi muốn dùng thêm.
 - [ ] Chủ dự án xác nhận các giả định ở trên (đặc biệt #1, #4, #5).
-- [ ] **Chưa kiểm thử giao diện trên trình duyệt thật** — mới test API (15 test, Postgres) và kiểm tra cú pháp JS; API đã thử trực tiếp trên Supabase. Cần mở thử `npm start` và duyệt các tab.
+- [ ] Giao diện đã kiểm bằng Edge headless (13 bước, không vi phạm CSP); còn cần chủ dự án thử thao tác thật trên bản Vercel (bấm ô điểm danh nhiều người cùng lúc, hộp thoại, đổi sáng/tối).
 - [ ] Upload Excel trực tiếp trên web (hiện chỉ có CLI `npm run import`).
 - [ ] Thêm tab xem chi tiết 1 học viên (lịch sử điểm danh/HW qua các lớp).
 
@@ -73,5 +72,6 @@ Cập nhật file này mỗi khi chốt quyết định mới. Mục lỗi thờ
 | 2026-10-10 | Chủ dự án chốt: sheet ẩn (Sheet1, BIH-Pre, BSM-Pre, SQL, BSM) **bỏ qua**; ô `X` gõ hai lần = một `X`; **bỏ hẳn voucher** → xóa bảng `vouchers` (18 dòng), gỡ khỏi API/giao diện/schema/test; P104 đã được chủ dự án sửa trên giao diện (1/8 buổi, TB 86%) | Migration `2026-10-10-drop-vouchers.sql`; 33 test pass |
 | 2026-10-10 | Làm lại **bộ chọn lớp** (ô tìm + chip thời gian/chương trình, mặc định chỉ lớp đang học) và thêm **trang Home** động theo ảnh tham khảo ArtVista (hero + minh họa SVG động, đếm số, băng chuyền lớp, lớp sắp mở); API `GET /overview`, `timing` trong `GET /classes`; trang Lớp học (admin) dùng cùng bộ lọc | 39 test pass; kiểm tra bằng Edge headless (desktop + mobile), không lỗi JS |
 | 2026-10-10 | Làm lại hero trang Home theo ảnh tham khảo "vũ trụ rộng lớn" (EOSAI): cảnh SVG tự vẽ (hành tinh + vòng quỹ đạo, cổng đá, mây, mặt nước, bóng người), chữ mảnh, nút tròn, thị sai | Chỉ lấy phong cách, không dùng ảnh gốc; 39 test pass; kiểm tra Edge headless desktop + mobile |
+| 2026-10-10 | **Rà soát toàn dự án** (theo checklist `rules-reviewer`/`schema-guard`, thực hiện trực tiếp vì agent chưa nạp trong phiên): công thức chuyên cần ở `routes/overview.js` dời về `stats.js` (`attendanceRate`); thêm **CSP + header bảo mật** (`src/security-headers.js` + `vercel.json`, script theme ra file riêng); bộ chọn lớp tìm trong tất cả lớp khi đang gõ; 4 chỉ mục khóa ngoại (migration `fk-indexes`, đã chạy trên Supabase); `exceljs` → devDependencies (audit 0 lỗ hổng); ghim Node 22.x | 45 test pass; 13 bước UI trên Edge không vi phạm CSP; số liệu P101 không đổi; 12/12 bảng có RLS, không dữ liệu mồ côi |
 
 Chưa làm / chưa kiểm: thử tay thao tác ghi trên giao diện mới (bấm ô điểm danh, modal sửa) bằng chuột thật; Supabase Auth; upload Excel trên web; triển khai.

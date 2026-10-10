@@ -33,22 +33,24 @@ Cần Node >= 22.13. Dữ liệu thật nằm trên **Supabase (Postgres)**.
 - `scripts/` CLI · `supabase/schema.sql` (bản dán vào SQL Editor, giữ giống `src/schema.sql`) · `legacy/` (SQLite cũ, chỉ để tham khảo) · `tests/` · `Documents/` · `.claude/skills/`
 
 ## Quy tắc bắt buộc
-1. **Mọi công thức tỉ lệ** (điểm danh, HW) chỉ nằm ở `src/services/stats.js`. Không tính lại ở frontend.
+1. **Mọi công thức tỉ lệ** (điểm danh, HW) chỉ nằm ở `src/services/stats.js` (dùng `attendanceRate()` kể cả khi tổng hợp bằng SQL như `routes/overview.js`). Không tính lại ở frontend/route.
 2. **Frontend không dùng `innerHTML` với dữ liệu** — dựng DOM bằng `h()` trong `ui.js` (chống XSS).
 3. **SQL luôn dùng tham số `$1, $2…`** qua `db.all/one/run/tx`, không nối chuỗi. Mọi truy cập DB là `async`; nhiều lệnh ghi liên quan → `db.tx(async (t) => …)`. Nạp nhiều dòng → `unnest` (mỗi vòng tới Supabase ~50-100ms).
 4. Mọi route theo lớp phải qua `requireClassAccess` (giảng viên chỉ thấy lớp được phân công); thao tác xóa/tạo lớp/quản lý user chỉ admin.
 5. Đổi schema → sửa `src/schema.sql` **và** `supabase/schema.sql`, rồi **chạy SQL tương ứng (ALTER) trên Supabase** (schema chỉ dùng `if not exists`, không tự thêm cột); cập nhật `Documents/code-guide.md`, thêm test. Bảng mới phải `enable row level security`.
 6. Thông báo lỗi trả về cho người dùng bằng tiếng Việt.
-7. Vercel **bỏ qua `express.static()`**: file tĩnh phải nằm trong `public/` (kể cả thư viện — Chart.js ở `public/vendor/`, cập nhật bằng `npm run vendor`).
-8. **KHÔNG lấy, lưu, hiển thị bất kỳ dữ liệu liên quan đến tiền** (giá, số tiền đã đóng, giảm giá, trạng thái thanh toán...) — yêu cầu của chủ dự án. Bộ nhập chỉ đọc cột trong danh sách cho phép (`ALLOWED_*`), không "đọc hết rồi bỏ". Cột `STATUS` của Transactions trộn thanh toán với trạng thái học: chỉ lấy "Không tham gia" và "Bảo lưu khóa trước". Bộ nhập điểm danh **không đọc cột voucher** (`VOUCHER*`, `EXPIRATION*`). Bảng `vouchers` đã bị xóa (2026-10-10); đừng thêm lại.
-9. **Ghi một ô điểm danh/bài tập** phải đi qua route có `expected` + `updated_by` và gọi `realtime.publish` sau khi ghi thành công; frontend cập nhật ô tại chỗ (không dựng lại bảng). Đừng bỏ cơ chế này khi thêm loại ô mới.
-10. Không commit `.env`, `node_modules/`, `legacy/*.db`, file `.xlsx/.csv` (dữ liệu học viên thật). Không đưa dữ liệu học viên thật vào repo/test ngoài file mẫu.
-11. Xong một thay đổi: chạy `npm test`; cập nhật [memory.md](memory.md) nếu có quyết định/giả định mới; nội dung lỗi thời chuyển sang [Archive.md](Archive.md).
+7. **Header bảo mật/CSP** khai báo ở `src/security-headers.js` **và** `vercel.json` (file tĩnh không đi qua Express); test kiểm hai nơi khớp. Không thêm script inline hay `onclick=` vào HTML (CSP `script-src 'self'`); nguồn ngoài mới (CDN, API) phải được thêm vào CSP.
+8. Vercel **bỏ qua `express.static()`**: file tĩnh phải nằm trong `public/` (kể cả thư viện — Chart.js ở `public/vendor/`, cập nhật bằng `npm run vendor`).
+9. **KHÔNG lấy, lưu, hiển thị bất kỳ dữ liệu liên quan đến tiền** (giá, số tiền đã đóng, giảm giá, trạng thái thanh toán...) — yêu cầu của chủ dự án. Bộ nhập chỉ đọc cột trong danh sách cho phép (`ALLOWED_*`), không "đọc hết rồi bỏ". Cột `STATUS` của Transactions trộn thanh toán với trạng thái học: chỉ lấy "Không tham gia" và "Bảo lưu khóa trước". Bộ nhập điểm danh **không đọc cột voucher** (`VOUCHER*`, `EXPIRATION*`). Bảng `vouchers` đã bị xóa (2026-10-10); đừng thêm lại.
+10. **Ghi một ô điểm danh/bài tập** phải đi qua route có `expected` + `updated_by` và gọi `realtime.publish` sau khi ghi thành công; frontend cập nhật ô tại chỗ (không dựng lại bảng). Đừng bỏ cơ chế này khi thêm loại ô mới.
+11. Không commit `.env`, `node_modules/`, `legacy/*.db`, file `.xlsx/.csv` (dữ liệu học viên thật). Không đưa dữ liệu học viên thật vào repo/test ngoài file mẫu.
+12. Xong một thay đổi: chạy `npm test`; cập nhật [memory.md](memory.md) nếu có quyết định/giả định mới; nội dung lỗi thời chuyển sang [Archive.md](Archive.md).
 
 ## Skill của project (`.claude/skills/`)
 - `student-webapp-dev` — thêm/sửa tính năng đúng kiến trúc của project
 - `import-excel` — nhập/đối soát dữ liệu từ file Excel của lớp
 - `run-tests` — chạy và đọc kết quả kiểm thử, thêm test cho thay đổi
+- `class-manager-review` — điều phối review độc lập (agent `rules-reviewer`, `schema-guard`, `import-auditor` trong `.claude/agents/`, chỉ đọc). Dùng trước khi commit/đẩy; agent mới tạo cần **mở phiên mới** mới gọi được dạng subagent
 - `supabase`, `supabase-postgres-best-practices` — skill chính thức của Supabase (cài bằng `npx skills add supabase/agent-skills`; đã rà: chỉ gồm file markdown). Dùng khi đổi schema, RLS, index, truy vấn chậm, kết nối
 
 ## MCP
