@@ -4,7 +4,7 @@ Cập nhật file này mỗi khi chốt quyết định mới. Mục lỗi thờ
 
 ## Quyết định đã chốt (2026-10-09)
 
-- **Người dùng:** nhiều giảng viên/trợ giảng; 2 vai trò `admin` và `instructor`; giảng viên chỉ thấy lớp được phân công.
+- **Người dùng:** nhiều giảng viên/trợ giảng; 3 vai trò `admin`, `instructor`, `guest` (chỉ xem); giảng viên/khách chỉ thấy lớp được phân công.
 - **Lưu trữ:** ~~SQLite local~~ → **Supabase (Postgres)** từ 2026-10-09. Webapp kết nối trực tiếp qua `DATABASE_URL` (Session pooler, cổng 5432, thư viện `pg`). Test dùng PGlite (Postgres trong bộ nhớ). Bản SQLite cũ giữ ở `legacy/` để tham khảo.
 - **Công nghệ:** Express + HTML/JS thuần (ES modules) + Chart.js (phục vụ từ `node_modules`, không CDN). Phụ thuộc: `express`, `exceljs`, `chart.js`, `pg`; dev: `@electric-sql/pglite`.
 - **Ngôn ngữ:** giao diện + tài liệu tiếng Việt, code tiếng Anh.
@@ -33,7 +33,7 @@ Cập nhật file này mỗi khi chốt quyết định mới. Mục lỗi thờ
 - [ ] Thêm nút "Đổi mật khẩu" trên giao diện để giảng viên tự đổi mật khẩu cấp ban đầu.
 - [ ] Xác nhận lớp dùng mẫu BIE-12 theo sheet: BIE068, 075 (B075), 078, 081, 085, 090, 092, 102 (đã đổi theo tên sheet, thay quy tắc mặc định BIE-8).
 - [ ] Chương trình chưa có giáo trình (EBA, SIA/SCA, PBM, DDM, SQL...): 86 lớp chưa có buổi học → chưa điểm danh được. Cần giáo trình hoặc số buổi mặc định (Form gợi ý EBA 6, SIA 8, PBM 10).
-- [ ] 122 lớp mới chưa phân cho 3 giảng viên (mới chỉ P101, P104); admin thấy tất cả. Cần quy tắc phân lớp.
+- [x] 2026-10-10: gán **cả 124 lớp** cho 3 giảng viên (Thuận, Trung, Tuấn) theo yêu cầu chủ dự án. Lớp tạo/nhập mới về sau **không tự gán** — admin phân ở trang Người dùng (hoặc làm tự động nếu muốn).
 - [ ] Bài tập (HW/Capstone) chỉ có ở P101/P104; chưa có giao diện thêm bài tập cho lớp khác.
 - [ ] Bước tiếp: Form → đăng ký "chờ xác nhận" trong app; đồng bộ Sheet Transactions tự động (Apps Script đẩy hoặc service account đọc, chỉ các cột cho phép); Company.
 - [ ] Rà báo cáo trùng lặp (`data/bao-cao-trung-lap.csv`, chỉ máy bạn): 1 email 2 mã, 7 mã nhiều email, 2 SĐT 2 mã.
