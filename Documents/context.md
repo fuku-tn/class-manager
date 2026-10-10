@@ -36,19 +36,33 @@ Chủ dự án (giảng viên/quản lý đào tạo) hiện lưu danh sách h�
 
 Các quy tắc trên là **giả định đã đối chiếu với file mẫu** nhưng cần chủ dự án xác nhận — xem bảng trong [memory.md](../memory.md).
 
-## File Excel mẫu: `danh-sach-hoc-vien-mau.xlsx`
-Sheet duy nhất, **2 lớp** cùng sheet (tách theo `COURSE ID`): `P2.BIE.P101.HY.AA.260726` (46 học viên, đủ 8 buổi) và `P2.BIE.P104.HY.AA.041026` (26 học viên, mới có buổi 1). Dòng 2-4 (Phase, chủ đề, số đếm) chỉ mô tả lớp P101.
-- Dòng 2: tên phase (`Phase 1`). Dòng 3: chủ đề gộp — Buổi 1-3 *Data Transformation*, Buổi 4-5 *Data Storytelling & Data Model*, Buổi 6-8 *Data Visualization*; các ô `HW`.
-- Dòng 4: số người có mặt/nộp từng buổi/bài (dùng để đối soát — test import so khớp các số này).
-- **Dòng 5 là tiêu đề cột; dữ liệu từ dòng 6.**
-- Cột định danh: `STUDENT ID`, `FULL NAME`, `EMAIL`, `PHONE` (mất số 0 đầu → import tự thêm), `COURSE ID` (= mã lớp), `MODE`, `COURSE STATUS`, `ATTENDANCE RATE`, `CERTIFICATE STATUS`, `FORM`, `CUSTOMER ID`, `SUBINDEX`.
-- Mỗi buổi/bài là cặp cột: `SESSION n` / `NOTE SSn`, `HOMEWORK n` / `NOTE HWn`, `CAPSTONE PROJECT` / `NOTE CP`. Giá trị `X` (hoặc `x`) = có mặt/đã nộp; trống = không.
-- Giá trị lạ như `O` ở ô buổi/bài (2 học viên P104) không phải `X` → tính vắng/thiếu và import in cảnh báo.
-- Cột `ATTENDANCE RATE` của Excel chia cho **tổng số buổi (8)**; webapp chia cho số buổi **đã diễn ra** (xem memory.md #10).
-- Ghi chú thường gặp: "Học từ buổi 2", "Trùng lịch EBA113", "Vào trễ", "Có làm Challenge", "Còn thiếu bài", "Nộp lại", "Challenge chưa chấm".
-- Voucher: `VOUCHER GG MAPS` (số tiền), `VOUCHER SENT DATE`, `EXPIRATION DATE`, `VOUCHER STATUS`.
+## File Excel điểm danh `danh-sach-hoc-vien-mau.xlsx`
+Từ 2026-10-10 là **workbook nhiều sheet theo chương trình** (trước đó chỉ 1 sheet).
+| Sheet (hiện) | Lớp | Ghi chú |
+|---|---|---|
+| `BIE-8` | 14 | Mẫu giáo trình BIE-8 (8 buổi) |
+| `BIE-12` | 8 | Mẫu BIE-12 (tối đa 12 buổi) — **tên sheet là mẫu thật của lớp** |
+| `BIH` | 8 | 22 cột buổi; lớp BIH103 thực tế theo mẫu BIH-11 |
+| `SCA`, `PBM`, `BIF`, `DDM`, `EBA` | 2 / 6 / 2 / 4 / 10 | Chưa có giáo trình riêng: số buổi = số cột của sheet |
+Sheet **ẩn** (`Sheet1`, `SQL`, `BIH-Pre`, `BSM`, `BSM-Pre`, `General`) là bản cũ/tổng hợp → **không nhập**. `List of Students`, `BIH Analysis` không phải sheet điểm danh.
 
-Import map theo **tên cột** (không theo vị trí), nên thêm buổi/bài mới vào file vẫn nhập được.
+- Dòng tiêu đề ở dòng 5 (sheet EBA: dòng 4). Cột theo **tên**: `STUDENT ID`, `COURSE ID`, `FULL NAME`, `EMAIL`, `PHONE`, `MODE`, `COURSE STATUS`, `CERTIFICATE STATUS`, `FORM`, `SESSION n` / `NOTE SSn`, `HOMEWORK n` / `NOTE HWn`, `CAPSTONE PROJECT` / `NOTE CP`.
+- **Không đọc:** `VOUCHER GG MAPS`, `VOUCHER SENT DATE`, `EXPIRATION DATE`, `VOUCHER STATUS` (tiền) và mọi cột ngoài danh sách cho phép.
+- Dòng không có mã học viên dạng `P.12345`/`B.00312` (dòng tổng, ghi chú) bị bỏ qua.
+
+### Quy tắc ô điểm danh (chủ dự án xác nhận 2026-10-10)
+| Ô | Nghĩa | Trạng thái trong app |
+|---|---|---|
+| `X` hoặc `x` | Đi học | `present` (ghi chú có "trễ" → `late`, vẫn tính đi học) |
+| `O` | Vắng **có phép** | `excused` |
+| trống | Vắng | `absent` |
+| chữ khác (`Đã báo trước`...) | Không thuộc quy tắc | `absent` + cảnh báo khi nhập |
+- Buổi **không ai có X hoặc O** = chưa diễn ra → không có bản ghi, không kéo tụt tỉ lệ.
+- **Tỉ lệ chuyên cần** = (có mặt + trễ) ÷ (số buổi đã diễn ra − số buổi có phép). Vắng có phép **không** làm giảm tỉ lệ. Cột `ATTENDANCE RATE` trong Excel tính khác (X ÷ **tổng số buổi của khóa**, coi `O` như vắng) nên sẽ không khớp app.
+- Bài tập: `X` = đã nộp, trống = thiếu (chỉ tính bài đã có người nộp).
+- `COURSE STATUS`: `Deferred` → bảo lưu; `Canceled` → nghỉ; trống → đang học (không hạ trạng thái đã có).
+- Mã lớp trong file có thể lệch chữ `P`/`B` so với sheet Course (vd `P2.BIE.P088…` ↔ `B088`): khớp theo mã ngắn (`BIE088`).
+- Các lớp `B…` (doanh nghiệp/riêng) có học viên không nằm trong Transactions: nhập kèm học viên khi nhập điểm danh.
 
 ## Nguồn dữ liệu của công ty (flow hiện tại)
 Sale chốt + học viên đóng tiền → học viên điền form → Google Sheet form → một người copy sang Sheet **Transactions** (gán/lấy lại mã học viên) → cập nhật file Excel điểm danh trên SharePoint → lớp mới có danh sách để điểm danh. Ba nơi lưu, hai lần copy tay; chưa có lịch sử sửa.

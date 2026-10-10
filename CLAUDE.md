@@ -20,7 +20,7 @@ Giao diện và tài liệu bằng **tiếng Việt**; tên biến/hàm/bảng b
 npm install
 # .env cần DATABASE_URL (Supabase > Connect > Session pooler, cổng 5432) — xem Documents/supabase-guide.md
 npm run create-admin -- email "Họ tên" matkhau   # tạo/đặt lại admin
-npm run import -- danh-sach-hoc-vien-mau.xlsx    # nhập lớp + điểm danh từ Excel lên Supabase (chạy lại an toàn)
+npm run import -- danh-sach-hoc-vien-mau.xlsx [--dry-run]   # điểm danh + bài tập từ workbook nhiều sheet (chỉ sheet đang HIỆN); X=đi học, O=vắng có phép, trống=vắng
 npm run import-tx -- Transacitons.xlsx session-management.xlsx [--dry-run]   # lớp, giáo trình, học viên, ghi danh (KHÔNG đọc cột tiền)
 npm start        # http://localhost:3000   (PORT=3100 npm start nếu cổng bận; npm run dev: tự reload)
 npm test         # node:test, Postgres trong bộ nhớ (PGlite) — KHÔNG đụng Supabase
@@ -40,7 +40,7 @@ Cần Node >= 22.13. Dữ liệu thật nằm trên **Supabase (Postgres)**.
 5. Đổi schema → sửa `src/schema.sql` **và** `supabase/schema.sql`, rồi **chạy SQL tương ứng (ALTER) trên Supabase** (schema chỉ dùng `if not exists`, không tự thêm cột); cập nhật `Documents/code-guide.md`, thêm test. Bảng mới phải `enable row level security`.
 6. Thông báo lỗi trả về cho người dùng bằng tiếng Việt.
 7. Vercel **bỏ qua `express.static()`**: file tĩnh phải nằm trong `public/` (kể cả thư viện — Chart.js ở `public/vendor/`, cập nhật bằng `npm run vendor`).
-8. **KHÔNG lấy, lưu, hiển thị bất kỳ dữ liệu liên quan đến tiền** (giá, số tiền đã đóng, giảm giá, trạng thái thanh toán...) — yêu cầu của chủ dự án. Bộ nhập chỉ đọc cột trong danh sách cho phép (`ALLOWED_*`), không "đọc hết rồi bỏ". Cột `STATUS` của Transactions trộn thanh toán với trạng thái học: chỉ lấy "Không tham gia" và "Bảo lưu khóa trước". Còn nợ: `vouchers.amount` (xem memory.md).
+8. **KHÔNG lấy, lưu, hiển thị bất kỳ dữ liệu liên quan đến tiền** (giá, số tiền đã đóng, giảm giá, trạng thái thanh toán...) — yêu cầu của chủ dự án. Bộ nhập chỉ đọc cột trong danh sách cho phép (`ALLOWED_*`), không "đọc hết rồi bỏ". Cột `STATUS` của Transactions trộn thanh toán với trạng thái học: chỉ lấy "Không tham gia" và "Bảo lưu khóa trước". Bộ nhập điểm danh **không đọc cột voucher** (`VOUCHER*`, `EXPIRATION*`). Còn nợ: `vouchers.amount` (xem memory.md).
 9. **Ghi một ô điểm danh/bài tập** phải đi qua route có `expected` + `updated_by` và gọi `realtime.publish` sau khi ghi thành công; frontend cập nhật ô tại chỗ (không dựng lại bảng). Đừng bỏ cơ chế này khi thêm loại ô mới.
 10. Không commit `.env`, `node_modules/`, `legacy/*.db`, file `.xlsx/.csv` (dữ liệu học viên thật). Không đưa dữ liệu học viên thật vào repo/test ngoài file mẫu.
 11. Xong một thay đổi: chạy `npm test`; cập nhật [memory.md](memory.md) nếu có quyết định/giả định mới; nội dung lỗi thời chuyển sang [Archive.md](Archive.md).

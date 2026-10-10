@@ -89,6 +89,15 @@ Chỉ lưu **sự kiện đã ghi nhận**; tỉ lệ luôn được tính, khô
 scrypt băm mật khẩu · token phiên ngẫu nhiên 256-bit, chỉ lưu băm · cookie HttpOnly + SameSite=Lax (+ Secure khi `NODE_ENV=production`) · SQL tham số hóa · DOM dựng bằng textContent · header `nosniff`, `X-Frame-Options` · giới hạn body 100KB · giới hạn đăng nhập sai.
 **Chưa có:** HTTPS (đặt sau reverse proxy khi triển khai), CSP, CSRF token (SameSite=Lax + API chỉ nhận JSON là lớp bảo vệ hiện tại), nhật ký kiểm toán.
 
+## Nhập điểm danh (`services/importExcel.js`)
+- CLI: `npm run import -- <file.xlsx> [--dry-run] [--sheets "BIE-8,BIE-12"]`. Mặc định đọc mọi sheet **đang hiện** có cột `SESSION n` (sheet ẩn = bản cũ). Chạy trong **một transaction**: lỗi thì hoàn tác toàn bộ; `--dry-run` luôn hoàn tác.
+- Danh sách cột cho phép (`isAllowedHeader`): cột ngoài danh sách (kể cả voucher/tiền) không bao giờ được đọc. Có test dùng dữ liệu mồi ở cột voucher.
+- `parseAttendanceCell`: X/x → có mặt, O → có phép, trống → vắng, `X\nX` → có mặt + cảnh báo, chữ khác → vắng + cảnh báo.
+- Khớp lớp: theo `classes.code`, nếu không có thì theo mã ngắn (`BIE088`); không có nữa mới tạo lớp mới (kèm cảnh báo).
+- Giáo trình: tên sheet trùng `curricula.code` (BIE-8/BIE-12) thì **đặt** `classes.curriculum_id`; số buổi = `curricula.session_count` (cột vượt số này bị bỏ + cảnh báo); tên buổi lấy từ module giáo trình (chỉ ghi đè tên còn mặc định).
+- **Không ghi đè** ô đã được sửa trực tiếp trên app (`updated_by` khác null) — được đếm là `kept_from_app`; không hạ `course_status` đã có về "đang học".
+- Cần tỉ lệ đúng khi có `excused`: nằm ở `services/stats.js` (mẫu số trừ buổi có phép), không tính lại ở nơi khác.
+
 ## Nhập Transactions + giáo trình (`services/importTransactions.js`)
 - CLI: `npm run import-tx -- <Transacitons.xlsx> <session-management.xlsx> [--dry-run]`. `--dry-run` chạy toàn bộ trong một transaction rồi hoàn tác, chỉ in số liệu.
 - **Danh sách cột cho phép** (`ALLOWED_COURSE`, `ALLOWED_TX`, `ALLOWED_CURRICULUM`): chỉ chỉ số cột nằm trong danh sách mới được đọc. Không đọc cột nào khác (kể cả cột tiền). Có test dùng "dữ liệu mồi" ở cột tiền để chứng minh không lọt vào DB.

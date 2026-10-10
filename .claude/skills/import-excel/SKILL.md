@@ -1,26 +1,24 @@
 ---
 name: import-excel
-description: Nhập hoặc đối soát danh sách học viên, điểm danh, bài tập từ file Excel của lớp vào database của webapp Class Manager. Dùng khi người dùng đưa file .xlsx lớp mới, muốn cập nhật lớp từ Excel, hoặc kiểm tra số liệu webapp có khớp Excel không.
+description: Nhập hoặc đối soát điểm danh, bài tập, danh sách học viên từ workbook Excel nhiều sheet của lớp vào database Class Manager (Supabase). Dùng khi người dùng đưa file .xlsx điểm danh mới, muốn cập nhật điểm danh từ Excel, hoặc kiểm tra số liệu app có khớp Excel không.
 ---
 
-# Nhập & đối soát Excel
+# Nhập & đối soát điểm danh từ Excel
 
-## Cấu trúc file được hỗ trợ
-Mô tả đầy đủ ở `Documents/context.md` (mục "File Excel mẫu"). Tóm tắt: **dòng 5 = tiêu đề, dữ liệu từ dòng 6**; cột nhận theo **tên** (`STUDENT ID`, `FULL NAME`, `COURSE ID`, `SESSION n`/`NOTE SSn`, `HOMEWORK n`/`NOTE HWn`, `CAPSTONE PROJECT`/`NOTE CP`, `VOUCHER …`). Giá trị `X` = có mặt/đã nộp.
+## Cấu trúc & quy tắc (đầy đủ ở `Documents/context.md`, mục "File Excel điểm danh")
+- Workbook nhiều sheet theo chương trình (`BIE-8`, `BIE-12`, `BIH`, `EBA`, `PBM`, `SCA`, `DDM`, `BIF`). **Chỉ sheet đang hiện** được nhập; sheet ẩn là bản cũ.
+- Ô điểm danh: **X = đi học, O = vắng có phép, trống = vắng**. Buổi không ai có X/O = chưa diễn ra.
+- Tỉ lệ = (có mặt + trễ) ÷ (buổi đã diễn ra − buổi có phép). Cột `ATTENDANCE RATE` của Excel tính khác (÷ tổng số buổi, coi O như vắng) nên **không** dùng để đối soát.
+- **Không đọc cột voucher/tiền.** Đừng sửa bộ nhập để đọc thêm cột mà chưa hỏi chủ dự án.
 
 ## Quy trình
-1. **Xem trước file** (đừng nhập mù): đọc tiêu đề, đếm dòng, liệt kê giá trị lạ ở ô điểm danh/bài (ngoài `X`/trống), `COURSE ID` có nhiều giá trị không, `MODE` ngoài Online/Offline/Hybrid. Với Python trên Windows dùng `python -I -X utf8`.
-2. **Báo người dùng** những điểm lệch so với mẫu; hỏi nếu có cột mới chưa biết nghĩa.
-3. **Nhập:** `npm run import -- <file.xlsx> [mã-lớp]`. Chạy lại an toàn (cập nhật, không nhân đôi). Lệnh ghi thẳng vào Supabase (theo `DATABASE_URL` trong `.env`): mỗi COURSE ID thành một lớp; ghi đè điểm danh/bài của học viên có trong file — nói rõ với người dùng nếu họ đã sửa tay trên web.
-4. **Đối soát:** dòng 4 của Excel chứa số có mặt/nộp từng buổi/bài. So với Dashboard (hoặc `buildDashboard`). Với file mẫu: buổi `[35,38,40,36,38,32,35,33]`, nộp `[42,38,39,37,27,0,32]`. Cột `ATTENDANCE RATE` trong Excel phải ≈ tỉ lệ webapp tính (vd 6/8 = 0.75).
-5. In kết quả: số học viên, số mới, cảnh báo. Nêu rõ dòng bị bỏ qua.
+1. **Khảo sát file trước** (python `-I -X utf8`, bỏ cảnh báo openpyxl): liệt kê sheet (trạng thái hiện/ẩn), dòng tiêu đề, số lớp, **tập giá trị** của các ô SESSION/HOMEWORK. Ký hiệu lạ ngoài X/O/trống phải báo lại. Không in họ tên/email/SĐT hàng loạt.
+2. **Chạy thử:** `npm run import -- <file> --dry-run`. Đọc bảng theo lớp (có mặt/trễ/có phép/vắng/giữ từ app), danh sách cảnh báo, lớp mới, lớp đổi giáo trình.
+3. **Báo người dùng** các điểm bất thường (lớp tạo mới, cột bị bỏ vì vượt giáo trình, học viên trùng, học viên mới hàng loạt) rồi mới chạy thật: `npm run import -- <file>`.
+4. **Đối soát:** đếm X/O/trống của file với số trong bảng kết quả; với lớp có `O`, so tỉ lệ cũ (coi O là vắng) và mới. Số liệu cũ đã nhập không được mất (điểm danh, bài tập, voucher).
+5. Cập nhật `memory.md`; commit khi người dùng yêu cầu.
 
-## Quy tắc chuyển đổi (xem `src/services/importExcel.js`)
-- Buổi/bài **không ai có dấu X** = chưa diễn ra/chưa thu → không tạo bản ghi (không kéo tụt tỉ lệ).
-- Ô trống ở buổi đã diễn ra = `absent`; ở bài đã thu = `missing`. Ghi chú có "trễ" + `X` → `late`.
-- Ghi chú chứa "Challenge" (không có "chưa") → cờ challenge.
-- `COURSE STATUS` Deferred → `deferred`; trống → `active`.
-- SĐT 9 chữ số → thêm số 0 đầu.
-
-## Khi file khác mẫu
-Sửa `importExcel.js` (map theo tên cột), thêm test trong `tests/import.test.js`, cập nhật `Documents/context.md`. Không đưa file chứa dữ liệu thật vào repo công khai.
+## An toàn
+- Nhập chạy trong 1 transaction, idempotent. **Không ghi đè** ô đã sửa trực tiếp trên app (`kept_from_app`); không hạ trạng thái "nghỉ/bảo lưu".
+- Dữ liệu thật ghi thẳng Supabase → luôn `--dry-run` trước và nói rõ khi file có thể ghi đè dữ liệu của lần nhập trước.
+- File `.xlsx/.csv` chứa dữ liệu cá nhân: đã git-ignore, không bao giờ commit.
