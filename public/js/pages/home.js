@@ -1,7 +1,8 @@
 // Trang chủ: hero có minh họa động, số liệu đếm lên, băng chuyền lớp đang diễn ra.
 import { get } from '../api.js';
-import { h, icon, svg, pct, BRAND } from '../ui.js';
+import { h, icon, pct, BRAND } from '../ui.js';
 import { fmtDate, SHIFT_LABEL, PROGRAM_NAMES } from '../class-filter.mjs';
+import { scene } from './home-scene.js';
 
 const WORDS = ['Điểm danh.', 'Bài tập.', 'Chuyên cần.', 'Giáo trình.'];
 const reduced = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -18,43 +19,6 @@ function countUp(el, to, { format = (n) => String(Math.round(n)), ms = 1100 } = 
     if (p < 1) requestAnimationFrame(tick);
   };
   requestAnimationFrame(tick);
-}
-
-// Minh họa: mặt trời vàng, núi nhiều lớp, mặt hồ và cột số liệu mọc lên (đường xu hướng vẽ dần).
-function art() {
-  const bars = [46, 70, 58, 96, 120, 148, 182];
-  return svg('svg', { class: 'art', viewBox: '0 0 560 430', role: 'img', 'aria-label': 'Minh họa số liệu tăng trưởng' },
-    svg('defs', {},
-      svg('radialGradient', { id: 'sunGlow', cx: '50%', cy: '50%', r: '50%' },
-        svg('stop', { offset: '0', 'stop-color': '#f4d9a0', 'stop-opacity': '.85' }), svg('stop', { offset: '1', 'stop-color': '#c9a46a', 'stop-opacity': '0' })),
-      svg('linearGradient', { id: 'sunBody', x1: 0, y1: 0, x2: 1, y2: 1 },
-        svg('stop', { offset: '0', 'stop-color': '#f6e2b3' }), svg('stop', { offset: '1', 'stop-color': '#c9a46a' })),
-      svg('linearGradient', { id: 'mtnA', x1: 0, y1: 0, x2: 0, y2: 1 },
-        svg('stop', { offset: '0', 'stop-color': '#2a3f73' }), svg('stop', { offset: '1', 'stop-color': '#10193a' })),
-      svg('linearGradient', { id: 'mtnB', x1: 0, y1: 0, x2: 0, y2: 1 },
-        svg('stop', { offset: '0', 'stop-color': '#16224a' }), svg('stop', { offset: '1', 'stop-color': '#0a1128' })),
-      svg('linearGradient', { id: 'lake', x1: 0, y1: 0, x2: 0, y2: 1 },
-        svg('stop', { offset: '0', 'stop-color': '#c9a46a', 'stop-opacity': '.28' }), svg('stop', { offset: '1', 'stop-color': '#0a1128', 'stop-opacity': '.1' })),
-      svg('linearGradient', { id: 'barG', x1: 0, y1: 0, x2: 0, y2: 1 },
-        svg('stop', { offset: '0', 'stop-color': '#f1d79b' }), svg('stop', { offset: '1', 'stop-color': '#a97d38' })),
-      svg('filter', { id: 'soft' }, svg('feGaussianBlur', { stdDeviation: '6' }))),
-    svg('circle', { class: 'sun-glow', cx: 360, cy: 128, r: 150, fill: 'url(#sunGlow)' }),
-    svg('circle', { cx: 360, cy: 128, r: 52, fill: 'url(#sunBody)' }),
-    ...[[60, 40], [140, 70], [220, 30], [470, 50], [520, 110], [90, 130]].map(([x, y], i) =>
-      svg('circle', { class: 'star', cx: x, cy: y, r: 1.8, fill: '#f1d79b', style: `animation-delay:${i * 0.45}s` })),
-    svg('path', { d: 'M0 290 L70 215 L120 252 L205 150 L285 258 L350 205 L430 270 L500 222 L560 262 L560 330 L0 330Z', fill: 'url(#mtnA)' }),
-    svg('path', { d: 'M205 150 L224 176 L205 168 L190 178Z M350 205 L364 222 L350 216 L338 224Z', fill: '#e9d4a2', opacity: '.55' }),
-    svg('path', { d: 'M0 318 L90 270 L170 305 L260 262 L350 312 L450 280 L560 316 L560 340 L0 340Z', fill: 'url(#mtnB)' }),
-    svg('rect', { x: 0, y: 330, width: 560, height: 100, fill: 'url(#lake)' }),
-    ...[345, 362, 380, 400].map((y, i) => svg('line', { class: 'ripple', x1: 70 + i * 22, x2: 490 - i * 30, y1: y, y2: y, style: `animation-delay:${i * 0.6}s` })),
-    ...bars.map((hh, i) => svg('rect', {
-      class: 'bar', x: 72 + i * 62, y: 380 - hh, width: 34, height: hh, rx: 7, fill: 'url(#barG)', style: `animation-delay:${0.25 + i * 0.12}s`,
-    })),
-    svg('polyline', {
-      class: 'trend', fill: 'none', stroke: '#fff3d1', 'stroke-width': 3, 'stroke-linecap': 'round', 'stroke-linejoin': 'round',
-      points: bars.map((hh, i) => `${89 + i * 62},${370 - hh}`).join(' '), pathLength: 1,
-    }),
-    ...bars.map((hh, i) => svg('circle', { class: 'node', cx: 89 + i * 62, cy: 370 - hh, r: 5, fill: '#fff3d1', style: `animation-delay:${0.9 + i * 0.12}s` })));
 }
 
 function classCard(c) {
@@ -121,22 +85,21 @@ export async function renderHome({ state }) {
     h('div', { class: 'glass-stat' }, icon(iconName), h('div', {}, h('div', { class: 'gs-value' }, valueEl), h('div', { class: 'gs-label' }, label, hint && h('span', { class: 'muted' }, ` · ${hint}`))));
 
   const vClasses = h('span', {}), vStudents = h('span', {}), vRate = h('span', {});
-  const hero = h('section', { class: 'home-hero' },
-    h('div', { class: 'home-glow g1' }), h('div', { class: 'home-glow g2' }),
-    ...Array.from({ length: 14 }, (_, i) => h('i', { class: 'mote', style: `left:${(i * 53) % 96}%;top:${(i * 37) % 80}%;animation-delay:${(i % 7) * 0.8}s;animation-duration:${9 + (i % 5) * 2}s` })),
+  const hero = h('section', { class: 'home-hero cosmic' },
+    scene(),
+    h('div', { class: 'scene-vignette' }),
     h('div', { class: 'home-copy' },
       h('div', { class: 'eyebrow' }, `${BRAND.name} · ${BRAND.tagline}`),
       h('h1', { class: 'home-title' }, 'Mọi lớp học.', h('br'), rotator, h('br'), h('span', { class: 'muted-title' }, 'Một nơi theo dõi.')),
+      h('div', { class: 'title-rule' }),
       h('p', { class: 'home-lead' }, `Xin chào ${state.user.name.split(' ').slice(-1)[0]}. Theo dõi chuyên cần, bài tập và tiến độ từng buổi — cập nhật trực tiếp khi cả nhóm cùng điểm danh.`),
       h('div', { class: 'home-cta' },
         first
-          ? [h('a', { class: 'btn primary', href: `#/c/${first.id}/dashboard` }, 'Mở lớp đang học ', icon('arrow')),
-            h('a', { class: 'btn ghost', href: `#/c/${first.id}/attendance` }, icon('attendance'), 'Điểm danh nhanh')]
-          : [h('a', { class: 'btn primary', href: state.user.role === 'admin' ? '#/classes' : '#/' }, state.user.role === 'admin' ? 'Quản lý lớp học ' : 'Chưa có lớp đang học ', icon('arrow'))])),
-    h('div', { class: 'home-art' },
-      art(),
-      h('div', { class: 'float-card f1' }, h('span', { class: 'live live' }, 'Trực tiếp'), h('b', {}, `${t.running} lớp đang diễn ra`)),
-      h('div', { class: 'float-card f2' }, icon('students'), h('b', {}, `${t.students_active.toLocaleString('vi-VN')} học viên`))));
+          ? [h('a', { class: 'cta-circle', href: `#/c/${first.id}/dashboard` }, h('span', { class: 'cta-ring' }, icon('arrow')), h('span', { class: 'cta-text' }, 'Mở lớp đang học')),
+            h('a', { class: 'cta-link', href: `#/c/${first.id}/attendance` }, icon('attendance'), 'Điểm danh nhanh')]
+          : [h('a', { class: 'cta-circle', href: state.user.role === 'admin' ? '#/classes' : '#/' }, h('span', { class: 'cta-ring' }, icon('arrow')),
+            h('span', { class: 'cta-text' }, state.user.role === 'admin' ? 'Quản lý lớp học' : 'Chưa có lớp đang học'))])),
+    h('div', { class: 'scroll-cue', 'aria-hidden': 'true' }, h('span', {}, 'Cuộn'), h('i', {})));
 
   // Thị sai theo con trỏ chuột
   hero.addEventListener('pointermove', (e) => {

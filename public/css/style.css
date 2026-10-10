@@ -420,3 +420,65 @@ th .small { text-transform: none; letter-spacing: 0; font-weight: 500; color: va
   .bar, .node { opacity: 1; }
   .cr-track, .home-glow, .home-art { transition: none !important; }
 }
+
+/* ---------- Hero "vũ trụ rộng lớn" (ghi đè hero cũ) ---------- */
+.home-hero.cosmic {
+  display: block; min-height: clamp(580px, 80vh, 720px); padding: 0; border: 0; color: #f6f1e8;
+  background: #10172b; box-shadow: var(--shadow-lg);
+}
+.home-hero.cosmic .scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.scene-vignette { position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(90deg, rgba(10, 15, 32, .72) 0%, rgba(10, 15, 32, .38) 38%, rgba(10, 15, 32, 0) 62%),
+              linear-gradient(0deg, rgba(8, 12, 26, .55) 0%, rgba(8, 12, 26, 0) 28%); }
+.home-hero.cosmic .home-copy { position: relative; z-index: 2; max-width: 720px; padding: clamp(2rem, 6vw, 4.2rem) clamp(1.4rem, 5vw, 4rem) 8rem; }
+.home-hero.cosmic .home-title { white-space: nowrap; }
+.home-hero.cosmic .eyebrow { color: #e8c791; letter-spacing: .24em; font-weight: 500; font-size: .7rem; }
+.home-hero.cosmic .home-title { font-weight: 300; letter-spacing: -.025em; font-size: clamp(2.3rem, 5.2vw, 4.2rem); line-height: 1.07; margin: 1rem 0 1.1rem; }
+.home-hero.cosmic .rotator { color: #ecc995; font-weight: 300; }
+.home-hero.cosmic .muted-title { color: rgba(246, 241, 232, .86); }
+.title-rule { width: 54px; height: 1px; background: rgba(255, 255, 255, .55); margin: 0 0 1.3rem; }
+.home-hero.cosmic .home-lead { color: rgba(246, 241, 232, .78); font-weight: 300; max-width: 42ch; margin-bottom: 1.8rem; }
+.home-hero.cosmic .home-cta { display: flex; align-items: center; gap: 1.6rem; flex-wrap: wrap; }
+.cta-circle { display: inline-flex; align-items: center; gap: .9rem; color: #f6f1e8 !important; text-decoration: none !important; }
+.cta-ring { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; border: 1px solid rgba(236, 201, 149, .85); color: #ecc995;
+  transition: background .25s, color .25s, transform .25s; }
+.cta-ring svg { width: 18px; height: 18px; }
+.cta-circle:hover .cta-ring { background: #ecc995; color: #1a1408; transform: translateX(4px); }
+.cta-text { font-size: .72rem; letter-spacing: .22em; text-transform: uppercase; font-weight: 500; }
+.cta-link { display: inline-flex; align-items: center; gap: .5rem; color: rgba(246, 241, 232, .8) !important; text-decoration: none !important; font-size: .72rem;
+  letter-spacing: .2em; text-transform: uppercase; font-weight: 500; transition: color .2s; }
+.cta-link:hover { color: #ecc995 !important; }
+.cta-link svg { width: 16px; height: 16px; color: #ecc995; }
+.scroll-cue { position: absolute; left: clamp(1.4rem, 5vw, 4rem); bottom: 1.4rem; z-index: 2; display: grid; gap: .55rem; justify-items: start;
+  font-size: .62rem; letter-spacing: .3em; text-transform: uppercase; color: rgba(246, 241, 232, .7); }
+.scroll-cue i { width: 1px; height: 38px; background: linear-gradient(#ecc995, transparent); transform-origin: top; animation: cue 2.4s ease-in-out infinite; }
+@keyframes cue { 0% { transform: scaleY(0); opacity: 0; } 40% { transform: scaleY(1); opacity: 1; } 100% { transform: scaleY(1); opacity: 0; } }
+
+/* chuyển động của cảnh: thị sai theo con trỏ + mây trôi, hành tinh nổi, sao nhấp nháy, ánh nước lung linh */
+.scene-layer { transition: transform .35s ease-out; }
+.scene-layer.l-far { transform: translate(calc(var(--mx, 0) * -6px), calc(var(--my, 0) * -4px)); }
+.scene-layer.l-mid { transform: translate(calc(var(--mx, 0) * -14px), calc(var(--my, 0) * -8px)); }
+.scene-layer.l-near { transform: translate(calc(var(--mx, 0) * -24px), calc(var(--my, 0) * -12px)); }
+.scene-cloud { animation: cloud-drift 40s ease-in-out infinite alternate; }
+@keyframes cloud-drift { from { transform: translateX(calc(var(--drift, 30px) * -1)); } to { transform: translateX(var(--drift, 30px)); } }
+.scene-float { animation: scene-float 9s ease-in-out infinite; }
+.scene-float.slow { animation-duration: 14s; }
+@keyframes scene-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
+.scene-star { animation: twinkle 4s ease-in-out infinite; }
+.scene-shaft { animation: shaft 5s ease-in-out infinite; }
+@keyframes shaft { 0%, 100% { opacity: .62; } 50% { opacity: 1; } }
+.scene-ripple { opacity: .3; animation: ripple 6s ease-in-out infinite; }
+.scene-figure { animation: breathe 6s ease-in-out infinite; transform-box: fill-box; transform-origin: bottom; }
+@keyframes breathe { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.012); } }
+
+@media (max-width: 1000px) {
+  .home-hero.cosmic { min-height: 600px; }
+  .home-hero.cosmic .home-copy { padding-bottom: 7.5rem; }
+  .home-hero.cosmic .home-title { white-space: normal; }
+  .scene-vignette { background: linear-gradient(180deg, rgba(10, 15, 32, .78) 0%, rgba(10, 15, 32, .35) 55%, rgba(10, 15, 32, .1) 100%); }
+  .home-hero.cosmic .scene { object-position: 70% 50%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scene-cloud, .scene-float, .scene-star, .scene-shaft, .scene-ripple, .scene-figure, .scroll-cue i { animation: none !important; }
+  .scene-layer { transition: none !important; transform: none !important; }
+}
