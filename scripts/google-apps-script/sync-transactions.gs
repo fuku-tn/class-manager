@@ -44,8 +44,13 @@ function stop() {
     .forEach((t) => ScriptApp.deleteTrigger(t));
 }
 
-/** Được gọi mỗi phút bởi trigger. force = true: gửi dù dữ liệu không đổi. */
-function syncNow(force) {
+/**
+ * Được gọi mỗi phút bởi trigger. Chỉ gửi khi dữ liệu đổi (hoặc đã quá RESEND_AFTER_MINUTES).
+ * Lưu ý: khi trigger gọi, Apps Script truyền một đối tượng sự kiện vào tham số đầu → chỉ coi là "ép gửi"
+ * khi tham số đúng bằng `true` (setup() gọi syncNow(true)).
+ */
+function syncNow(forceArg) {
+  const force = forceArg === true;
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(20000)) return; // lượt trước còn đang chạy
   try {

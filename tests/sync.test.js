@@ -127,3 +127,12 @@ test('script Apps Script tự tìm dòng tiêu đề bằng TextFinder (không �
   // tiêu đề chỉ được đọc đúng một dòng (tên cột), không đọc nhiều dòng đầu
   assert.match(src, /getRange\(headerRow, 1, 1, lastCol\)/);
 });
+
+test('script Apps Script: tham số sự kiện của trigger không bị coi là "ép gửi"', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const src = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'google-apps-script', 'sync-transactions.gs'), 'utf8');
+  assert.match(src, /function syncNow\(forceArg\)/);
+  assert.match(src, /const force = forceArg === true;/);
+  assert.match(src, /syncNow\(true\)/);
+});

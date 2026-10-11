@@ -25,7 +25,7 @@ Dùng **PGlite** (Postgres thật chạy trong bộ nhớ) với `src/schema.sql
 | `tests/db-errors.test.js` | Phân loại lỗi cấu hình/kết nối DB; thiếu `DATABASE_URL` → đăng nhập trả 503 có lý do |
 | `tests/import.test.js` | Nhập điểm danh nhiều sheet (workbook dựng trong test): X/O/trống, có phép không tính mẫu số, bỏ sheet ẩn và cột tiền, giáo trình theo tên sheet, khớp mã lớp lệch P/B, không ghi đè ô sửa trên app, dry-run |
 
-## Đã được kiểm thử tự động (75 test)
+## Đã được kiểm thử tự động (76 test)
 - Chưa đăng nhập → 401; đăng nhập sai/đúng.
 - Giảng viên không truy cập được lớp chưa được phân (403), sau khi phân thì được; không tạo lớp / xem user được.
 - Tỉ lệ điểm danh: có phép không tính vào mẫu số (A=0.67, B=0.5).
