@@ -1,7 +1,7 @@
 // Trang chủ: hero có minh họa động, số liệu đếm lên, băng chuyền lớp đang diễn ra.
 import { get } from '../api.js';
 import { h, icon, pct, BRAND } from '../ui.js';
-import { fmtDate, SHIFT_LABEL, PROGRAM_NAMES } from '../class-filter.mjs';
+import { fmtDate, SHIFT_LABEL, PROGRAM_NAMES, classDisplayName } from '../class-filter.mjs';
 import { createLake } from './home-lake.js';
 
 const WORDS = ['Điểm danh.', 'Bài tập.', 'Chuyên cần.', 'Giáo trình.'];
@@ -24,9 +24,9 @@ function countUp(el, to, { format = (n) => String(Math.round(n)), ms = 1100 } = 
 function classCard(c) {
   const pctDone = c.sessions_total ? Math.round((c.sessions_held / c.sessions_total) * 100) : 0;
   const meta = [c.delivery_mode, SHIFT_LABEL[c.shift]].filter(Boolean).join(' · ');
-  return h('a', { class: 'class-card', href: `#/c/${c.id}/dashboard`, 'aria-label': `Mở lớp ${c.short_code || c.code}` },
+  return h('a', { class: 'class-card', href: `#/c/${c.id}/dashboard`, 'aria-label': `Mở lớp ${classDisplayName(c)}`, title: c.code },
     h('div', { class: 'cc-top' }, h('span', { class: 'eyebrow' }, c.program || 'Lớp'), h('span', { class: 'badge ok' }, 'Đang học')),
-    h('div', { class: 'cc-code' }, c.short_code || c.code),
+    h('div', { class: 'cc-code' }, classDisplayName(c)),
     h('div', { class: 'muted small' }, PROGRAM_NAMES[c.program] ?? c.program_name ?? ''),
     h('div', { class: 'cc-meta small' }, meta || '—', ' · ', `${fmtDate(c.start_date)}${c.end_date ? ` → ${fmtDate(c.end_date)}` : ''}`),
     h('div', { class: 'cc-progress' }, h('div', { class: 'cc-bar' }, h('i', { style: `width:${pctDone}%` })),
@@ -121,7 +121,7 @@ export async function renderHome({ state }) {
       h('div', { class: 'section-head' }, h('div', {}, h('div', { class: 'eyebrow' }, 'Sắp tới'), h('h2', {}, 'Lớp sắp khai giảng'))),
       h('div', { class: 'upcoming' }, d.upcoming.map((c) =>
         h('a', { class: 'up-card', href: `#/c/${c.id}/students` },
-          h('b', {}, c.short_code || c.code), h('span', { class: 'muted small' }, `${fmtDate(c.start_date)} · ${c.students} học viên`))))));
+          h('b', {}, classDisplayName(c)), h('span', { class: 'muted small' }, `${fmtDate(c.start_date)} · ${c.students} học viên`))))));
   }
 
   // Hiệu ứng động sau khi gắn vào DOM

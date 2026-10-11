@@ -19,8 +19,9 @@ export function fmtDate(iso) {
   return m ? `${m[3]}/${m[2]}/${m[1].slice(2)}` : '';
 }
 
+// Nhãn hiển thị của lớp ở mọi nơi: "BIE 104" (mã đầy đủ chỉ hiện ở tooltip / bảng quản trị).
 export function classLabel(c) {
-  return c.short_code || c.code;
+  return classDisplayName(c);
 }
 
 // Tên gọn để đọc: "P2.BIE.P104.HY.AA.041026" → "BIE 104" (từ mã ngắn BIE104, hoặc suy ra từ mã đầy đủ). Không suy ra được → mã gốc.

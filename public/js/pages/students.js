@@ -1,5 +1,6 @@
 import { get, post, put, del } from '../api.js';
 import { h, toast, pct, formModal, confirmModal, downloadCsv, COURSE_STATUS_LABEL, COURSE_STATUS_BADGE } from '../ui.js';
+import { classDisplayName } from '../class-filter.mjs';
 
 const MODE_OPTIONS = [['', '(chưa rõ)'], ['Online', 'Online'], ['Offline', 'Offline'], ['Hybrid', 'Hybrid']];
 const STATUS_OPTIONS = Object.entries(COURSE_STATUS_LABEL);
@@ -33,7 +34,7 @@ export async function renderStudents({ cls, state }) {
       { name: 'certificate_status', label: 'Chứng chỉ', value: r.certificate_status },
       { name: 'note', label: 'Ghi chú', type: 'textarea', value: r.note, full: true }],
     extra: state.user.role === 'admin' && h('button', { type: 'button', class: 'danger', onclick: async () => {
-      if (!await confirmModal(`Xóa ${r.full_name} khỏi lớp ${cls.code}? Toàn bộ điểm danh và bài tập của bạn này trong lớp sẽ mất.`)) return;
+      if (!await confirmModal(`Xóa ${r.full_name} khỏi lớp ${classDisplayName(cls)}? Toàn bộ điểm danh và bài tập của bạn này trong lớp sẽ mất.`)) return;
       try { await del(`${base}/students/${r.id}`); document.querySelector('.modal-back')?.remove(); await reload(); toast('Đã xóa'); }
       catch (e) { toast(e.message, true); }
     } }, 'Xóa khỏi lớp') });
@@ -72,7 +73,7 @@ export async function renderStudents({ cls, state }) {
   [search, status, mode].forEach((el) => el.addEventListener('input', paint));
   paint();
   return h('div', {},
-    h('div', { class: 'page-head' }, h('h1', {}, 'Học viên'), h('span', { class: 'muted' }, cls.code), h('span', { class: 'spacer' }),
+    h('div', { class: 'page-head' }, h('h1', {}, 'Học viên'), h('span', { class: 'muted', title: cls.code }, classDisplayName(cls)), h('span', { class: 'spacer' }),
       h('button', { onclick: () => downloadCsv(`${cls.code}-hoc-vien.csv`, [
         ['Mã', 'Họ tên', 'Email', 'SĐT', 'Hình thức', 'Trạng thái', 'Điểm danh', 'HW'],
         ...filtered().map((r) => [r.student_code, r.full_name, r.email, r.phone, r.mode, COURSE_STATUS_LABEL[r.course_status], pct(r.attendance_rate), pct(r.hw_rate)])]) }, 'Xuất CSV'),

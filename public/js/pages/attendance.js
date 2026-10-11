@@ -2,6 +2,7 @@ import { get, put, post, del } from '../api.js';
 import { h, toast, pct, formModal, confirmModal } from '../ui.js';
 import { startLive, LIVE_LABEL } from '../live.js';
 import { SORTS, isSortKey, sortRows } from '../student-sort.mjs';
+import { classDisplayName } from '../class-filter.mjs';
 
 const STATUSES = ['present', 'late', 'absent', 'excused'];
 const SHORT = { present: '✓', late: 'T', absent: 'V', excused: 'P' };
@@ -230,7 +231,7 @@ export async function renderAttendance({ cls, state }) {
   renderHead(); renderBody();
 
   const view = h('div', {},
-    h('div', { class: 'page-head' }, h('h1', {}, 'Điểm danh'), h('span', { class: 'muted' }, cls.code), liveBadge),
+    h('div', { class: 'page-head' }, h('h1', {}, 'Điểm danh'), h('span', { class: 'muted', title: cls.code }, classDisplayName(cls)), liveBadge),
     h('div', { class: 'legend' },
       h('span', {}, readOnly ? 'Chú thích: ' : 'Chọn trong ô để đổi: '),
       ...Object.entries(LABEL).map(([k, v]) => h('span', {}, h('span', { class: `cell ${k}` }, h('span', { class: 'cell-sym' }, SHORT[k])), ` ${v}`)),

@@ -1,6 +1,7 @@
 import { get, put } from '../api.js';
 import { h, toast, pct, formModal } from '../ui.js';
 import { startLive, LIVE_LABEL } from '../live.js';
+import { classDisplayName } from '../class-filter.mjs';
 
 const SHORT = { submitted: '✓', resubmit: '↻', missing: '✗' };
 const LABEL = { submitted: 'Đã nộp', resubmit: 'Nộp lại', missing: 'Thiếu' };
@@ -116,7 +117,7 @@ export async function renderHomework({ cls, state }) {
   renderBody();
 
   const view = h('div', {},
-    h('div', { class: 'page-head' }, h('h1', {}, 'Bài tập'), h('span', { class: 'muted' }, cls.code), liveBadge),
+    h('div', { class: 'page-head' }, h('h1', {}, 'Bài tập'), h('span', { class: 'muted', title: cls.code }, classDisplayName(cls)), liveBadge),
     h('div', { class: 'legend' },
       h('span', {}, readOnly ? 'Chú thích: ' : 'Bấm ô để cập nhật: '), ...Object.entries(LABEL).map(([k, v]) => h('span', {}, h('span', { class: `cell ${k}` }, SHORT[k]), ` ${v}`)),
       h('span', { class: 'muted' }, (readOnly ? '· Tài khoản khách chỉ xem ' : '') + '· ★ = có làm Challenge · "Nộp lại" chưa tính là hoàn thành · Rê chuột để xem ai đã cập nhật')),

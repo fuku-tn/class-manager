@@ -1,9 +1,10 @@
 import { get, post, put } from '../api.js';
 import { h, toast, formModal } from '../ui.js';
+import { classDisplayName } from '../class-filter.mjs';
 
 export async function renderUsers({ state, navigate }) {
   const users = await get('/api/users');
-  const classOf = (id) => state.classes.find((c) => c.id === id)?.code ?? id;
+  const classOf = (id) => { const c = state.classes.find((x) => x.id === id); return c ? classDisplayName(c) : id; };
 
   async function assign(u) {
     const chosen = new Set(u.class_ids);
@@ -11,7 +12,7 @@ export async function renderUsers({ state, navigate }) {
       const cb = h('input', { type: 'checkbox', id: `c-${c.id}` });
       cb.checked = chosen.has(c.id);
       cb.addEventListener('change', () => (cb.checked ? chosen.add(c.id) : chosen.delete(c.id)));
-      return h('div', {}, cb, ' ', h('label', { for: `c-${c.id}` }, c.code));
+      return h('div', {}, cb, ' ', h('label', { for: `c-${c.id}`, title: c.code }, classDisplayName(c)));
     });
     const v = await formModal({ title: `Phân lớp cho ${u.name}`, fields: [], submitLabel: 'Lưu', extra: h('div', {}, boxes.length ? boxes : 'Chưa có lớp.') });
     if (!v) return;
