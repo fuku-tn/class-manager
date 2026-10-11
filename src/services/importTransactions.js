@@ -7,6 +7,7 @@
 // Idempotent: chạy lại nhiều lần không tạo trùng.
 const ExcelJS = require('exceljs');
 const fs = require('node:fs');
+const { logEvents, latestEvents } = require('./history');
 
 const ALLOWED_COURSE = ['COURSE', 'COURSE ID', 'STARTDATE', 'ENDDATE', 'NEXT COURSE'];
 const ALLOWED_TX = ['STUDENT ID', 'CUSTOMER ID', 'FULL NAME', 'EMAIL', 'PHONE', 'COURSE', 'MODE', 'GENDER', 'STATUS', 'REGISTRATION SOURCE'];
@@ -211,7 +212,9 @@ const en0 = (enrolls, classId) => enrolls.map((e) => classId.get(e.short_code)).
 
 // preserveManual (đồng bộ tự động mỗi phút): thêm mới thì ghi đầy đủ; bản ghi ĐÃ CÓ chỉ được điền chỗ trống,
 // không đè tên/email/SĐT/hình thức và không đưa học viên đã nghỉ/bảo lưu về "đang học" (sửa tay trên web được giữ).
-async function importTransactions(db, { transactionsFile, curriculumFile, dryRun = false, preserveManual = false }) {
+// eventSource: 'sync' | 'import' | 'web' (ghi vào nhật ký sự kiện). detectMissing: phát hiện học viên không còn trong Sheet (chỉ đồng bộ tự động).
+async function importTransactions(db, { transactionsFile, curriculumFile, dryRun = false, preserveManual = false,
+  eventSource = 'import', actor = null, detectMissing = false }) {
   const tw = await loadWorkbook(transactionsFile);
   const courseWs = tw.getWorksheet('Course');
   const txWs = tw.getWorksheet('Transactions');
@@ -317,11 +320,24 @@ async function importTransactions(db, { transactionsFile, curriculumFile, dryRun
       const studentId = new Map(studentRows.map((r) => [r.student_code, r.id]));
 
       // 5) Ghi danh (giữ trạng thái đã đặt tay "bảo lưu"/"hoàn thành")
-      const en = parsed.enrolls;
-      await t.run(
-        `insert into enrollments (class_id, student_id, customer_id, mode, course_status, registration_source, carried_over)
-         select * from unnest($1::bigint[], $2::bigint[], $3::text[], $4::text[], $5::text[], $6::text[], $7::boolean[])
-         on conflict (class_id, student_id) do update set ${preserveManual
+      let en = parsed.enrolls;
+      const involved = [...new Set(en.map((e) => classId.get(e.short_code)).filter(Boolean))];
+      const prev = new Map((await t.all('select class_id, student_id, course_status from enrollments where class_id = any($1::bigint[])', [involved]))
+        .map((r) => [`${r.class_id}:${r.student_id}`, r.course_status]));
+      if (preserveManual) {
+        // Admin đã chủ động gỡ học viên khỏi lớp: đồng bộ không tự thêm lại (muốn thêm lại thì thêm tay trên web).
+        const removed = new Set((await t.all("select distinct class_code, student_code from enrollment_events where event = 'removed'"))
+          .map((r) => `${r.class_code}|${r.student_code}`));
+        const codeOfShort = new Map(classes.map((c) => [c.short_code, c.code]));
+        const before = en.length;
+        en = en.filter((e) => !removed.has(`${codeOfShort.get(e.short_code)}|${e.student_code}`)
+          || prev.has(`${classId.get(e.short_code)}:${studentId.get(e.student_code)}`));
+        summary.skipped_removed = before - en.length;
+      }
+      const upserted = await t.all(
+        `insert into enrollments (class_id, student_id, customer_id, mode, course_status, registration_source, carried_over, origin)
+         select u.*, 'sheet' from unnest($1::bigint[], $2::bigint[], $3::text[], $4::text[], $5::text[], $6::text[], $7::boolean[]) as u
+         on conflict (class_id, student_id) do update set origin = 'sheet', ${preserveManual
     ? `customer_id = coalesce(enrollments.customer_id, excluded.customer_id),
            mode = coalesce(enrollments.mode, excluded.mode),
            registration_source = coalesce(enrollments.registration_source, excluded.registration_source),
@@ -333,9 +349,50 @@ async function importTransactions(db, { transactionsFile, curriculumFile, dryRun
            registration_source = coalesce(excluded.registration_source, enrollments.registration_source),
            carried_over = excluded.carried_over,
            course_status = case when enrollments.course_status in ('deferred', 'completed') then enrollments.course_status
-                                else excluded.course_status end`}`,
+                                else excluded.course_status end`}
+         returning id, class_id, student_id, course_status, (xmax = 0) as inserted`,
         [en.map((e) => classId.get(e.short_code)), en.map((e) => studentId.get(e.student_code)), en.map((e) => e.customer_id), en.map((e) => e.mode),
           en.map((e) => e.course_status), en.map((e) => e.registration_source), en.map((e) => e.carried_over)]);
+
+      // Nhật ký sự kiện (cùng transaction): thêm mới, đổi trạng thái, không còn/lại xuất hiện trong Sheet
+      const stuByCode = new Map(st.map((s) => [s.student_code, s]));
+      const codeById = new Map(studentRows.map((r) => [r.id, r.student_code]));
+      const classCodeById = new Map(classRows.map((r) => [r.id, r.code]));
+      const base = (r) => ({
+        enrollment_id: r.id, class_id: r.class_id, class_code: classCodeById.get(r.class_id), student_id: r.student_id,
+        student_code: codeById.get(r.student_id), full_name: stuByCode.get(codeById.get(r.student_id))?.full_name ?? null,
+        source: eventSource, actor_id: actor?.id ?? null, actor_name: actor?.name ?? null,
+      });
+      const events = [];
+      for (const r of upserted) {
+        const was = prev.get(`${r.class_id}:${r.student_id}`);
+        if (r.inserted) events.push({ ...base(r), event: 'enrolled', to_status: r.course_status });
+        else if (was && was !== r.course_status) events.push({ ...base(r), event: 'status_changed', from_status: was, to_status: r.course_status });
+      }
+      if (detectMissing && involved.length) {
+        const present = new Set(upserted.map((r) => `${r.class_id}:${r.student_id}`));
+        const latest = await latestEvents(t, involved);
+        const cand = await t.all(
+          `select e.id, e.class_id, e.student_id, s.student_code, s.full_name, c.code as class_code
+           from enrollments e join students s on s.id = e.student_id join classes c on c.id = e.class_id
+           where e.class_id = any($1::bigint[]) and e.origin = 'sheet' and e.course_status = 'active'`, [involved]);
+        let missing = 0;
+        for (const e of cand) {
+          if (present.has(`${e.class_id}:${e.student_id}`) || latest.get(e.id) === 'missing_from_sheet') continue;
+          missing++;
+          events.push({ enrollment_id: e.id, class_id: e.class_id, class_code: e.class_code, student_id: e.student_id, student_code: e.student_code,
+            full_name: e.full_name, event: 'missing_from_sheet', from_status: 'active', source: eventSource });
+        }
+        let back = 0;
+        for (const r of upserted) {
+          if (latest.get(r.id) !== 'missing_from_sheet') continue;
+          back++;
+          events.push({ ...base(r), event: 'reappeared', to_status: r.course_status });
+        }
+        summary.missing_new = missing;
+        summary.reappeared = back;
+      }
+      summary.events_logged = await logEvents(t, events);
 
       const after = { classes: await count('classes'), students: await count('students'), enrollments: await count('enrollments'), sessions: await count('sessions') };
       summary.before = before;

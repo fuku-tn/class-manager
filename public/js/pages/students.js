@@ -1,9 +1,19 @@
 import { get, post, put, del } from '../api.js';
-import { h, toast, pct, formModal, confirmModal, downloadCsv, COURSE_STATUS_LABEL, COURSE_STATUS_BADGE } from '../ui.js';
+import { h, toast, pct, formModal, downloadCsv, COURSE_STATUS_LABEL, COURSE_STATUS_BADGE } from '../ui.js';
 import { classDisplayName } from '../class-filter.mjs';
 
 const MODE_OPTIONS = [['', '(chưa rõ)'], ['Online', 'Online'], ['Offline', 'Offline'], ['Hybrid', 'Hybrid']];
 const STATUS_OPTIONS = Object.entries(COURSE_STATUS_LABEL);
+
+const EVENT_LABEL = {
+  enrolled: 'Được thêm vào lớp', status_changed: 'Đổi trạng thái', removed: 'Gỡ khỏi lớp',
+  missing_from_sheet: 'Không còn thấy trong Google Sheet', reappeared: 'Xuất hiện lại trong Google Sheet',
+};
+const SOURCE_LABEL = { web: 'Web', sync: 'Google Sheet', import: 'Nhập Excel' };
+const fmtWhen = (iso) => {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: '2-digit' });
+};
 
 export async function renderStudents({ cls, state }) {
   const readOnly = state.user.role === 'guest'; // khách chỉ xem
@@ -22,7 +32,29 @@ export async function renderStudents({ cls, state }) {
       (!status.value || r.course_status === status.value) && (!mode.value || r.mode === mode.value));
   };
 
-  async function reload() { rows = await get(`${base}/students`); paint(); }
+  async function reload() { rows = await get(`${base}/students`); paint(); if (historyBox.open) await refreshHistory(); }
+
+  // Lịch sử thay đổi ghi danh của lớp (nạp khi mở, làm mới sau mỗi thay đổi).
+  const historyBody = h('div', { class: 'muted' }, 'Đang tải…');
+  const historyBox = h('details', { class: 'card history' }, h('summary', {}, 'Lịch sử thay đổi của lớp'), historyBody);
+  async function refreshHistory() {
+    try {
+      const ev = await get(`${base}/events`);
+      historyBody.replaceChildren(ev.length
+        ? h('div', { class: 'table-wrap' }, h('table', {},
+          h('thead', {}, h('tr', {}, ['Thời điểm', 'Học viên', 'Sự kiện', 'Từ → Sang', 'Nguồn', 'Người thực hiện', 'Ghi chú'].map((x) => h('th', {}, x)))),
+          h('tbody', {}, ev.map((x) => h('tr', {},
+            h('td', {}, fmtWhen(x.created_at)),
+            h('td', {}, `${x.full_name ?? ''} `, h('span', { class: 'muted small' }, x.student_code ?? '')),
+            h('td', {}, EVENT_LABEL[x.event] ?? x.event),
+            h('td', {}, x.from_status || x.to_status ? `${COURSE_STATUS_LABEL[x.from_status] ?? '—'} → ${COURSE_STATUS_LABEL[x.to_status] ?? '—'}` : '—'),
+            h('td', {}, SOURCE_LABEL[x.source] ?? x.source),
+            h('td', {}, x.actor_name || '—'),
+            h('td', {}, x.note || ''))))))
+        : h('p', { class: 'muted' }, 'Chưa có thay đổi nào được ghi lại.'));
+    } catch (e) { historyBody.replaceChildren(h('p', { class: 'error' }, e.message)); }
+  }
+  historyBox.addEventListener('toggle', () => { if (historyBox.open) refreshHistory(); });
 
   async function edit(r) {
     const v = await formModal({ title: r.full_name, fields: [
@@ -33,11 +65,21 @@ export async function renderStudents({ cls, state }) {
       { name: 'course_status', label: 'Trạng thái khóa học', type: 'select', options: STATUS_OPTIONS, value: r.course_status },
       { name: 'certificate_status', label: 'Chứng chỉ', value: r.certificate_status },
       { name: 'note', label: 'Ghi chú', type: 'textarea', value: r.note, full: true }],
+    // Chỉ admin thấy nút này (máy chủ cũng chặn tài khoản khác). Bắt buộc có lý do; việc gỡ được ghi vào Lịch sử thay đổi.
     extra: state.user.role === 'admin' && h('button', { type: 'button', class: 'danger', onclick: async () => {
-      if (!await confirmModal(`Xóa ${r.full_name} khỏi lớp ${classDisplayName(cls)}? Toàn bộ điểm danh và bài tập của bạn này trong lớp sẽ mất.`)) return;
-      try { await del(`${base}/students/${r.id}`); document.querySelector('.modal-back')?.remove(); await reload(); toast('Đã xóa'); }
-      catch (e) { toast(e.message, true); }
-    } }, 'Xóa khỏi lớp') });
+      const why = await formModal({
+        title: `Gỡ ${r.full_name} khỏi lớp ${classDisplayName(cls)}`, submitLabel: 'Gỡ khỏi lớp',
+        fields: [{ name: 'reason', label: 'Lý do gỡ khỏi lớp (bắt buộc)', type: 'textarea', required: true, full: true }],
+        extra: h('p', { class: 'muted small' }, 'Toàn bộ điểm danh và bài tập của học viên này trong lớp sẽ bị xóa. Nếu học viên chỉ nghỉ học, hãy đổi "Trạng thái khóa học" sang Nghỉ học thay vì gỡ để giữ dữ liệu.'),
+      });
+      if (!why) return;
+      try {
+        await del(`${base}/students/${r.id}`, { reason: why.reason.trim() });
+        document.querySelectorAll('.modal-back').forEach((m) => m.remove());
+        await reload(); await refreshHistory();
+        toast('Đã gỡ khỏi lớp');
+      } catch (e) { toast(e.message, true); }
+    } }, 'Gỡ khỏi lớp') });
     if (!v) return;
     try {
       await put(`${base}/students/${r.id}`, {
@@ -65,7 +107,8 @@ export async function renderStudents({ cls, state }) {
       onclick: () => edit(r), onkeydown: (e) => { if (e.key === 'Enter') edit(r); } },
       h('td', {}, r.student_code), h('td', {}, r.full_name), h('td', {}, r.email || '—'), h('td', {}, r.phone || '—'),
       h('td', {}, r.mode || '—'),
-      h('td', {}, h('span', { class: `badge ${COURSE_STATUS_BADGE[r.course_status] || ''}` }, COURSE_STATUS_LABEL[r.course_status])),
+      h('td', {}, h('span', { class: `badge ${COURSE_STATUS_BADGE[r.course_status] || ''}` }, COURSE_STATUS_LABEL[r.course_status]),
+        r.missing_from_sheet ? h('span', { class: 'badge warn', title: 'Không còn thấy trong Google Sheet — hãy kiểm tra: học viên đã nghỉ, hay Sheet bị xóa nhầm?' }, 'Không còn trong Sheet') : null),
       h('td', { class: 'num' }, pct(r.attendance_rate)), h('td', { class: 'num' }, pct(r.hw_rate)))));
     if (!list.length) body.append(h('tr', {}, h('td', { colspan: 8, class: 'empty-state' }, rows.length ? 'Không có học viên khớp bộ lọc.' : (readOnly ? 'Chưa có học viên.' : 'Chưa có học viên. Bấm "Thêm học viên".'))));
   }
@@ -81,5 +124,6 @@ export async function renderStudents({ cls, state }) {
     h('div', { class: 'toolbar' }, search, status, mode, count),
     h('div', { class: 'table-wrap' }, h('table', {},
       h('thead', {}, h('tr', {}, ['Mã', 'Họ tên', 'Email', 'SĐT', 'Hình thức', 'Trạng thái', 'Điểm danh', 'HW'].map((x) => h('th', {}, x)))),
-      body)));
+      body)),
+    historyBox);
 }

@@ -108,9 +108,13 @@ function syncCard(s) {
     const a = last.summary?.added ?? {};
     line = `Lần nhận gần nhất: ${fmtT(last.created_at)} · thêm ${fmt(a.students)} học viên, ${fmt(a.enrollments)} ghi danh, ${fmt(a.classes)} lớp.`;
   }
+  const missingNote = s.missing > 0
+    ? h('p', { class: 'muted', role: 'status' }, `⚠ ${fmt(s.missing)} học viên đang học nhưng không còn thấy trong Google Sheet — mở trang Học viên của lớp (có nhãn "Không còn trong Sheet") để kiểm tra.`)
+    : null;
   return h('section', { class: 'card' },
     h('h2', {}, 'Đồng bộ tự động từ Google Sheet'),
     h('p', { class: cls, role: cls === 'error' ? 'alert' : undefined }, line),
+    missingNote,
     h('p', { class: 'muted small' }, 'Mỗi phút Apps Script kiểm tra Sheet và chỉ gửi khi có thay đổi. Chỉ thêm học viên/ghi danh mới và điền chỗ trống; không xóa và không ghi đè phần đã sửa trên web.'));
 }
 

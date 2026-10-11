@@ -38,7 +38,9 @@ Tạm dừng: chạy hàm `stop`. Bật lại: chạy `setup`.
 | Học viên/ghi danh/lớp **mới** trong Sheet | Được thêm đầy đủ |
 | Học viên/ghi danh **đã có** | Chỉ **điền chỗ trống**; tên, email, SĐT, hình thức đã có không bị đè — sửa tay trên web được giữ |
 | Trạng thái học | `Không tham gia` trong Sheet → `dropped` (nếu đang học). **Không bao giờ** đưa học viên đã nghỉ/bảo lưu/hoàn thành về "đang học" |
-| Dòng bị xóa khỏi Sheet | **Không** xóa ở webapp (có thể đã có điểm danh) — xóa tay trên web |
+| Dòng bị xóa khỏi Sheet | **Không** xóa và **không** tự chuyển nghỉ. App ghi sự kiện "Không còn thấy trong Google Sheet" (một lần), hiện nhãn cam "Không còn trong Sheet" ở trang Học viên và đếm ở thẻ đồng bộ để admin quyết định. Xuất hiện lại thì ghi "Xuất hiện lại" và nhãn mất |
+| Sheet đột nhiên ít hơn hẳn (< 50% lần trước) | Vẫn nhận các dòng có mặt nhưng **bỏ qua** bước dò "không còn trong Sheet" (phòng xóa nhầm/hỏng Sheet) |
+| Học viên đã bị admin "Gỡ khỏi lớp" | Không tự thêm lại dù vẫn còn trong Sheet (muốn thêm lại thì thêm tay trên web) |
 | Lớp mới (tab Course, 1–2 tuần đổi) | Được tạo; ngày bắt đầu/kết thúc theo Sheet |
 | Lớp thiếu giáo trình | Vẫn nhận đăng ký; lớp chưa có giáo trình cho đến khi nạp (`npm run import-tx` kèm `session-management.xlsx`) |
 | Điểm danh, bài tập | **Không** đồng bộ — web là nơi nhập chính |

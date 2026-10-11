@@ -32,7 +32,7 @@ async function startTestApp() {
     return {
       upload,
       get: (u) => call('GET', u), post: (u, b) => call('POST', u, b ?? {}),
-      put: (u, b) => call('PUT', u, b ?? {}), del: (u) => call('DELETE', u),
+      put: (u, b) => call('PUT', u, b ?? {}), del: (u, b) => call('DELETE', u, b),
     };
   }
 

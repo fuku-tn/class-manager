@@ -95,9 +95,14 @@ module.exports = (db) => {
       wb.addWorksheet('Course').addRows([course.headers, ...course.rows]);
       wb.addWorksheet('Transactions').addRows([tx.headers, ...tx.rows]);
 
+      // Sheet đột nhiên ít hơn hẳn lần trước (xóa nhầm/hỏng): vẫn nhận dòng có mặt nhưng KHÔNG dò "không còn trong Sheet".
+      const prevRun = await db.one("select (summary->>'transactions_rows')::int as n from sync_runs where ok order by id desc limit 1");
+      const suspicious = !!(prevRun?.n && tx.rows.length < prevRun.n * 0.5);
       const { anomaly_details, class_ids = [], columns_read, ...brief } = await importTransactions(db, {
         transactionsFile: wb, curriculumFile: null, dryRun: false, preserveManual: true,
+        eventSource: 'sync', detectMissing: !suspicious,
       });
+      if (suspicious) brief.missing_detection_skipped = true;
       const changed = Object.values(brief.added ?? {}).some((n) => n > 0);
       if (changed) await realtime.publishMany(class_ids.flatMap((classId) => [{ classId, payload: { kind: 'attendance' } }]));
       await log(true, brief, null);

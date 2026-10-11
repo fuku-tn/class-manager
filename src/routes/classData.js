@@ -3,6 +3,7 @@ const express = require('express');
 const { requireAdmin, requireClassAccess } = require('../auth');
 const { loadClassData, computeEnrollmentStats, sessionSummaries } = require('../services/stats');
 const realtime = require('../services/realtime');
+const { logEvents, latestEvents } = require('../services/history');
 
 const MODES = ['Online', 'Offline', 'Hybrid'];
 const COURSE_STATUS = ['active', 'deferred', 'dropped', 'completed'];
@@ -24,7 +25,8 @@ module.exports = (db) => {
   router.get('/students', async (req, res) => {
     const data = await loadClassData(db, req.cls.id);
     const stats = computeEnrollmentStats(data);
-    res.json(data.enrollments.map((e) => ({ ...e, ...stats.get(e.id) })));
+    const latest = await latestEvents(db, [req.cls.id]);
+    res.json(data.enrollments.map((e) => ({ ...e, ...stats.get(e.id), missing_from_sheet: latest.get(e.id) === 'missing_from_sheet' })));
   });
 
   router.post('/students', async (req, res) => {
@@ -42,6 +44,8 @@ module.exports = (db) => {
         throw httpError(409, 'Học viên đã có trong lớp này');
       const e = await t.one('insert into enrollments (class_id, student_id, mode, customer_id, note) values ($1, $2, $3, $4, $5) returning id',
         [req.cls.id, student.id, req.body.mode || null, str(req.body.customer_id), str(req.body.note)]);
+      await logEvents(t, [{ enrollment_id: e.id, class_id: req.cls.id, class_code: req.cls.code, student_id: student.id, student_code: code,
+        full_name: fullName, event: 'enrolled', to_status: 'active', source: 'web', actor_id: req.user.id, actor_name: req.user.name }]);
       return e.id;
     });
     res.status(201).json({ id: enrollmentId });
@@ -54,6 +58,12 @@ module.exports = (db) => {
     await db.tx(async (t) => {
       const e = await findEnrollment(t, req.cls.id, req.params.enrollmentId);
       if (!e) throw httpError(404, 'Không tìm thấy học viên trong lớp');
+      if (b.course_status && b.course_status !== e.course_status) {
+        const stu = await t.one('select student_code, full_name from students where id = $1', [e.student_id]);
+        await logEvents(t, [{ enrollment_id: e.id, class_id: req.cls.id, class_code: req.cls.code, student_id: e.student_id,
+          student_code: stu.student_code, full_name: stu.full_name, event: 'status_changed', from_status: e.course_status,
+          to_status: b.course_status, source: 'web', actor_id: req.user.id, actor_name: req.user.name }]);
+      }
       await t.run('update enrollments set mode = $1, course_status = $2, certificate_status = $3, note = $4 where id = $5',
         [b.mode === undefined ? e.mode : (b.mode || null), b.course_status || e.course_status,
           b.certificate_status === undefined ? e.certificate_status : str(b.certificate_status),
@@ -68,10 +78,30 @@ module.exports = (db) => {
     res.json({ ok: true });
   });
 
+  // Gỡ học viên khỏi lớp: chỉ admin, bắt buộc có lý do; ghi nhật ký (kèm số điểm danh/bài tập bị xóa) trong cùng transaction.
   router.delete('/students/:enrollmentId', requireAdmin, async (req, res) => {
-    const n = await db.run('delete from enrollments where id = $1 and class_id = $2', [id(req.params.enrollmentId), req.cls.id]);
-    if (!n) return res.status(404).json({ error: 'Không tìm thấy học viên trong lớp' });
+    const reason = str(req.body?.reason);
+    if (!reason) return res.status(400).json({ error: 'Cần nhập lý do gỡ học viên khỏi lớp' });
+    await db.tx(async (t) => {
+      const e = await findEnrollment(t, req.cls.id, req.params.enrollmentId);
+      if (!e) throw httpError(404, 'Không tìm thấy học viên trong lớp');
+      const stu = await t.one('select student_code, full_name from students where id = $1', [e.student_id]);
+      const att = (await t.one('select count(*)::int n from attendance where enrollment_id = $1', [e.id])).n;
+      const sub = (await t.one('select count(*)::int n from submissions where enrollment_id = $1', [e.id])).n;
+      await logEvents(t, [{ enrollment_id: e.id, class_id: req.cls.id, class_code: req.cls.code, student_id: e.student_id,
+        student_code: stu.student_code, full_name: stu.full_name, event: 'removed', from_status: e.course_status, source: 'web',
+        actor_id: req.user.id, actor_name: req.user.name, note: `${reason} (đã xóa kèm ${att} lượt điểm danh, ${sub} bài tập)`.slice(0, 500) }]);
+      await t.run('delete from enrollments where id = $1', [e.id]);
+    });
     res.json({ ok: true });
+  });
+
+  // Lịch sử thay đổi ghi danh của lớp (100 sự kiện gần nhất).
+  router.get('/events', async (req, res) => {
+    const rows = await db.all(
+      `select id, event, student_code, full_name, from_status, to_status, source, actor_name, note, created_at
+       from enrollment_events where class_id = $1 order by id desc limit 100`, [req.cls.id]);
+    res.json(rows);
   });
 
   // ---------- Thời gian thực ----------

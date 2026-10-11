@@ -9,6 +9,7 @@
 //   danh sách cho phép (isAllowedHeader); cột khác không bao giờ được đưa vào bộ nhớ.
 // Idempotent: chạy lại không tạo trùng. Không ghi đè ô đã được người dùng sửa trực tiếp trên app (updated_by != null).
 const ExcelJS = require('exceljs');
+const { logEvents } = require('./history');
 
 const ALLOWED_FIXED = ['STUDENT ID', 'CUSTOMER ID', 'FULL NAME', 'EMAIL', 'PHONE', 'COURSE ID', 'MODE', 'COURSE STATUS', 'CERTIFICATE STATUS', 'FORM'];
 const ALLOWED_PATTERNS = [/^SESSION \d+$/, /^NOTE SS\d+$/, /^HOMEWORK \d+$/, /^NOTE HW\d+$/, /^CAPSTONE PROJECT$/, /^NOTE CP$/];
@@ -201,18 +202,24 @@ async function importClass(t, { code, sheet, col, rows: allRows }, ctx) {
     return m ? m[0].toUpperCase() + m.slice(1) : null;
   };
   const enrolls = await t.all(
-    `insert into enrollments (class_id, student_id, customer_id, mode, course_status, certificate_status, form)
-     select $1::bigint, * from unnest($2::bigint[], $3::text[], $4::text[], $5::text[], $6::text[], $7::text[])
+    `insert into enrollments (class_id, student_id, customer_id, mode, course_status, certificate_status, form, origin)
+     select $1::bigint, u.*, 'import' from unnest($2::bigint[], $3::text[], $4::text[], $5::text[], $6::text[], $7::text[]) as u
      on conflict (class_id, student_id) do update set
        customer_id = coalesce(excluded.customer_id, enrollments.customer_id),
        mode = coalesce(excluded.mode, enrollments.mode),
        course_status = case when excluded.course_status = 'active' then enrollments.course_status else excluded.course_status end,
        certificate_status = coalesce(excluded.certificate_status, enrollments.certificate_status),
        form = coalesce(excluded.form, enrollments.form)
-     returning id, student_id`,
+     returning id, student_id, course_status, (xmax = 0) as inserted`,
     [cls.id, rows.map((x) => studentIdByCode.get(x.sid)), rows.map((x) => txt(x.get('CUSTOMER ID'))), rows.map(modeOf),
       rows.map((x) => mapCourseStatus(x.get('COURSE STATUS'))), rows.map((x) => txt(x.get('CERTIFICATE STATUS'))), rows.map((x) => txt(x.get('FORM')))]);
   const enrollmentByStudent = new Map(enrolls.map((e) => [e.student_id, e.id]));
+  const rowByStudentId = new Map(rows.map((x) => [studentIdByCode.get(x.sid), x]));
+  await logEvents(t, enrolls.filter((e) => e.inserted).map((e) => ({
+    enrollment_id: e.id, class_id: cls.id, class_code: cls.code, student_id: e.student_id, student_code: rowByStudentId.get(e.student_id)?.sid ?? null,
+    full_name: rowByStudentId.get(e.student_id) ? String(rowByStudentId.get(e.student_id).get('FULL NAME')) : null,
+    event: 'enrolled', to_status: e.course_status, source: 'import',
+  })));
   const enrollmentOf = (x) => enrollmentByStudent.get(studentIdByCode.get(x.sid));
 
   // Điểm danh

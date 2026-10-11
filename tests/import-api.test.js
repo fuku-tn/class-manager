@@ -65,6 +65,8 @@ test('chạy thử không đổi database; nhập thật ghi lớp, học viên,
   assert.equal(real.body.classes[0].students, 2);
   assert.equal(await count(), 2);
   assert.ok(!JSON.stringify(real.body).includes('TIEN-999'), 'không được trả về dữ liệu tiền');
+  const origins = (await t.db.all('select distinct origin from enrollments')).map((r) => r.origin);
+  assert.deepEqual(origins, ['import']); // ghi danh từ file điểm danh không bị dò "không còn trong Sheet"
   const att = await t.db.one("select count(*)::int n from attendance");
   assert.ok(att.n >= 3);
 

@@ -14,7 +14,11 @@ module.exports = (db) => {
   // Nhật ký đồng bộ tự động từ Google Sheet (5 lần gần nhất).
   router.get('/sync-status', async (_req, res) => {
     const runs = await db.all('select id, ok, summary, error, created_at from sync_runs order by id desc limit 5');
-    res.json({ enabled: !!process.env.SYNC_TOKEN, runs });
+    const missing = (await db.one(
+      `select count(*)::int as n from (select distinct on (enrollment_id) enrollment_id, event from enrollment_events
+         where enrollment_id is not null order by enrollment_id, id desc) l
+       join enrollments e on e.id = l.enrollment_id and e.course_status = 'active' where l.event = 'missing_from_sheet'`)).n;
+    res.json({ enabled: !!process.env.SYNC_TOKEN, runs, missing });
   });
 
   function readFile(req, res) {

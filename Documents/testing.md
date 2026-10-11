@@ -15,6 +15,8 @@ Dùng **PGlite** (Postgres thật chạy trong bộ nhớ) với `src/schema.sql
 | `tests/import-transactions.test.js` | Nhập Transactions + giáo trình: không lọt dữ liệu tiền, trạng thái, mẫu mặc định, chạy lại không trùng, dry-run |
 | `tests/overview-and-filter.test.js` | Logic lọc lớp (không dấu, thời gian, chương trình, sắp xếp), API tổng quan (đếm lớp, chuyên cần loại buổi có phép, phạm vi quyền), `timing` trong danh sách lớp |
 | `tests/security-headers.test.js` | Header/CSP từ Express khớp `vercel.json`; HTML không script inline; `public/js` không dùng `innerHTML`/`eval` |
+| `tests/enrollment-events.test.js` | Nhật ký ghi danh: thêm/đổi trạng thái trên web (kèm người làm), "Gỡ khỏi lớp" chỉ admin + bắt buộc lý do + chụp lại thông tin + kèm số điểm danh bị xóa; quyền xem nhật ký theo lớp; đồng bộ Sheet ghi sự kiện không trùng; "không còn trong Sheet" chỉ cảnh báo, không ghi trùng, "xuất hiện lại"; Sheet ít bất thường thì bỏ dò; không tự thêm lại người đã gỡ |
+| `tests/frontend-syntax.test.js` | Mọi file `public/js` đọc được (lỗi cú pháp một file làm hỏng cả trang) |
 | `tests/sync.test.js` | Đồng bộ Google Sheet: cần đúng mã (401/503); tạo lớp/học viên/ghi danh, bỏ cột tiền, ngày không lệch múi giờ, chạy lại không đổi; không đè sửa tay (tên, trạng thái nghỉ); "Không tham gia" → dropped; thiếu cột → 422; lớp thiếu giáo trình vẫn nhận; nhật ký chỉ admin; danh sách cột trong script khớp máy chủ và không có chữ liên quan tiền |
 | `tests/attendance-extras.test.js` | PUT trả % chuyên cần + hiện diện/sĩ số khớp GET (có phép loại khỏi mẫu số, không có mẫu số → null); "Bỏ tất cả" xóa cả buổi, 404 buổi khác lớp, khách bị 403 |
 | `tests/student-sort.test.js` | Sắp xếp theo tên (từ cuối, collation tiếng Việt), họ tên, mã (số tự nhiên), tỉ lệ (trống xuống cuối), vắng nhiều, trạng thái; không đổi mảng gốc |
@@ -25,7 +27,7 @@ Dùng **PGlite** (Postgres thật chạy trong bộ nhớ) với `src/schema.sql
 | `tests/db-errors.test.js` | Phân loại lỗi cấu hình/kết nối DB; thiếu `DATABASE_URL` → đăng nhập trả 503 có lý do |
 | `tests/import.test.js` | Nhập điểm danh nhiều sheet (workbook dựng trong test): X/O/trống, có phép không tính mẫu số, bỏ sheet ẩn và cột tiền, giáo trình theo tên sheet, khớp mã lớp lệch P/B, không ghi đè ô sửa trên app, dry-run |
 
-## Đã được kiểm thử tự động (76 test)
+## Đã được kiểm thử tự động (84 test)
 - Chưa đăng nhập → 401; đăng nhập sai/đúng.
 - Giảng viên không truy cập được lớp chưa được phân (403), sau khi phân thì được; không tạo lớp / xem user được.
 - Tỉ lệ điểm danh: có phép không tính vào mẫu số (A=0.67, B=0.5).
