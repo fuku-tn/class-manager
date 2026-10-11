@@ -23,6 +23,17 @@ export function classLabel(c) {
   return c.short_code || c.code;
 }
 
+// Tên gọn để đọc: "P2.BIE.P104.HY.AA.041026" → "BIE 104" (từ mã ngắn BIE104, hoặc suy ra từ mã đầy đủ). Không suy ra được → mã gốc.
+export function classDisplayName(c) {
+  const short = /^([A-Za-z]+)\s*(\d+)$/.exec(String(c?.short_code ?? '').trim());
+  if (short) return `${short[1].toUpperCase()} ${short[2]}`;
+  const parts = String(c?.code ?? '').split('.');
+  const prog = parts[1] && /^[A-Za-z]+$/.test(parts[1]) ? parts[1] : null;
+  const num = parts[2] ? /^[A-Za-z]?(\d+)$/.exec(parts[2]) : null;
+  if (prog && num) return `${prog.toUpperCase()} ${num[1]}`;
+  return c?.code ?? '';
+}
+
 function haystack(c) {
   return norm([c.short_code, c.code, c.program, PROGRAM_NAMES[c.program], c.name, fmtDate(c.start_date), c.start_date, c.delivery_mode].join(' '));
 }
