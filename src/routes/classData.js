@@ -1,7 +1,7 @@
 // Học viên, điểm danh, bài tập của một lớp. Mount tại /api/classes/:classId
 const express = require('express');
 const { requireAdmin, requireClassAccess } = require('../auth');
-const { loadClassData, computeEnrollmentStats } = require('../services/stats');
+const { loadClassData, computeEnrollmentStats, sessionSummaries } = require('../services/stats');
 const realtime = require('../services/realtime');
 
 const MODES = ['Online', 'Offline', 'Hybrid'];
@@ -87,17 +87,30 @@ module.exports = (db) => {
     current,
   });
 
+  // Số liệu sau khi ghi: % chuyên cần của học viên + hiện diện/sĩ số của buổi (tính bằng đúng hàm của stats.js).
+  async function snapshot(classId, enrollmentId, sessionId) {
+    const data = await loadClassData(db, classId);
+    const stats = computeEnrollmentStats(data).get(enrollmentId);
+    const sess = sessionSummaries(data).get(sessionId);
+    return {
+      enrollment: stats ? { attendance_rate: stats.attendance_rate, attended: stats.attended, excused: stats.excused, absent: stats.absent } : null,
+      session: sess ?? null,
+    };
+  }
+
   // ---------- Điểm danh ----------
   router.get('/attendance', async (req, res) => {
     const data = await loadClassData(db, req.cls.id);
     const stats = computeEnrollmentStats(data);
     const cells = new Map();
     for (const a of data.attendance) cells.set(`${a.enrollment_id}:${a.session_id}`, cellView(a));
+    const sums = sessionSummaries(data);
     res.json({
-      sessions: data.sessions,
+      sessions: data.sessions.map((s) => ({ ...s, summary: sums.get(s.id) })),
       rows: data.enrollments.map((e) => ({
         enrollment_id: e.id, student_code: e.student_code, full_name: e.full_name, mode: e.mode,
         course_status: e.course_status, attendance_rate: stats.get(e.id).attendance_rate,
+        attended: stats.get(e.id).attended, excused: stats.get(e.id).excused, absent: stats.get(e.id).absent,
         cells: Object.fromEntries(data.sessions.map((s) => [s.id, cells.get(`${e.id}:${s.id}`) ?? null])),
       })),
     });
@@ -110,9 +123,10 @@ module.exports = (db) => {
     if (status !== null && !ATT_STATUS.includes(status)) return res.status(400).json({ error: 'Trạng thái điểm danh không hợp lệ' });
     if (hasExpected && expected !== null && !ATT_STATUS.includes(expected)) return res.status(400).json({ error: 'Trạng thái "expected" không hợp lệ' });
 
+    let e, s;
     const out = await db.tx(async (t) => {
-      const e = await findEnrollment(t, req.cls.id, enrollment_id);
-      const s = await t.one('select * from sessions where id = $1 and class_id = $2', [id(session_id), req.cls.id]);
+      e = await findEnrollment(t, req.cls.id, enrollment_id);
+      s = await t.one('select * from sessions where id = $1 and class_id = $2', [id(session_id), req.cls.id]);
       if (!e || !s) throw httpError(404, 'Học viên hoặc buổi học không thuộc lớp này');
       const current = () => t.one(`select a.status, a.note, a.updated_at, u.name as updated_by_name from attendance a
         left join users u on u.id = a.updated_by where a.enrollment_id = $1 and a.session_id = $2`, [e.id, s.id]);
@@ -139,7 +153,7 @@ module.exports = (db) => {
 
     if (out.conflict) return conflict(res, out.conflict.updated_by_name, cellView(out.conflict));
     await realtime.publish(req.cls.id, { kind: 'attendance' });
-    res.json({ ok: true, cell: out.cell });
+    res.json({ ok: true, cell: out.cell, ...(await snapshot(req.cls.id, e.id, s.id)) });
   });
 
   // Điểm danh cả lớp: đặt `status` cho mọi học viên đang học chưa có bản ghi trong buổi này.
@@ -157,6 +171,19 @@ module.exports = (db) => {
     });
     await realtime.publish(req.cls.id, { kind: 'attendance' });
     res.json({ created });
+  });
+
+  // Bỏ điểm danh cả buổi: xóa mọi ô của buổi này (buổi quay về "chưa diễn ra").
+  router.delete('/sessions/:sessionId/attendance', async (req, res) => {
+    const deleted = await db.tx(async (t) => {
+      const s = await t.one('select * from sessions where id = $1 and class_id = $2', [id(req.params.sessionId), req.cls.id]);
+      if (!s) throw httpError(404, 'Không tìm thấy buổi học');
+      const n = await t.run('delete from attendance where session_id = $1', [s.id]);
+      await t.run('update sessions set held = false where id = $1', [s.id]);
+      return n;
+    });
+    await realtime.publish(req.cls.id, { kind: 'attendance' });
+    res.json({ deleted });
   });
 
   // ---------- Bài tập ----------

@@ -69,6 +69,25 @@ function computeEnrollmentStats({ sessions, assignments, enrollments, attendance
   return stats;
 }
 
+// Hiện diện / sĩ số của từng buổi. Sĩ số = học viên đang học hoặc đã hoàn thành (cùng tập với Dashboard).
+// Buổi đã diễn ra: ô chưa điểm danh tính là vắng. Trả về Map session_id -> { held, roster, attended, late, excused, absent }.
+function sessionSummaries({ sessions, enrollments, attendance }) {
+  const roster = new Set(enrollments.filter((e) => e.course_status === 'active' || e.course_status === 'completed').map((e) => e.id));
+  const raw = new Map(sessions.map((s) => [s.id, { held: !!s.held, present: 0, late: 0, excused: 0 }]));
+  for (const a of attendance) {
+    const c = raw.get(a.session_id);
+    if (c && c.held && roster.has(a.enrollment_id) && a.status in c) c[a.status]++;
+  }
+  const out = new Map();
+  for (const [id, c] of raw) {
+    out.set(id, {
+      held: c.held, roster: roster.size, attended: c.present + c.late, late: c.late, excused: c.excused,
+      absent: c.held ? Math.max(0, roster.size - c.present - c.late - c.excused) : 0,
+    });
+  }
+  return out;
+}
+
 const mean = (xs) => (xs.length ? round(xs.reduce((a, b) => a + b, 0) / xs.length) : null);
 
 async function buildDashboard(db, cls) {
@@ -133,4 +152,4 @@ async function buildDashboard(db, cls) {
   };
 }
 
-module.exports = { loadClassData, computeEnrollmentStats, buildDashboard, attendanceRate, ATTENDANCE_THRESHOLD };
+module.exports = { loadClassData, computeEnrollmentStats, sessionSummaries, buildDashboard, attendanceRate, ATTENDANCE_THRESHOLD };

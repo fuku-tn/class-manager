@@ -209,6 +209,20 @@ th .small { text-transform: none; letter-spacing: 0; font-weight: 500; color: va
 .cell.readonly { cursor: default; }
 .cell.readonly:hover { filter: none; }
 
+/* Ô điểm danh dạng danh sách thả xuống: select thật nằm trong suốt phía trên, chỉ hiện ký hiệu */
+span.cell { position: relative; display: inline-flex; align-items: center; justify-content: center; min-width: 2.5rem;
+  border: 1px solid var(--border); background: var(--glass); cursor: pointer; user-select: none; line-height: 1.5; }
+span.cell.empty { background: transparent; }
+.cell-sel { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: 0; padding: 0; margin: 0;
+  font-size: 16px; border-radius: 9px; }
+span.cell:focus-within { outline: 2px solid var(--gold); outline-offset: 2px; }
+.legend .cell { cursor: default; }
+.legend .cell:hover { filter: none; }
+.sess-count { font-size: .78rem; font-weight: 650; font-variant-numeric: tabular-nums; letter-spacing: 0; text-transform: none; }
+.sess-actions { display: flex; flex-wrap: wrap; gap: .25rem; justify-content: center; }
+.sort-label { display: inline-flex; align-items: center; gap: .5rem; color: var(--muted); font-size: .88rem; }
+.sort-label select { padding: .4rem .7rem; }
+
 .badge { display: inline-block; padding: .08rem .65rem; border-radius: 99px; font-size: .78rem; font-weight: 600; background: var(--info-bg); color: var(--info); }
 .badge.ok { background: var(--ok-bg); color: var(--ok); }
 .badge.warn { background: var(--warn-bg); color: var(--warn); }
