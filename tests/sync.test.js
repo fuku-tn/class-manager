@@ -116,3 +116,14 @@ test('đồng bộ: tab COURSE của Google Sheet (START DATE / EXPECTED END DAT
   assert.deepEqual(c, { start_date: '2026-12-01', end_date: '2027-02-10', delivery_mode: 'Online', shift: 'evening' });
   assert.ok(!JSON.stringify(r.body).includes('teams.example') && !JSON.stringify(r.body).includes(MONEY));
 });
+
+test('script Apps Script tự tìm dòng tiêu đề bằng TextFinder (không đọc cả hàng tổng chứa tiền)', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const src = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'google-apps-script', 'sync-transactions.gs'), 'utf8');
+  assert.match(src, /createTextFinder\(keyHeader\)\.matchEntireCell\(true\)/);
+  assert.match(src, /HEADER_ROW: 0/);
+  assert.match(src, /FALLBACK_HEADER_ROW: 2/);
+  // tiêu đề chỉ được đọc đúng một dòng (tên cột), không đọc nhiều dòng đầu
+  assert.match(src, /getRange\(headerRow, 1, 1, lastCol\)/);
+});

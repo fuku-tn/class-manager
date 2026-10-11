@@ -23,6 +23,7 @@ Excel `Transactions` không còn nằm trên đường đi (vẫn dùng cho báo
 3. **Google Sheet** → Tiện ích mở rộng (Extensions) → **Apps Script**:
    - Xóa nội dung mặc định, dán toàn bộ file `scripts/google-apps-script/sync-transactions.gs`.
    - Mặc định script tìm tab `PERSONAL` (hoặc `Transactions`) và `COURSE` (hoặc `Course`); nếu đổi tên tab thì sửa `CONFIG` ở đầu file.
+   - **Dòng tiêu đề tự tìm** (dòng 1 là dòng tổng, tiêu đề thường ở dòng 2): script dùng TextFinder tìm ô `STUDENT ID` / `COURSE ID` trong 10 dòng đầu, không đọc giá trị các ô khác. Không tìm được thì dùng dòng 2; muốn cố định thì đặt `HEADER_ROW` trong `CONFIG`.
    - **Project Settings** (biểu tượng bánh răng) → *Script properties* → thêm:
      - `SYNC_URL` = `https://<tên-miền-webapp>/api/sync/transactions`
      - `SYNC_TOKEN` = mã ở bước 1
@@ -53,7 +54,7 @@ Tạm dừng: chạy hàm `stop`. Bật lại: chạy `setup`.
 |---|---|
 | Trang báo "Chưa bật" | Chưa có `SYNC_TOKEN` trên Vercel hoặc chưa Redeploy |
 | Apps Script báo `401` | `SYNC_TOKEN` trong Script properties khác với trên Vercel |
-| Apps Script báo `422 Thiếu cột STUDENT ID…` | Tab không có tiêu đề ở dòng `HEADER_ROW` hoặc đổi tên cột |
+| Apps Script báo `422 Thiếu cột STUDENT ID…` | Không tìm thấy dòng tiêu đề (đổi tên cột `STUDENT ID`/`COURSE ID`, hoặc tiêu đề ở dưới dòng 10): đặt `HEADER_ROW` đúng số dòng trong `CONFIG` |
 | Không có dữ liệu mới dù Sheet đã đổi | Trigger bị gỡ/hết quyền (tài khoản cài script đổi mật khẩu, nghỉ việc…): chạy lại `setup` bằng tài khoản còn quyền |
 | Trang báo lỗi màu đỏ "đã lâu không có dữ liệu" | Như trên — kiểm tra Executions trong Apps Script |
 

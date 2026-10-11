@@ -14,7 +14,9 @@
 const CONFIG = {
   SHEET_TRANSACTIONS: ['PERSONAL', 'Transactions'], // tên tab chứa đăng ký học (lấy tab đầu tiên tìm thấy)
   SHEET_COURSE: ['COURSE', 'Course'],               // tên tab danh sách lớp (không có thì máy chủ dùng danh sách lớp sẵn có)
-  HEADER_ROW: 1,                      // dòng chứa tiêu đề cột
+  HEADER_ROW: 0,                      // 0 = tự tìm dòng tiêu đề (dòng 1 thường là dòng tổng); hoặc ghi cố định số dòng, vd 2
+  MAX_HEADER_ROW: 10,                 // chỉ tìm tiêu đề trong 10 dòng đầu
+  FALLBACK_HEADER_ROW: 2,             // dùng khi không tự tìm được
   EVERY_MINUTES: 1,                   // chu kỳ kiểm tra (1, 5, 10, 15, 30)
   RESEND_AFTER_MINUTES: 60,           // không đổi gì vẫn gửi lại mỗi giờ một lần để trang quản trị biết script còn sống
 };
@@ -53,9 +55,9 @@ function syncNow(force) {
     if (!url || !token) throw new Error('Thiếu SYNC_URL hoặc SYNC_TOKEN trong Script properties');
 
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const transactions = readTable_(findSheet_(ss, CONFIG.SHEET_TRANSACTIONS), ALLOWED_TX, []);
+    const transactions = readTable_(findSheet_(ss, CONFIG.SHEET_TRANSACTIONS), ALLOWED_TX, [], 'STUDENT ID');
     if (!transactions) throw new Error('Không tìm thấy tab ' + CONFIG.SHEET_TRANSACTIONS.join(' / ') + ' hoặc tab trống');
-    const course = readTable_(findSheet_(ss, CONFIG.SHEET_COURSE), ALLOWED_COURSE, ['STARTDATE', 'ENDDATE']);
+    const course = readTable_(findSheet_(ss, CONFIG.SHEET_COURSE), ALLOWED_COURSE, ['STARTDATE', 'ENDDATE'], 'COURSE ID');
 
     const body = JSON.stringify(course ? { transactions: transactions, course: course } : { transactions: transactions });
     const hash = toHex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, body, Utilities.Charset.UTF_8));
@@ -85,11 +87,11 @@ function syncNow(force) {
  * Đọc một tab nhưng CHỈ các cột trong `allowed` (đọc từng cột một; cột khác không bao giờ bị đọc).
  * Trả về { headers: [...], rows: [[...], ...] } hoặc null nếu không có tab / trống.
  */
-function readTable_(sheet, allowed, dateCols) {
+function readTable_(sheet, allowed, dateCols, keyHeader) {
   if (!sheet) return null;
   const lastRow = sheet.getLastRow();
   const lastCol = sheet.getLastColumn();
-  const headerRow = CONFIG.HEADER_ROW;
+  const headerRow = CONFIG.HEADER_ROW || findHeaderRow_(sheet, keyHeader) || CONFIG.FALLBACK_HEADER_ROW;
   if (lastRow <= headerRow || lastCol < 1) return null;
   const tz = sheet.getParent().getSpreadsheetTimeZone();
 
@@ -116,6 +118,20 @@ function readTable_(sheet, allowed, dateCols) {
     if (row.some(function (v) { return v !== null; })) rows.push(row); // bỏ dòng trống
   }
   return { headers: cols.map(function (c) { return c.name; }), rows: rows };
+}
+
+/**
+ * Tìm dòng tiêu đề bằng TextFinder (tìm vị trí ô có đúng chữ `keyHeader`) — KHÔNG đọc giá trị các ô khác,
+ * nên dòng tổng ở trên (có số tiền) không bị đọc. Trả về 0 nếu không thấy.
+ */
+function findHeaderRow_(sheet, keyHeader) {
+  const hits = sheet.createTextFinder(keyHeader).matchEntireCell(true).matchCase(false).findAll();
+  let row = 0;
+  hits.forEach(function (r) {
+    const n = r.getRow();
+    if (n <= CONFIG.MAX_HEADER_ROW && (!row || n < row)) row = n;
+  });
+  return row;
 }
 
 /** Tìm tab theo danh sách tên (không phân biệt hoa thường). */
