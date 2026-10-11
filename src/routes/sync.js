@@ -4,6 +4,11 @@
 const crypto = require('node:crypto');
 const express = require('express');
 const realtime = require('../services/realtime');
+const { ALLOWED_TX, ALLOWED_COURSE } = require('../services/importTransactions');
+
+// Tab COURSE của Google Sheet dùng tên cột "START DATE"/"EXPECTED END DATE" (Excel/Power Query đổi thành STARTDATE/ENDDATE).
+const COURSE_ALIASES = { 'START DATE': 'STARTDATE', 'EXPECTED END DATE': 'ENDDATE' };
+const SYNC_COURSE_COLUMNS = [...ALLOWED_COURSE, ...Object.keys(COURSE_ALIASES)];
 
 const MAX_ROWS = 20000;
 const MAX_COLS = 60;
@@ -70,13 +75,18 @@ module.exports = (db) => {
     if (busy) return res.status(409).json({ error: 'Đang xử lý một lượt đồng bộ khác' });
     busy = true;
     const ExcelJS = require('exceljs');
-    const { importTransactions, ALLOWED_TX, ALLOWED_COURSE } = require('../services/importTransactions');
+    const { importTransactions } = require('../services/importTransactions');
     try {
       const tx = pickColumns(req.body?.transactions, ALLOWED_TX);
       if (!tx.headers.includes('STUDENT ID') || !tx.headers.includes('COURSE')) throw httpError(422, 'Thiếu cột STUDENT ID hoặc COURSE trong sheet Transactions');
-      const course = req.body?.course
-        ? pickColumns(req.body.course, ALLOWED_COURSE, ['STARTDATE', 'ENDDATE'])
-        : pickColumns(await classesAsCourseTable(), ALLOWED_COURSE, []);
+      let course;
+      if (req.body?.course) {
+        course = pickColumns(req.body.course, SYNC_COURSE_COLUMNS, ['STARTDATE', 'ENDDATE', ...Object.keys(COURSE_ALIASES)]);
+        // đổi tên cột Google Sheet về tên chuẩn của bộ nhập (nếu tên chuẩn chưa có)
+        course.headers = course.headers.map((h) => (COURSE_ALIASES[h] && !course.headers.includes(COURSE_ALIASES[h]) ? COURSE_ALIASES[h] : h));
+      } else {
+        course = pickColumns(await classesAsCourseTable(), ALLOWED_COURSE, []);
+      }
       if (!req.body?.course) { // lấy từ database: ngày đã là chuỗi/Date → chuẩn hóa sang Date UTC
         const di = [course.headers.indexOf('STARTDATE'), course.headers.indexOf('ENDDATE')];
         for (const r of course.rows) for (const i of di) if (i >= 0 && typeof r[i] === 'string') { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(r[i]); r[i] = m ? new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])) : null; }
@@ -109,3 +119,4 @@ module.exports = (db) => {
 
   return router;
 };
+module.exports.SYNC_COURSE_COLUMNS = SYNC_COURSE_COLUMNS;

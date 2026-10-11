@@ -12,15 +12,15 @@
  * (máy chủ cũng tự lọc lại một lần nữa).
  */
 const CONFIG = {
-  SHEET_TRANSACTIONS: 'Transactions', // tên tab chứa đăng ký học
-  SHEET_COURSE: 'Course',             // tên tab danh sách lớp (không có tab này thì máy chủ dùng danh sách lớp sẵn có)
+  SHEET_TRANSACTIONS: ['PERSONAL', 'Transactions'], // tên tab chứa đăng ký học (lấy tab đầu tiên tìm thấy)
+  SHEET_COURSE: ['COURSE', 'Course'],               // tên tab danh sách lớp (không có thì máy chủ dùng danh sách lớp sẵn có)
   HEADER_ROW: 1,                      // dòng chứa tiêu đề cột
   EVERY_MINUTES: 1,                   // chu kỳ kiểm tra (1, 5, 10, 15, 30)
   RESEND_AFTER_MINUTES: 60,           // không đổi gì vẫn gửi lại mỗi giờ một lần để trang quản trị biết script còn sống
 };
 
 const ALLOWED_TX = ['STUDENT ID', 'CUSTOMER ID', 'FULL NAME', 'EMAIL', 'PHONE', 'COURSE', 'MODE', 'GENDER', 'STATUS', 'REGISTRATION SOURCE'];
-const ALLOWED_COURSE = ['COURSE', 'COURSE ID', 'STARTDATE', 'ENDDATE', 'NEXT COURSE'];
+const ALLOWED_COURSE = ['COURSE', 'COURSE ID', 'STARTDATE', 'ENDDATE', 'NEXT COURSE', 'START DATE', 'EXPECTED END DATE'];
 
 /** Chạy MỘT lần: tạo bộ hẹn giờ rồi đồng bộ ngay. */
 function setup() {
@@ -53,9 +53,9 @@ function syncNow(force) {
     if (!url || !token) throw new Error('Thiếu SYNC_URL hoặc SYNC_TOKEN trong Script properties');
 
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const transactions = readTable_(ss.getSheetByName(CONFIG.SHEET_TRANSACTIONS), ALLOWED_TX, []);
-    if (!transactions) throw new Error('Không tìm thấy tab "' + CONFIG.SHEET_TRANSACTIONS + '" hoặc tab trống');
-    const course = readTable_(ss.getSheetByName(CONFIG.SHEET_COURSE), ALLOWED_COURSE, ['STARTDATE', 'ENDDATE']);
+    const transactions = readTable_(findSheet_(ss, CONFIG.SHEET_TRANSACTIONS), ALLOWED_TX, []);
+    if (!transactions) throw new Error('Không tìm thấy tab ' + CONFIG.SHEET_TRANSACTIONS.join(' / ') + ' hoặc tab trống');
+    const course = readTable_(findSheet_(ss, CONFIG.SHEET_COURSE), ALLOWED_COURSE, ['STARTDATE', 'ENDDATE']);
 
     const body = JSON.stringify(course ? { transactions: transactions, course: course } : { transactions: transactions });
     const hash = toHex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, body, Utilities.Charset.UTF_8));
@@ -116,6 +116,18 @@ function readTable_(sheet, allowed, dateCols) {
     if (row.some(function (v) { return v !== null; })) rows.push(row); // bỏ dòng trống
   }
   return { headers: cols.map(function (c) { return c.name; }), rows: rows };
+}
+
+/** Tìm tab theo danh sách tên (không phân biệt hoa thường). */
+function findSheet_(ss, names) {
+  const wanted = names.map(function (n) { return String(n).toLowerCase(); });
+  const sheets = ss.getSheets();
+  for (let i = 0; i < wanted.length; i++) {
+    for (let j = 0; j < sheets.length; j++) {
+      if (sheets[j].getName().toLowerCase() === wanted[i]) return sheets[j];
+    }
+  }
+  return null;
 }
 
 function toHex_(bytes) {

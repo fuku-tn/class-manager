@@ -96,11 +96,23 @@ test('nhật ký đồng bộ: admin xem được, giảng viên không', async 
 test('script Apps Script dùng đúng danh sách cột cho phép như máy chủ và không nhắc tới tiền', () => {
   const fs = require('node:fs');
   const path = require('node:path');
-  const { ALLOWED_TX, ALLOWED_COURSE } = require('../src/services/importTransactions');
+  const { ALLOWED_TX } = require('../src/services/importTransactions');
+  const { SYNC_COURSE_COLUMNS } = require('../src/routes/sync');
   const src = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'google-apps-script', 'sync-transactions.gs'), 'utf8');
   const list = (name) => JSON.parse(new RegExp(`const ${name} = (\\[.*?\\]);`).exec(src)[1].replace(/'/g, '"'));
   assert.deepEqual(list('ALLOWED_TX'), ALLOWED_TX);
-  assert.deepEqual(list('ALLOWED_COURSE'), ALLOWED_COURSE);
-  for (const col of [...ALLOWED_TX, ...ALLOWED_COURSE]) assert.ok(!/price|amount|paid|voucher|fee|giá|tiền|payment/i.test(col), col);
+  assert.deepEqual(list('ALLOWED_COURSE'), SYNC_COURSE_COLUMNS);
+  for (const col of [...ALLOWED_TX, ...SYNC_COURSE_COLUMNS]) assert.ok(!/price|amount|paid|voucher|fee|giá|tiền|payment/i.test(col), col);
   assert.ok(!/SYNC_TOKEN\s*=\s*['"][^'"]+['"]/.test(src), 'không được ghi sẵn mã bí mật trong script');
+});
+
+test('đồng bộ: tab COURSE của Google Sheet (START DATE / EXPECTED END DATE) được nhận đúng', async () => {
+  const gsCourse = { headers: ['COURSE', 'Sub COURSE ID', 'COURSE ID', 'START DATE', 'EXPECTED END DATE', 'NEXT COURSE', 'LINK MS TEAMS', 'PASS CODE', 'TOTAL REVENUE'],
+    rows: [['SIA130', 'x', 'P2.SIA.P130.ON.EE.150126', '2026-12-01', '2027-02-10', null, 'https://teams.example/' + MONEY, MONEY, MONEY]] };
+  const row = ['P.77', null, 'Đỗ Phúc', 'phuc@x.com', null, 'SIA130', 'Online', null, null, 'Form'];
+  const r = await post({ transactions: tx(row), course: gsCourse });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  const c = await t.db.one("select start_date, end_date, delivery_mode, shift from classes where short_code = 'SIA130'");
+  assert.deepEqual(c, { start_date: '2026-12-01', end_date: '2027-02-10', delivery_mode: 'Online', shift: 'evening' });
+  assert.ok(!JSON.stringify(r.body).includes('teams.example') && !JSON.stringify(r.body).includes(MONEY));
 });
