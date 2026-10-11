@@ -179,6 +179,7 @@ function parseTransactions(ws, classByShort) {
 }
 
 async function loadWorkbook(file) {
+  if (file instanceof ExcelJS.Workbook) return file; // workbook dựng sẵn trong bộ nhớ (đồng bộ từ Google Sheet)
   const wb = new ExcelJS.Workbook();
   if (Buffer.isBuffer(file)) { await wb.xlsx.load(file); return wb; } // file tải lên từ web
   if (!fs.existsSync(file)) throw new Error(`Không thấy file: ${file}`);
@@ -208,7 +209,9 @@ async function curriculaFromDb(db) {
 // Mã các lớp có ghi danh trong file (để báo realtime cho trình duyệt đang mở lớp đó).
 const en0 = (enrolls, classId) => enrolls.map((e) => classId.get(e.short_code)).filter(Boolean);
 
-async function importTransactions(db, { transactionsFile, curriculumFile, dryRun = false }) {
+// preserveManual (đồng bộ tự động mỗi phút): thêm mới thì ghi đầy đủ; bản ghi ĐÃ CÓ chỉ được điền chỗ trống,
+// không đè tên/email/SĐT/hình thức và không đưa học viên đã nghỉ/bảo lưu về "đang học" (sửa tay trên web được giữ).
+async function importTransactions(db, { transactionsFile, curriculumFile, dryRun = false, preserveManual = false }) {
   const tw = await loadWorkbook(transactionsFile);
   const courseWs = tw.getWorksheet('Course');
   const txWs = tw.getWorksheet('Transactions');
@@ -219,7 +222,11 @@ async function importTransactions(db, { transactionsFile, curriculumFile, dryRun
   const parsed = parseTransactions(txWs, classByShort);
   const byCode = new Map(curricula.map((c) => [c.code, c]));
   const missingTemplates = [...new Set(classes.map((c) => c.template).filter((t) => t && !byCode.has(t)))];
-  if (missingTemplates.length) throw new Error(`Thiếu giáo trình cho mẫu: ${missingTemplates.join(', ')}`);
+  if (missingTemplates.length) {
+    // Nhập tay: dừng để người dùng nạp giáo trình. Đồng bộ tự động: vẫn nhận đăng ký, lớp tạm thời chưa có giáo trình.
+    if (!preserveManual) throw new Error(`Thiếu giáo trình cho mẫu: ${missingTemplates.join(', ')}`);
+    for (const c of classes) if (missingTemplates.includes(c.template)) c.template = null;
+  }
 
   const summary = {
     curricula: curricula.length, curricula_from_db: !curriculumFile, classes: classes.length, students: parsed.students.length, enrollments: parsed.enrolls.length,
@@ -235,6 +242,7 @@ async function importTransactions(db, { transactionsFile, curriculumFile, dryRun
     anomaly_details: parsed.anomalies,
     columns_read: { course: ALLOWED_COURSE, transactions: ALLOWED_TX },
     dry_run: dryRun,
+    preserve_manual: preserveManual,
   };
 
   const ROLLBACK = Symbol('dry-run');
@@ -297,9 +305,13 @@ async function importTransactions(db, { transactionsFile, curriculumFile, dryRun
       const studentRows = await t.all(
         `insert into students (student_code, full_name, email, phone, gender)
          select * from unnest($1::text[], $2::text[], $3::text[], $4::text[], $5::text[])
-         on conflict (student_code) do update set
-           full_name = coalesce(excluded.full_name, students.full_name), email = coalesce(excluded.email, students.email),
-           phone = coalesce(excluded.phone, students.phone), gender = coalesce(excluded.gender, students.gender)
+         on conflict (student_code) do update set ${preserveManual
+    ? `full_name = case when students.full_name is null or students.full_name = students.student_code
+                            then coalesce(excluded.full_name, students.full_name) else students.full_name end,
+             email = coalesce(students.email, excluded.email), phone = coalesce(students.phone, excluded.phone),
+             gender = coalesce(students.gender, excluded.gender)`
+    : `full_name = coalesce(excluded.full_name, students.full_name), email = coalesce(excluded.email, students.email),
+             phone = coalesce(excluded.phone, students.phone), gender = coalesce(excluded.gender, students.gender)`}
          returning id, student_code`,
         [st.map((s) => s.student_code), st.map((s) => s.full_name ?? s.student_code), st.map((s) => s.email), st.map((s) => s.phone), st.map((s) => s.gender)]);
       const studentId = new Map(studentRows.map((r) => [r.student_code, r.id]));
@@ -309,13 +321,19 @@ async function importTransactions(db, { transactionsFile, curriculumFile, dryRun
       await t.run(
         `insert into enrollments (class_id, student_id, customer_id, mode, course_status, registration_source, carried_over)
          select * from unnest($1::bigint[], $2::bigint[], $3::text[], $4::text[], $5::text[], $6::text[], $7::boolean[])
-         on conflict (class_id, student_id) do update set
-           customer_id = coalesce(excluded.customer_id, enrollments.customer_id),
+         on conflict (class_id, student_id) do update set ${preserveManual
+    ? `customer_id = coalesce(enrollments.customer_id, excluded.customer_id),
+           mode = coalesce(enrollments.mode, excluded.mode),
+           registration_source = coalesce(enrollments.registration_source, excluded.registration_source),
+           carried_over = enrollments.carried_over or excluded.carried_over,
+           course_status = case when enrollments.course_status = 'active' and excluded.course_status = 'dropped'
+                                then 'dropped' else enrollments.course_status end`
+    : `customer_id = coalesce(excluded.customer_id, enrollments.customer_id),
            mode = coalesce(excluded.mode, enrollments.mode),
            registration_source = coalesce(excluded.registration_source, enrollments.registration_source),
            carried_over = excluded.carried_over,
            course_status = case when enrollments.course_status in ('deferred', 'completed') then enrollments.course_status
-                                else excluded.course_status end`,
+                                else excluded.course_status end`}`,
         [en.map((e) => classId.get(e.short_code)), en.map((e) => studentId.get(e.student_code)), en.map((e) => e.customer_id), en.map((e) => e.mode),
           en.map((e) => e.course_status), en.map((e) => e.registration_source), en.map((e) => e.carried_over)]);
 

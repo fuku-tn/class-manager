@@ -8,11 +8,13 @@ function createApp(db) {
   const app = express();
   app.disable('x-powered-by');
   if (process.env.VERCEL) app.set('trust proxy', 1); // sau proxy của Vercel: req.ip là IP khách thật
-  app.use(express.json({ limit: '100kb' }));
   app.use((_req, res, next) => {
     for (const [k, v] of Object.entries(HEADERS)) res.setHeader(k, v);
     next();
   });
+  // Đồng bộ từ Google Sheet: xác thực bằng SYNC_TOKEN, có bộ đọc JSON riêng (3MB) nên phải đứng trước bộ đọc 100KB.
+  app.use('/api/sync', require('./routes/sync')(db));
+  app.use(express.json({ limit: '100kb' }));
   app.use(attachUser(db));
   app.use('/api', blockGuestWrites);
 
@@ -44,7 +46,7 @@ function createApp(db) {
   // eslint-disable-next-line no-unused-vars
   app.use((err, _req, res, _next) => {
     if (err.type === 'entity.parse.failed') return res.status(400).json({ error: 'JSON không hợp lệ' });
-    if (err.status && err.status < 500) return res.status(err.status).json({ error: err.message });
+    if (err.status && (err.status < 500 || err.expose)) return res.status(err.status).json({ error: err.message });
     console.error(err);
     // Lỗi cấu hình/kết nối database: báo rõ để người triển khai tự sửa (thông điệp không chứa bí mật).
     const dbReason = describeDbError(err);

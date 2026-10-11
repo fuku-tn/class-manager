@@ -11,6 +11,12 @@ module.exports = (db) => {
   const router = express.Router(); // đã qua requireAuth + requireAdmin ở create-app.js
   router.use(express.raw({ type: () => true, limit: MAX_BYTES }));
 
+  // Nhật ký đồng bộ tự động từ Google Sheet (5 lần gần nhất).
+  router.get('/sync-status', async (_req, res) => {
+    const runs = await db.all('select id, ok, summary, error, created_at from sync_runs order by id desc limit 5');
+    res.json({ enabled: !!process.env.SYNC_TOKEN, runs });
+  });
+
   function readFile(req, res) {
     const buf = req.body;
     if (!Buffer.isBuffer(buf) || buf.length === 0) { res.status(400).json({ error: 'Chưa nhận được file' }); return null; }

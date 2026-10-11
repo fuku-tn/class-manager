@@ -11,6 +11,7 @@ Giao diện và tài liệu bằng **tiếng Việt**; tên biến/hàm/bảng b
 | Kiến trúc, API, code backend & frontend, chuyển Supabase | [Documents/code-guide.md](Documents/code-guide.md) |
 | Quy trình làm việc / thêm tính năng / phát hành | [Documents/workflow.md](Documents/workflow.md) |
 | Triển khai lên Vercel | [Documents/deploy-vercel.md](Documents/deploy-vercel.md) |
+| Đồng bộ tự động từ Google Sheet | [Documents/google-sheet-sync.md](Documents/google-sheet-sync.md) |
 | Chiến lược & checklist kiểm thử | [Documents/testing.md](Documents/testing.md) |
 | Quyết định, giả định, việc đang dở | [memory.md](memory.md) |
 | Nội dung đã bỏ/thay thế (không xóa hẳn) | [Archive.md](Archive.md) |
@@ -44,7 +45,8 @@ Cần Node >= 22.13. Dữ liệu thật nằm trên **Supabase (Postgres)**.
 7. **Header bảo mật/CSP** khai báo ở `src/security-headers.js` **và** `vercel.json` (file tĩnh không đi qua Express); test kiểm hai nơi khớp. Không thêm script inline hay `onclick=` vào HTML (CSP `script-src 'self'`); nguồn ngoài mới (CDN, API) phải được thêm vào CSP.
 8. Vercel **bỏ qua `express.static()`**: file tĩnh phải nằm trong `public/` (kể cả thư viện — Chart.js ở `public/vendor/`, cập nhật bằng `npm run vendor`).
 9. **KHÔNG lấy, lưu, hiển thị bất kỳ dữ liệu liên quan đến tiền** (giá, số tiền đã đóng, giảm giá, trạng thái thanh toán...) — yêu cầu của chủ dự án. Bộ nhập chỉ đọc cột trong danh sách cho phép (`ALLOWED_*`), không "đọc hết rồi bỏ". Cột `STATUS` của Transactions trộn thanh toán với trạng thái học: chỉ lấy "Không tham gia" và "Bảo lưu khóa trước". Bộ nhập điểm danh **không đọc cột voucher** (`VOUCHER*`, `EXPIRATION*`). Bảng `vouchers` đã bị xóa (2026-10-10); đừng thêm lại.
-10. **Nhập Excel qua web** (`routes/import.js`, admin): file chỉ ở bộ nhớ, ≤4MB (giới hạn Vercel), importer dùng `exceljs` (nằm ở `dependencies`, nạp lười khi dùng) và vẫn chỉ đọc cột trong danh sách cho phép; sau khi nhập thật phải `realtime.publishMany`. Mỗi lớp một transaction chạy song song (≤3) nên **sắp học viên theo mã trước khi upsert** (tránh deadlock).
+10. **Đồng bộ Google Sheet** (`routes/sync.js`, xác thực `SYNC_TOKEN`, đứng **trước** `express.json` 100KB trong `create-app.js`): chỉ nhận cột trong `ALLOWED_*`, chạy `importTransactions` với `preserveManual` (chỉ thêm/điền chỗ trống, không đè sửa tay, không xóa). Danh sách cột trong `scripts/google-apps-script/sync-transactions.gs` phải khớp `ALLOWED_*` (test kiểm). Không ghi mã bí mật vào repo.
+10b. **Nhập Excel qua web** (`routes/import.js`, admin): file chỉ ở bộ nhớ, ≤4MB (giới hạn Vercel), importer dùng `exceljs` (nằm ở `dependencies`, nạp lười khi dùng) và vẫn chỉ đọc cột trong danh sách cho phép; sau khi nhập thật phải `realtime.publishMany`. Mỗi lớp một transaction chạy song song (≤3) nên **sắp học viên theo mã trước khi upsert** (tránh deadlock).
 11. **Ghi một ô điểm danh/bài tập** phải đi qua route có `expected` + `updated_by` và gọi `realtime.publish` sau khi ghi thành công; frontend cập nhật ô tại chỗ (không dựng lại bảng). Đừng bỏ cơ chế này khi thêm loại ô mới.
 12. Không commit `.env`, `node_modules/`, `legacy/*.db`, file `.xlsx/.csv` (dữ liệu học viên thật). Không đưa dữ liệu học viên thật vào repo/test ngoài file mẫu.
 13. Xong một thay đổi: chạy `npm test`; cập nhật [memory.md](memory.md) nếu có quyết định/giả định mới; nội dung lỗi thời chuyển sang [Archive.md](Archive.md).

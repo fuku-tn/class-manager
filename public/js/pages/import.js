@@ -1,6 +1,6 @@
 // Nhập dữ liệu từ Excel (chỉ admin): chọn file → Chạy thử (không ghi) → Nhập thật.
 // Server chỉ đọc các cột trong danh sách cho phép (không có tiền/voucher); file không được lưu lại.
-import { upload } from '../api.js';
+import { upload, get } from '../api.js';
 import { h, toast } from '../ui.js';
 
 const MAX_BYTES = 4 * 1024 * 1024;
@@ -92,10 +92,34 @@ function importCard({ title, intro, endpoint, render, onDone }) {
     h('div', { class: 'toolbar' }, input, dryBtn, goBtn), out);
 }
 
+// Thẻ trạng thái đồng bộ tự động từ Google Sheet (Apps Script đẩy sang; xem Documents/google-sheet-sync.md).
+const STALE_MS = 2 * 60 * 60 * 1000; // script gửi ít nhất mỗi giờ một lần: quá 2 giờ im lặng là có vấn đề
+function syncCard(s) {
+  const last = s.runs[0];
+  const fmtT = (iso) => new Date(iso).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
+  let line;
+  let cls = 'muted';
+  if (!s.enabled) line = 'Chưa bật: máy chủ chưa có biến SYNC_TOKEN. Xem hướng dẫn trong Documents/google-sheet-sync.md.';
+  else if (!last) line = 'Chưa nhận dữ liệu nào từ Google Sheet. Hãy chạy hàm setup trong Apps Script (xem Documents/google-sheet-sync.md).';
+  else if (!last.ok) { line = `Lần gần nhất (${fmtT(last.created_at)}) bị lỗi: ${last.error ?? 'không rõ'}`; cls = 'error'; }
+  else if (Date.now() - new Date(last.created_at).getTime() > STALE_MS) {
+    line = `Lần nhận gần nhất: ${fmtT(last.created_at)} — đã lâu không có dữ liệu, hãy kiểm tra trigger trong Apps Script.`; cls = 'error';
+  } else {
+    const a = last.summary?.added ?? {};
+    line = `Lần nhận gần nhất: ${fmtT(last.created_at)} · thêm ${fmt(a.students)} học viên, ${fmt(a.enrollments)} ghi danh, ${fmt(a.classes)} lớp.`;
+  }
+  return h('section', { class: 'card' },
+    h('h2', {}, 'Đồng bộ tự động từ Google Sheet'),
+    h('p', { class: cls, role: cls === 'error' ? 'alert' : undefined }, line),
+    h('p', { class: 'muted small' }, 'Mỗi phút Apps Script kiểm tra Sheet và chỉ gửi khi có thay đổi. Chỉ thêm học viên/ghi danh mới và điền chỗ trống; không xóa và không ghi đè phần đã sửa trên web.'));
+}
+
 export async function renderImport(ctx) {
   const done = () => ctx.refreshClasses();
+  const sync = await get('/api/import/sync-status').catch(() => null);
   return h('div', {},
     h('div', { class: 'page-head' }, h('h1', {}, 'Nhập dữ liệu từ Excel')),
+    sync ? syncCard(sync) : null,
     h('p', { class: 'muted' }, 'Chọn file → "Chạy thử" để xem trước (không ghi gì) → "Nhập thật". Nhập lại cùng file là an toàn: ô đã sửa trên web được giữ nguyên. Chỉ các cột trong danh sách cho phép được đọc — không đọc cột tiền/voucher; file không được lưu lại.'),
     importCard({
       title: 'Điểm danh & bài tập',
