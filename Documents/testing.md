@@ -15,6 +15,8 @@ Dùng **PGlite** (Postgres thật chạy trong bộ nhớ) với `src/schema.sql
 | `tests/import-transactions.test.js` | Nhập Transactions + giáo trình: không lọt dữ liệu tiền, trạng thái, mẫu mặc định, chạy lại không trùng, dry-run |
 | `tests/overview-and-filter.test.js` | Logic lọc lớp (không dấu, thời gian, chương trình, sắp xếp), API tổng quan (đếm lớp, chuyên cần loại buổi có phép, phạm vi quyền), `timing` trong danh sách lớp |
 | `tests/security-headers.test.js` | Header/CSP từ Express khớp `vercel.json`; HTML không script inline; `public/js` không dùng `innerHTML`/`eval` |
+| `tests/attendance-extras.test.js` | PUT trả % chuyên cần + hiện diện/sĩ số khớp GET (có phép loại khỏi mẫu số, không có mẫu số → null); "Bỏ tất cả" xóa cả buổi, 404 buổi khác lớp, khách bị 403 |
+| `tests/student-sort.test.js` | Sắp xếp theo tên (từ cuối, collation tiếng Việt), họ tên, mã (số tự nhiên), tỉ lệ (trống xuống cuối), vắng nhiều, trạng thái; không đổi mảng gốc |
 | `tests/import-api.test.js` | Nhập Excel qua web: chỉ admin (401/403), từ chối file rỗng/không phải xlsx/thiếu sheet, chạy thử không đổi DB, nhập thật ghi dữ liệu và không trả về cột tiền, nhập lại không nhân đôi |
 | `tests/guest.test.js` | Khách xem được lớp được phân công; mọi thao tác ghi (điểm danh, bài tập, học viên, buổi học, lớp, đổi mật khẩu) bị 403 và dữ liệu không đổi; đăng xuất được; schema có vai trò guest |
 | `tests/lake-theme.test.js` | Bảng màu hồ chọn theo `data-theme`, hai bảng đủ khóa, màu nước hợp lệ, ban ngày sáng hơn |
@@ -22,7 +24,7 @@ Dùng **PGlite** (Postgres thật chạy trong bộ nhớ) với `src/schema.sql
 | `tests/db-errors.test.js` | Phân loại lỗi cấu hình/kết nối DB; thiếu `DATABASE_URL` → đăng nhập trả 503 có lý do |
 | `tests/import.test.js` | Nhập điểm danh nhiều sheet (workbook dựng trong test): X/O/trống, có phép không tính mẫu số, bỏ sheet ẩn và cột tiền, giáo trình theo tên sheet, khớp mã lớp lệch P/B, không ghi đè ô sửa trên app, dry-run |
 
-## Đã được kiểm thử tự động (59 test)
+## Đã được kiểm thử tự động (65 test)
 - Chưa đăng nhập → 401; đăng nhập sai/đúng.
 - Giảng viên không truy cập được lớp chưa được phân (403), sau khi phân thì được; không tạo lớp / xem user được.
 - Tỉ lệ điểm danh: có phép không tính vào mẫu số (A=0.67, B=0.5).
