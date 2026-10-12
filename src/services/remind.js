@@ -3,12 +3,10 @@
 // (xem requireRemind) — nên tài khoản không có quyền không thể lấy được nội dung tin nhắn.
 // Công thức tỉ lệ (%, trung bình, nhóm ẩn danh) nằm ở stats.js, không tính lại ở đây.
 
-const THEME_KEYS = ['excel-green', 'bih-forest-sand', 'sca-olive-lemon', 'bie-ocean-blue', 'pbm-plum-gold'];
-// Theme mặc định theo chương trình (lớp có thể chọn theme khác). BIE/PBM là đề xuất mới, đổi được trên giao diện.
-const DEFAULT_THEME = {
-  EBA: 'excel-green', BIH: 'bih-forest-sand', SCA: 'sca-olive-lemon', SIA: 'sca-olive-lemon',
-  BIE: 'bie-ocean-blue', PBM: 'pbm-plum-gold',
-};
+const THEME_KEYS = ['class-manager', 'excel-green', 'bih-forest-sand', 'sca-olive-lemon', 'bie-ocean-blue', 'pbm-plum-gold'];
+// Theme mặc định: bảng màu của trang (lớp có thể chọn theme theo chương trình; BIE/PBM là đề xuất mới).
+const DEFAULT_THEME = {}; // mọi chương trình mặc định 'class-manager' (đồng bộ màu trang); chọn theme khác theo lớp trên giao diện
+const FALLBACK_THEME = 'class-manager';
 
 function joinVi(a) { return a.length < 2 ? a.join('') : `${a.slice(0, -1).join(', ')} và ${a[a.length - 1]}`; }
 
@@ -45,7 +43,7 @@ function configFor(cls, row) {
     scope: row?.scope || 'các tuần đã học',
     overview_title: row?.overview_title || `Tiến độ homework lớp ${cls.short_code || cls.code}`,
     min_group: row?.min_group || 1,
-    theme: THEME_KEYS.includes(row?.theme) ? row.theme : (DEFAULT_THEME[cls.program] || 'excel-green'),
+    theme: THEME_KEYS.includes(row?.theme) ? row.theme : (DEFAULT_THEME[cls.program] || FALLBACK_THEME),
   };
 }
 

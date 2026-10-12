@@ -248,7 +248,7 @@ span.cell:focus-within { outline: 2px solid var(--gold); outline-offset: 2px; }
 .remind-msg { font-size: .95rem; line-height: 1.6; user-select: text; -webkit-user-select: text; white-space: pre-wrap; }
 .remind-import { width: 100%; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .8rem; margin: .5rem 0; }
 .remind-import-out p { margin: .35rem 0; }
-.remind-ovcard { max-width: 760px; background: #fff; color: var(--ink); border-radius: 18px; overflow: hidden; box-shadow: 0 8px 28px rgba(0, 0, 0, .18); }
+.remind-ovcard { max-width: 760px; background: var(--surface, #fff); color: var(--ink); border-radius: 18px; overflow: hidden; box-shadow: 0 8px 28px rgba(0, 0, 0, .18); }
 .remind-ovcard .head { background: linear-gradient(135deg, var(--hfrom), var(--hto)); color: var(--htext); padding: 22px 24px 20px; border-bottom: 5px solid var(--accent); }
 .remind-ovcard .head h1 { font-size: 25px; font-weight: 400; margin: 0; }
 .remind-ovcard .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 20px 24px 4px; }

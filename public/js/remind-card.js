@@ -20,7 +20,7 @@ export function drawCard(s, { hdr, theme: t, snapDate, scale }) {
   c.scale(sc, sc);
   c.fillStyle = t.bg; c.fillRect(0, 0, W + PAD * 2, H + PAD * 2);
   c.translate(PAD, PAD);
-  c.save(); c.shadowColor = t.shadow; c.shadowBlur = 24; c.shadowOffsetY = 8; c.fillStyle = '#fff'; rr(c, 0, 0, W, H, 18); c.fill(); c.restore();
+  c.save(); c.shadowColor = t.shadow; c.shadowBlur = 24; c.shadowOffsetY = 8; c.fillStyle = t.surface || '#fff'; rr(c, 0, 0, W, H, 18); c.fill(); c.restore();
   c.save(); rr(c, 0, 0, W, H, 18); c.clip();
   const g = c.createLinearGradient(0, 0, W, HEAD); g.addColorStop(0, t.headerFrom); g.addColorStop(1, t.headerTo);
   c.fillStyle = g; c.fillRect(0, 0, W, HEAD); c.fillStyle = t.accent; c.fillRect(0, HEAD - 5, W, 5);
@@ -48,7 +48,7 @@ export function drawCard(s, { hdr, theme: t, snapDate, scale }) {
     if (k < T - 1) { c.strokeStyle = t.line; c.lineWidth = 1; c.setLineDash([]); c.beginPath(); c.moveTo(24, top + ROW + 0.5); c.lineTo(W - 24, top + ROW + 0.5); c.stroke(); }
     if (ok) {
       c.fillStyle = t.ok; rr(c, 24, iy, 30, 30, 8); c.fill();
-      c.strokeStyle = '#fff'; c.lineWidth = 3; c.lineCap = 'round'; c.lineJoin = 'round'; c.setLineDash([]);
+      c.strokeStyle = t.onOk || '#fff'; c.lineWidth = 3; c.lineCap = 'round'; c.lineJoin = 'round'; c.setLineDash([]);
       c.beginPath(); c.moveTo(32, iy + 15); c.lineTo(37, iy + 20); c.lineTo(46, iy + 10); c.stroke();
     } else { c.strokeStyle = t.dash; c.lineWidth = 2; c.setLineDash([4, 3]); rr(c, 25, iy + 1, 28, 28, 8); c.stroke(); c.setLineDash([]); }
     c.textBaseline = 'middle'; c.textAlign = 'left'; c.fillStyle = t.ink; c.font = `600 15.5px ${FONT}`; c.fillText(LABEL(h), 68, top + ROW / 2);

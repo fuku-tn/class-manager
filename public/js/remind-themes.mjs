@@ -1,7 +1,14 @@
 // Theme của thẻ tiến độ homework theo lớp/chương trình (token màu như docs/05-theme của bộ kit nhắc bài).
-// Vòng tròn/thanh tiến độ luôn dùng xanh lá (yêu cầu của chủ dự án); màu chương trình nằm ở header + vạch nhấn.
+// Theme mặc định 'class-manager' lấy từ bảng màu của trang; các theme theo chương trình vẫn chọn được (vòng tiến độ giữ xanh lá).
 // 3 theme đầu lấy từ bộ kit; bie-ocean-blue và pbm-plum-gold là đề xuất mới (đổi được trên giao diện).
 export const THEMES = {
+  // Mặc định: cùng bảng màu với giao diện trang (nền xanh đêm, vàng đồng nhấn, xanh ngọc cho tiến độ).
+  'class-manager': {
+    label: 'Theo giao diện trang (mặc định)',
+    surface: '#0d1730', onOk: '#0d1730', tagColor: '#e3c48e', subColor: '#9ba7c0', nameWeight: 600,
+    headerFrom: '#111d3b', headerTo: '#1b2c58', accent: '#c9a46a', headerText: '#f1ede4', ok: '#62d6a5', donutFill: '#62d6a5',
+    donutTrack: '#25314f', ink: '#f1ede4', mute: '#9ba7c0', line: 'rgba(255,255,255,.10)', dash: '#3d4c70', warn: '#f2c070', bg: '#070d1b', shadow: 'rgba(0,0,0,.55)',
+  },
   'excel-green': {
     label: 'EBA — Xanh Excel',
     headerFrom: '#185c37', headerTo: '#107c41', accent: '#33c481', headerText: '#ffffff', ok: '#185c37', donutFill: '#21a366',
@@ -29,5 +36,5 @@ export const THEMES = {
     donutTrack: '#e3f4ea', ink: '#231a2e', mute: '#6a5c78', line: '#e3d8ee', dash: '#cdbfdc', warn: '#9a6a0a', bg: '#f3eef8', shadow: 'rgba(74,44,109,.18)',
   },
 };
-export const themeOf = (key) => THEMES[key] ?? THEMES['excel-green'];
+export const themeOf = (key) => THEMES[key] ?? THEMES['class-manager'];
 export const shortHw = (h) => (/CAPSTONE/i.test(h) ? 'Capstone' : h.replace(/HOMEWORK /i, 'HW'));

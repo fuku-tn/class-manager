@@ -147,7 +147,7 @@ export async function renderRemind({ cls, state }) {
       h('div', { class: 'tbl' },
         h('h3', {}, 'Số học viên đã hoàn thành theo từng bài'), o.byCol.map((c) => ovBar(shortHw(c.label), c.n, o.N)),
         o.T > 1 ? h('h3', {}, 'Số học viên theo số bài đã hoàn thành') : null, o.T > 1 ? o.dist.map((b) => ovBar(b.label, b.n, o.N)) : null));
-    const css = { '--hfrom': t.headerFrom, '--hto': t.headerTo, '--accent': t.accent, '--htext': t.headerText, '--ok': t.ok, '--dfill': t.donutFill, '--dtrack': t.donutTrack, '--ink': t.ink, '--mute': t.mute, '--line': t.line, '--bg': t.bg };
+    const css = { '--hfrom': t.headerFrom, '--hto': t.headerTo, '--accent': t.accent, '--htext': t.headerText, '--ok': t.ok, '--dfill': t.donutFill, '--dtrack': t.donutTrack, '--ink': t.ink, '--mute': t.mute, '--line': t.line, '--bg': t.bg, '--surface': t.surface || '#fff' };
     for (const [k, v] of Object.entries(css)) card.style.setProperty(k, v);
     setChildren(ovBox, card);
     ovNote.textContent = o.mergedNote
