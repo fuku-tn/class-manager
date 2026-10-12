@@ -1,6 +1,12 @@
 // Logic lọc/sắp xếp lớp — thuần (không đụng DOM) để dùng chung cho bộ chọn lớp, trang Lớp học và test.
-export const TIMING_LABEL = { running: 'Đang học', upcoming: 'Sắp mở', finished: 'Đã kết thúc', unknown: 'Chưa có ngày' };
-export const TIMING_ORDER = ['running', 'upcoming', 'finished', 'unknown'];
+// running = đang học; grading = 14 ngày sau buổi cuối (nộp & chấm bài); graduation = 14 ngày tiếp (công bố tốt nghiệp).
+// "active" là nhóm ảo = đang học + nộp/chấm bài + công bố tốt nghiệp (lớp chưa thực sự kết thúc).
+export const TIMING_LABEL = {
+  running: 'Đang học', grading: 'Nộp & chấm bài', graduation: 'Công bố tốt nghiệp', upcoming: 'Sắp mở',
+  finished: 'Đã kết thúc', unknown: 'Chưa có ngày', active: 'Đang hoạt động',
+};
+export const TIMING_ORDER = ['running', 'grading', 'graduation', 'upcoming', 'finished', 'unknown'];
+export const ACTIVE_TIMINGS = ['running', 'grading', 'graduation'];
 export const SHIFT_LABEL = { morning: 'Sáng', afternoon: 'Chiều', evening: 'Tối', full_day: 'Cả ngày' };
 export const MODE_LABEL = { Online: 'Online', Offline: 'Offline', Hybrid: 'Hybrid' };
 export const PROGRAM_NAMES = {
@@ -60,15 +66,20 @@ export function countBySegment(list) {
   return out;
 }
 
-// opts: { q, program, timing: 'all' | 'running' | 'upcoming' | 'finished' | 'unknown', segment: '' | 'b2c' | 'b2b' }
+// opts: { q, program, timing: 'all' | 'active' | 'running' | 'grading' | 'graduation' | 'upcoming' | 'finished' | 'unknown', segment: '' | 'b2c' | 'b2b' }
 export function filterClasses(list, { q = '', program = '', timing = 'all', segment = '' } = {}) {
-  return list.filter((c) => (timing === 'all' || (c.timing ?? 'unknown') === timing)
+  return list.filter((c) => (timing === 'all' || (timing === 'active' ? ACTIVE_TIMINGS.includes(c.timing) : (c.timing ?? 'unknown') === timing))
     && (!program || c.program === program)
     && (!segment || segmentFlags(c)[segment])
     && matchesQuery(c, q));
 }
 
 // Đang học trước, rồi sắp mở (gần nhất trước), rồi đã kết thúc (mới nhất trước).
+// Các chip thời gian cần hiện (theo thứ tự): Tất cả, [Đang hoạt động nếu khác "Đang học"], rồi từng giai đoạn có lớp.
+export function timingChipKeys(counts) {
+  return ['all', ...(counts.active > 0 && counts.active !== counts.running ? ['active'] : []), ...TIMING_ORDER.filter((t) => counts[t] > 0)];
+}
+
 export function sortClasses(list) {
   const rank = (c) => TIMING_ORDER.indexOf(c.timing ?? 'unknown');
   return [...list].sort((a, b) => {
@@ -86,14 +97,19 @@ export function programsOf(list) {
 }
 
 export function countByTiming(list) {
-  const out = { all: list.length, running: 0, upcoming: 0, finished: 0, unknown: 0 };
-  for (const c of list) out[c.timing ?? 'unknown'] += 1;
+  const out = { all: list.length, active: 0, running: 0, grading: 0, graduation: 0, upcoming: 0, finished: 0, unknown: 0 };
+  for (const c of list) {
+    out[c.timing ?? 'unknown'] += 1;
+    if (ACTIVE_TIMINGS.includes(c.timing)) out.active += 1;
+  }
   return out;
 }
 
 // Bộ lọc mặc định: nếu có lớp đang học thì chỉ hiện lớp đang học (danh sách ngắn), không thì hiện tất cả.
 export function defaultTiming(list) {
-  return list.some((c) => c.timing === 'running') ? 'running' : 'all';
+  const c = countByTiming(list);
+  if (c.active === 0) return 'all';
+  return c.active === c.running ? 'running' : 'active'; // có lớp đang chấm bài/công bố thì hiện cả nhóm hoạt động
 }
 
 // Phạm vi lọc của bộ chọn lớp: đang gõ tìm thì tìm trong TẤT CẢ lớp (bỏ chip thời gian/chương trình),

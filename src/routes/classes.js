@@ -2,7 +2,7 @@ const express = require('express');
 const { requireAdmin, requireClassAccess } = require('../auth');
 const { buildDashboard } = require('../services/stats');
 const realtime = require('../services/realtime');
-const { TIMING_SQL } = require('../services/timing');
+const { TIMING_SQL, PHASE_DATES_SQL } = require('../services/timing');
 
 const isDate = (v) => v == null || v === '' || /^\d{4}-\d{2}-\d{2}$/.test(v);
 
@@ -12,7 +12,7 @@ module.exports = (db) => {
 
   router.get('/', async (req, res) => {
     // B2B: mã lớp có chữ B (P2.BIE.B067...) hoặc có học viên từ COMPANY; B2C: chữ khác B hoặc có học viên cá nhân. Lớp hỗn hợp có cả hai.
-    const base = `select c.*, ${TIMING_SQL} as timing, (select count(*)::int from enrollments e where e.class_id = c.id) as student_count,
+    const base = `select c.*, ${TIMING_SQL} as timing, ${PHASE_DATES_SQL}, (select count(*)::int from enrollments e where e.class_id = c.id) as student_count,
       (left(split_part(c.code, '.', 3), 1) = 'B' or exists (select 1 from enrollments e where e.class_id = c.id and e.segment = 'b2b')) as is_b2b,
       (left(split_part(c.code, '.', 3), 1) <> 'B' or exists (select 1 from enrollments e where e.class_id = c.id and e.segment = 'b2c')) as is_b2c,
       (select string_agg(distinct e.company_name, ' · ') from enrollments e where e.class_id = c.id and e.company_name is not null) as companies

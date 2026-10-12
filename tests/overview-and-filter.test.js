@@ -25,7 +25,7 @@ test('lọc lớp: tìm không dấu/không phân biệt hoa thường, nhiều 
 test('lọc lớp: theo thời gian và chương trình; đếm; mặc định', () => {
   assert.deepEqual(F.filterClasses(sample, { timing: 'running' }).map((c) => c.id), [2, 4]);
   assert.deepEqual(F.filterClasses(sample, { program: 'EBA', timing: 'upcoming' }).map((c) => c.id), [3]);
-  assert.deepEqual(F.countByTiming(sample), { all: 5, running: 2, upcoming: 1, finished: 1, unknown: 1 });
+  assert.deepEqual(F.countByTiming(sample), { all: 5, active: 2, running: 2, grading: 0, graduation: 0, upcoming: 1, finished: 1, unknown: 1 });
   assert.equal(F.defaultTiming(sample), 'running');                 // có lớp đang học → chỉ hiện lớp đang học
   assert.equal(F.defaultTiming(sample.filter((c) => c.timing !== 'running')), 'all');
   assert.deepEqual(F.programsOf(sample), [{ program: 'EBA', count: 3 }, { program: 'BIE', count: 1 }, { program: 'BIH', count: 1 }]);

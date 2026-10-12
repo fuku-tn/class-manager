@@ -1,6 +1,6 @@
 import { get } from '../api.js';
 import { h, pct, icon } from '../ui.js';
-import { classDisplayName } from '../class-filter.mjs';
+import { classDisplayName, fmtDate, TIMING_LABEL } from '../class-filter.mjs';
 
 const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
@@ -41,9 +41,11 @@ export async function renderDashboard({ cls, state }) {
   const root = h('div', {},
     h('section', { class: 'hero' },
       h('div', {},
-        h('div', { class: 'eyebrow' }, [cls.phase, 'Tổng quan lớp học'].filter(Boolean).join(' · ')),
+        h('div', { class: 'eyebrow' }, [cls.phase, TIMING_LABEL[cls.timing] ?? null, 'Tổng quan lớp học'].filter(Boolean).join(' · ')),
         h('h1', {}, 'Theo dõi lớp ', h('span', { class: 'accent', title: cls.code }, classDisplayName(cls))),
-        h('p', {}, `${t.active} học viên đang học · ${t.held_sessions}/${t.total_sessions} buổi đã diễn ra. Điểm danh, bài tập và cảnh báo được tổng hợp tự động.`)),
+        h('p', {}, `${t.active} học viên đang học · ${t.held_sessions}/${t.total_sessions} buổi đã diễn ra. Điểm danh, bài tập và cảnh báo được tổng hợp tự động.`),
+        cls.last_session_date ? h('p', { class: 'muted small phase-line' },
+          `Buổi cuối ${fmtDate(cls.last_session_date)} · Nộp & chấm bài đến ${fmtDate(cls.grading_until)} · Công bố tốt nghiệp ${fmtDate(cls.graduation_on)}`) : null),
       h('div', { class: 'hero-card' },
         h('div', { class: 'label' }, 'Chuyên cần trung bình'),
         h('div', { class: 'big' }, pct(t.avg_attendance_rate)),

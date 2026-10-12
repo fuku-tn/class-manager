@@ -2,7 +2,7 @@
 // và chương trình, danh sách giới hạn, điều khiển bằng bàn phím (↑ ↓ Enter Esc).
 import { h, icon } from './ui.js';
 import {
-  filterClasses, pickerFilter, sortClasses, programsOf, countByTiming, countBySegment, defaultTiming, classLabel, fmtDate,
+  filterClasses, pickerFilter, sortClasses, programsOf, countByTiming, countBySegment, defaultTiming, timingChipKeys, classLabel, fmtDate,
   TIMING_LABEL, TIMING_ORDER, SHIFT_LABEL, PROGRAM_NAMES, SEGMENT_LABEL,
 } from './class-filter.mjs';
 
@@ -45,7 +45,7 @@ export function createClassPicker({ getClasses, getCurrentId, onSelect, storage 
     const timing = effectiveTiming();       // chip đang chọn (chỉ dùng khi không gõ tìm)
     const counts = countByTiming(all);
     timingChips.replaceChildren(
-      ...['all', ...TIMING_ORDER.filter((t) => counts[t] > 0)].map((t) =>
+      ...timingChipKeys(counts).map((t) =>
         chip(t === 'all' ? 'Tất cả' : TIMING_LABEL[t], timing === t, () => { state.timing = t; state.active = 0; persist(); render(); }, counts[t])));
 
     const seg = countBySegment(filterClasses(all, { timing }));

@@ -1,6 +1,6 @@
 import { post } from '../api.js';
 import { h, toast, formModal } from '../ui.js';
-import { filterClasses, sortClasses, programsOf, countByTiming, countBySegment, segmentFlags, SEGMENT_LABEL, TIMING_LABEL, TIMING_ORDER, SHIFT_LABEL, fmtDate, classLabel } from '../class-filter.mjs';
+import { filterClasses, sortClasses, programsOf, countByTiming, timingChipKeys, countBySegment, segmentFlags, SEGMENT_LABEL, TIMING_LABEL, TIMING_ORDER, SHIFT_LABEL, fmtDate, classLabel } from '../class-filter.mjs';
 
 export async function renderClasses({ state, refreshClasses, navigate }) {
   const f = { q: '', timing: 'all', program: '', segment: '' };
@@ -17,7 +17,7 @@ export async function renderClasses({ state, refreshClasses, navigate }) {
   function paint() {
     const all = state.classes;
     const counts = countByTiming(all);
-    chipsTiming.replaceChildren(...['all', ...TIMING_ORDER.filter((t) => counts[t] > 0)].map((t) =>
+    chipsTiming.replaceChildren(...timingChipKeys(counts).map((t) =>
       chip(t === 'all' ? 'Tất cả' : TIMING_LABEL[t], f.timing === t, () => { f.timing = t; paint(); }, counts[t])));
     const seg = countBySegment(filterClasses(all, { timing: f.timing }));
     chipsSegment.replaceChildren(
@@ -39,7 +39,7 @@ export async function renderClasses({ state, refreshClasses, navigate }) {
     h('td', {}, [c.delivery_mode, SHIFT_LABEL[c.shift]].filter(Boolean).join(' · ') || '—'),
     h('td', {}, `${fmtDate(c.start_date) || '—'}${c.end_date ? ` → ${fmtDate(c.end_date)}` : ''}`),
     h('td', { class: 'num' }, c.student_count),
-    h('td', {}, h('span', { class: `badge ${c.timing === 'running' ? 'ok' : c.timing === 'upcoming' ? 'warn' : ''}` }, TIMING_LABEL[c.timing ?? 'unknown'])))));
+    h('td', {}, h('span', { class: `badge ${{ running: 'ok', grading: 'warn', graduation: 'warn', upcoming: 'warn' }[c.timing] ?? ''}` }, TIMING_LABEL[c.timing ?? 'unknown'])))));
     if (!list.length) rows.append(h('tr', {}, h('td', { colspan: 6, class: 'empty-state' }, 'Không có lớp khớp bộ lọc.')));
   }
   search.addEventListener('input', () => { f.q = search.value; paint(); });

@@ -1,7 +1,7 @@
 // Trang chủ: hero có minh họa động, số liệu đếm lên, băng chuyền lớp đang diễn ra.
 import { get } from '../api.js';
 import { h, icon, pct, BRAND } from '../ui.js';
-import { fmtDate, SHIFT_LABEL, PROGRAM_NAMES, classDisplayName } from '../class-filter.mjs';
+import { fmtDate, SHIFT_LABEL, PROGRAM_NAMES, TIMING_LABEL, classDisplayName } from '../class-filter.mjs';
 import { createLake } from './home-lake.js';
 
 const WORDS = ['Điểm danh.', 'Bài tập.', 'Chuyên cần.', 'Giáo trình.'];
@@ -25,10 +25,12 @@ function classCard(c) {
   const pctDone = c.sessions_total ? Math.round((c.sessions_held / c.sessions_total) * 100) : 0;
   const meta = [c.delivery_mode, SHIFT_LABEL[c.shift]].filter(Boolean).join(' · ');
   return h('a', { class: 'class-card', href: `#/c/${c.id}/dashboard`, 'aria-label': `Mở lớp ${classDisplayName(c)}`, title: c.code },
-    h('div', { class: 'cc-top' }, h('span', { class: 'eyebrow' }, c.program || 'Lớp'), h('span', { class: 'badge ok' }, 'Đang học')),
+    h('div', { class: 'cc-top' }, h('span', { class: 'eyebrow' }, c.program || 'Lớp'), h('span', { class: `badge ${c.timing === 'running' || !c.timing ? 'ok' : 'warn'}` }, TIMING_LABEL[c.timing ?? 'running'])),
     h('div', { class: 'cc-code' }, classDisplayName(c)),
     h('div', { class: 'muted small' }, PROGRAM_NAMES[c.program] ?? c.program_name ?? ''),
     h('div', { class: 'cc-meta small' }, meta || '—', ' · ', `${fmtDate(c.start_date)}${c.end_date ? ` → ${fmtDate(c.end_date)}` : ''}`),
+    c.timing === 'grading' ? h('div', { class: 'small accent' }, `Nộp & chấm bài đến ${fmtDate(c.grading_until)}`) : null,
+    c.timing === 'graduation' ? h('div', { class: 'small accent' }, `Công bố tốt nghiệp ${fmtDate(c.graduation_on)}`) : null,
     h('div', { class: 'cc-progress' }, h('div', { class: 'cc-bar' }, h('i', { style: `width:${pctDone}%` })),
       h('span', { class: 'small muted' }, `Buổi ${c.sessions_held}/${c.sessions_total || '—'}`)),
     h('div', { class: 'cc-foot' },
@@ -101,7 +103,7 @@ export async function renderHome({ state }) {
     h('div', { class: 'scroll-cue', 'aria-hidden': 'true' }, h('span', {}, 'Cuộn'), h('i', {})));
 
   const stats = h('section', { class: 'home-stats' },
-    stat('classes', 'Lớp đang diễn ra', vClasses, `${t.upcoming} sắp mở`),
+    stat('classes', 'Lớp đang học', vClasses, [`${t.upcoming} sắp mở`, (t.grading + t.graduation) > 0 ? `${t.grading + t.graduation} đang chấm bài/công bố` : null].filter(Boolean).join(' · ')),
     stat('students', 'Học viên đang học', vStudents),
     stat('attendance', 'Chuyên cần trung bình', vRate, t.rate_note));
 
@@ -109,7 +111,7 @@ export async function renderHome({ state }) {
 
   if (d.featured.length) {
     root.append(h('section', { class: 'home-section' },
-      h('div', { class: 'section-head' }, h('div', {}, h('div', { class: 'eyebrow' }, 'Đang diễn ra'), h('h2', {}, 'Lớp đang học')),
+      h('div', { class: 'section-head' }, h('div', {}, h('div', { class: 'eyebrow' }, 'Đang hoạt động'), h('h2', {}, 'Lớp đang học và đang chấm bài')),
         h('a', { class: 'link-arrow', href: '#/classes' }, state.user.role === 'admin' ? 'Tất cả lớp' : '', state.user.role === 'admin' ? icon('arrow') : '')),
       carousel(d.featured)));
   } else {

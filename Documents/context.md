@@ -101,3 +101,18 @@ Excel là bảng "rộng" (mỗi buổi = 2 cột). Cơ sở dữ liệu nên l�
 - Dữ liệu cá nhân học viên (email, SĐT) — chỉ người đăng nhập mới xem được; không đưa dữ liệu thật vào repo công khai.
 - Chạy được trên Windows, không cần biên dịch native, ít phụ thuộc.
 - Giai đoạn sau chuyển sang Supabase: dữ liệu nằm trên Supabase (Postgres); không dùng tính năng riêng của một nhà cung cấp ngoài Postgres chuẩn.
+
+## Giai đoạn của lớp (chủ dự án chốt 2026-10-12)
+"Ngày kết thúc" của lớp là ngày của **buổi học cuối**, **không** phải lúc lớp kết thúc hẳn. Sau buổi cuối:
+
+| Giai đoạn | Khoảng thời gian | Ý nghĩa |
+|---|---|---|
+| Sắp mở | trước ngày bắt đầu | |
+| Đang học | ngày bắt đầu → buổi cuối | còn buổi học |
+| **Nộp & chấm bài** | buổi cuối + 14 ngày | học viên nộp bài, giảng viên chấm |
+| **Công bố tốt nghiệp** | 14 ngày tiếp theo (buổi cuối + 28 ngày) | công bố danh sách tốt nghiệp |
+| Đã kết thúc | sau đó | |
+
+- Ba giai đoạn đầu sau khi mở (đang học, nộp & chấm bài, công bố tốt nghiệp) gọi chung là lớp **đang hoạt động**: vẫn hiện ở Trang chủ, chọn lớp mặc định và có thể điểm danh/ghi bài tập.
+- Mốc ngày tính theo múi giờ Việt Nam; thiếu ngày kết thúc thì lấy ngày bắt đầu + 90 ngày. Hằng số nằm ở `src/services/timing.js` (`GRADING_DAYS`, `GRADUATION_DAYS`).
+- Chuyên cần trung bình của Trang chủ chỉ tính các lớp **đang học** (lớp đã hết buổi không còn buổi mới).

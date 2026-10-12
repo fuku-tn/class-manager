@@ -353,6 +353,9 @@ span.cell:focus-within { outline: 2px solid var(--gold); outline-offset: 2px; }
 .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: none; }
 .dot.running { background: var(--ok); box-shadow: 0 0 0 3px var(--ok-bg); }
 .dot.upcoming { background: var(--warn); }
+.dot.grading { background: var(--warn); box-shadow: 0 0 0 3px var(--warn-bg); }
+.dot.graduation { background: var(--info); box-shadow: 0 0 0 3px var(--info-bg); }
+.phase-line { margin: .5rem 0 0; }
 .dot.finished { background: var(--cat-4); }
 
 /* ---------- Trang chủ ---------- */
