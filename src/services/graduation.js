@@ -5,9 +5,11 @@
 // Tỉ lệ chuyên cần lấy từ stats.js (công thức chỉ nằm ở đó); ở đây chỉ SO SÁNH với ngưỡng.
 const DEFAULT_RULES = { attendance_min: 0.8, hw_pool: null, hw_min: null, capstone: false };
 
+// status: 'none' = chưa có quy định (KHÔNG gợi ý, chỉ đặt kết quả thủ công); 'provisional' = tạm theo Excel cũ; 'confirmed' = admin đã xác nhận.
 function rulesFromCurriculum(cur) {
-  if (!cur) return { ...DEFAULT_RULES, source: 'default' };
+  if (!cur) return { ...DEFAULT_RULES, source: 'default', status: 'none' };
   return {
+    status: cur.grad_rules_status ?? 'none',
     attendance_min: cur.grad_attendance_min == null ? DEFAULT_RULES.attendance_min : Number(cur.grad_attendance_min),
     hw_pool: cur.grad_hw_pool ?? null,
     hw_min: cur.grad_hw_min ?? null,
@@ -18,6 +20,7 @@ function rulesFromCurriculum(cur) {
 
 // hwStatuses: trạng thái các bài HW của học viên theo thứ tự bài (null = chưa có); capstoneStatus: 'submitted' | ... | null
 function evaluateGraduation(rules, { attendanceRate, hwStatuses, capstoneStatus }) {
+  if (rules.status === 'none') return { eligible: null, reasons: [], checks: { attendance: { ok: null }, hw: { done: 0, pool: 0, ok: null }, capstone: { ok: null } } };
   const pool = rules.hw_pool ? hwStatuses.slice(0, rules.hw_pool) : hwStatuses;
   const done = pool.filter((s) => s === 'submitted').length;
   const checks = {

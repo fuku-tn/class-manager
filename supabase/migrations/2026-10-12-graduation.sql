@@ -23,4 +23,4 @@ alter table enrollment_events add constraint enrollment_events_event_check
 -- Quy tắc ban đầu theo cột ELIGIBLE trong Excel (chủ dự án có thể sửa trong ứng dụng):
 update curricula set grad_attendance_min = 0.80, grad_hw_pool = 2,    grad_hw_min = 2, grad_capstone = true where code = 'BIE-8';
 update curricula set grad_attendance_min = 0.80, grad_hw_pool = 7,    grad_hw_min = 5, grad_capstone = true where code = 'BIE-12';
-update curricula set grad_attendance_min = 0.80, grad_hw_pool = 5,    grad_hw_min = 5, grad_capstone = true where code in ('BIH-20', 'BIH-11');
+update curricula set grad_attendance_min = 0.80, grad_hw_pool = 5,    grad_hw_min = 5, grad_capstone = true where code = 'BIH-20';

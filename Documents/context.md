@@ -119,7 +119,8 @@ Excel là bảng "rộng" (mỗi buổi = 2 cột). Cơ sở dữ liệu nên l�
 
 ## Danh sách tốt nghiệp
 - Mỗi lớp có tab **Tốt nghiệp**: với từng học viên đang học/hoàn thành, hệ thống đưa ra **gợi ý** "Đạt/Chưa đạt" theo quy tắc của giáo trình; **kết quả cuối do người đặt** (Chưa xét / Tốt nghiệp / Chưa đạt), kèm ghi chú và thông tin chứng chỉ (trạng thái, số, ngày gửi).
-- **Quy tắc theo giáo trình** (lấy từ cột ELIGIBLE của Excel, admin sửa được): chuyên cần ≥ ngưỡng (mặc định 80%), số bài HW hoàn thành ≥ yêu cầu trong N bài đầu, có nộp Capstone. Hiện: BIE-8 (HW 2/2, Capstone), BIE-12 (HW 5/7, Capstone), BIH-20 và BIH-11 (HW 5/5, Capstone). Lớp chưa gắn giáo trình: chỉ chuyên cần ≥ 80%.
+- **Quy tắc theo giáo trình** (admin sửa được): chuyên cần ≥ ngưỡng, số bài HW hoàn thành ≥ yêu cầu trong N bài đầu, có nộp Capstone. Trạng thái: **chưa có quy định** (không gợi ý, đặt kết quả thủ công), **tạm** (theo công thức Excel cũ: BIE-8 HW 2/2, BIE-12 HW 5/7, BIH-20 HW 5/5, đều kèm Capstone và chuyên cần ≥ 80%) hoặc **đã xác nhận** (admin đã lưu). BIH-11 và các lớp chưa gắn giáo trình (EBA, SIA, SCA, PBM, DDM…) hiện **chưa có quy định** — chủ dự án sẽ cung cấp điều kiện tốt nghiệp chính thức sau.
+- **Ai đặt kết quả:** mọi giảng viên được phân lớp và admin; công bố, sửa quy tắc và sửa sau khi công bố chỉ admin.
 - "Nộp lại" chưa tính là hoàn thành HW. Chưa có buổi nào được điểm danh thì "chưa đủ dữ liệu" (không gợi ý).
 - **Công bố danh sách** (admin) vào giai đoạn "Công bố tốt nghiệp"; sau khi công bố giảng viên không sửa được, admin vẫn sửa và có thể hủy công bố.
 - Sắp tới: điểm từng Module sẽ được thêm vào quy tắc (chủ dự án sẽ đưa quy trình).

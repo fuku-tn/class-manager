@@ -30,7 +30,7 @@ before(async () => {
   admin = await t.login('admin@x.com');
   gv = await t.login('gv@x.com');
   guest = await t.login('khach@x.com');
-  await t.db.run("insert into curricula (code, program, name, session_count, grad_attendance_min, grad_hw_pool, grad_hw_min, grad_capstone) values ('BIE-8','BIE','BIE 8 buổi',3, 0.80, 2, 2, true)");
+  await t.db.run("insert into curricula (code, program, name, session_count, grad_attendance_min, grad_hw_pool, grad_hw_min, grad_capstone, grad_rules_status) values ('BIE-8','BIE','BIE 8 buổi',3, 0.80, 2, 2, true, 'provisional')");
   const cur = (await t.db.one("select id from curricula where code = 'BIE-8'")).id;
   classId = (await admin.post('/api/classes', { code: 'GR.01', session_count: 3, hw_count: 3 })).body.id;
   await t.db.run('update classes set curriculum_id = $1 where id = $2', [cur, classId]);
@@ -107,10 +107,31 @@ test('sửa quy tắc: chỉ admin, kiểm tra hợp lệ, ảnh hưởng gợi 
   assert.equal(by.G3.suggestion.eligible, true);
 });
 
+test('chưa có quy định (status none): không gợi ý, không áp dụng gợi ý; lưu quy tắc thì thành đã xác nhận', async () => {
+  await t.db.run("insert into curricula (code, program, name, session_count) values ('EBA-X','EBA','EBA',2)");
+  const cur = (await t.db.one("select id from curricula where code = 'EBA-X'")).id;
+  const c2 = (await admin.post('/api/classes', { code: 'GR.03', session_count: 2, hw_count: 0 })).body.id;
+  await t.db.run('update classes set curriculum_id = $1 where id = $2', [cur, c2]);
+  await admin.post(`/api/classes/${c2}/students`, { student_code: 'N1', full_name: 'Nam' });
+  const e = (await admin.get(`/api/classes/${c2}/students`)).body[0].id;
+  const s = (await admin.get(`/api/classes/${c2}/sessions`)).body[0];
+  await admin.put(`/api/classes/${c2}/attendance`, { enrollment_id: e, session_id: s.id, status: 'present' });
+  let g = (await admin.get(`/api/classes/${c2}/graduation`)).body;
+  assert.equal(g.rules.status, 'none');
+  assert.equal(g.rows[0].suggestion.eligible, null);                       // có chuyên cần 100% nhưng chưa có quy định → không gợi ý
+  assert.equal((await admin.post(`/api/classes/${c2}/graduation-apply`)).body.applied, 0);
+  assert.equal((await admin.put(`/api/classes/${c2}/graduation/${e}`, { status: 'passed' })).status, 200);   // vẫn đặt thủ công được
+  assert.equal((await admin.put(`/api/classes/${c2}/graduation-rules`, { attendance_min: 0.5, hw_pool: null, hw_min: null, capstone: false })).status, 200);
+  g = (await admin.get(`/api/classes/${c2}/graduation`)).body;
+  assert.equal(g.rules.status, 'confirmed');
+  assert.equal(g.rows[0].suggestion.eligible, true);
+});
+
 test('lớp chưa gắn giáo trình dùng quy tắc mặc định và không sửa quy tắc được', async () => {
   const other = (await admin.post('/api/classes', { code: 'GR.02', session_count: 2, hw_count: 0 })).body.id;
   const r = (await admin.get(`/api/classes/${other}/graduation`)).body;
   assert.equal(r.rules.source, 'default');
+  assert.equal(r.rules.status, 'none');
   assert.equal(r.rules.attendance_min, 0.8);
   assert.equal((await admin.put(`/api/classes/${other}/graduation-rules`, { attendance_min: 0.9, capstone: false })).status, 409);
 });

@@ -220,7 +220,7 @@ module.exports = (db) => {
     const hwMin = intOrNull(b.hw_min);
     for (const v of [pool, hwMin]) if (v !== null && (!Number.isInteger(v) || v < 0 || v > 60)) return res.status(400).json({ error: 'Số bài HW phải là số nguyên không âm' });
     if (pool !== null && hwMin !== null && hwMin > pool) return res.status(400).json({ error: 'Số HW tối thiểu không được lớn hơn số HW xét' });
-    await db.run('update curricula set grad_attendance_min = $1, grad_hw_pool = $2, grad_hw_min = $3, grad_capstone = $4 where id = $5',
+    await db.run("update curricula set grad_attendance_min = $1, grad_hw_pool = $2, grad_hw_min = $3, grad_capstone = $4, grad_rules_status = 'confirmed' where id = $5",
       [Math.round(min * 100) / 100, pool, hwMin, !!b.capstone, req.cls.curriculum_id]);
     res.json({ ok: true });
   });

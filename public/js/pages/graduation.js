@@ -103,21 +103,25 @@ export async function renderGraduation({ cls, state }) {
   function paint() {
     const c = d.class;
     const s = d.summary;
-    rulesEl.textContent = `Điều kiện gợi ý: ${ruleText(d.rules)}${d.rules.source === 'default' ? ' (lớp chưa gắn giáo trình — dùng quy tắc mặc định)' : ''}`;
+    const st = d.rules.status;
+    rulesEl.textContent = st === 'none'
+      ? `Chưa có quy định tốt nghiệp cho ${d.rules.source === 'default' ? 'lớp này (chưa gắn giáo trình)' : 'giáo trình này'} — chưa có gợi ý, bạn đặt kết quả thủ công.`
+      : `Điều kiện gợi ý: ${ruleText(d.rules)}${st === 'provisional' ? ' — tạm theo công thức Excel cũ, chờ xác nhận chính thức' : ''}`;
     summaryEl.replaceChildren(
       h('span', { class: 'badge ok' }, `Tốt nghiệp ${s.passed}`),
       h('span', { class: 'badge bad' }, `Chưa đạt ${s.failed}`),
       h('span', { class: 'badge' }, `Chưa xét ${s.pending}`),
-      h('span', { class: 'muted small' }, `Gợi ý: ${s.suggested_pass} đạt · ${s.suggested_fail} chưa đạt${s.no_data ? ` · ${s.no_data} chưa đủ dữ liệu` : ''}`));
+      d.rules.status === 'none' ? null
+        : h('span', { class: 'muted small' }, `Gợi ý: ${s.suggested_pass} đạt · ${s.suggested_fail} chưa đạt${s.no_data ? ` · ${s.no_data} chưa đủ dữ liệu` : ''}`));
     bannerEl.replaceChildren(...[
       c.published_at ? h('div', { class: 'card', role: 'status' },
         h('b', {}, `Danh sách đã công bố lúc ${fmtWhen(c.published_at)}`), c.published_by ? ` bởi ${c.published_by}` : '',
         locked() || readOnly ? '' : ' — admin có thể sửa hoặc hủy công bố.') : null,
     ].filter(Boolean));
     actionsEl.replaceChildren(search,
-      !readOnly && h('button', { type: 'button', disabled: !canEdit(), onclick: applySuggestions, title: 'Chỉ đặt cho học viên chưa xét' }, 'Áp dụng gợi ý'),
+      !readOnly && d.rules.status !== 'none' && h('button', { type: 'button', disabled: !canEdit(), onclick: applySuggestions, title: 'Chỉ đặt cho học viên chưa xét' }, 'Áp dụng gợi ý'),
       h('button', { type: 'button', onclick: exportCsv }, 'Xuất CSV'),
-      admin && h('button', { type: 'button', onclick: editRules }, 'Sửa quy tắc'),
+      admin && d.class.has_curriculum && h('button', { type: 'button', onclick: editRules }, d.rules.status === 'none' ? 'Thiết lập quy tắc' : 'Sửa quy tắc'),
       admin && (c.published_at
         ? h('button', { type: 'button', class: 'danger', onclick: () => publish(false) }, 'Hủy công bố')
         : h('button', { type: 'button', class: 'primary', onclick: () => publish(true) }, 'Công bố danh sách')));
@@ -136,7 +140,7 @@ export async function renderGraduation({ cls, state }) {
         h('td', { class: 'num' }, r.hw_pool ? `${r.hw_done}/${r.hw_pool}` : '—'),
         h('td', {}, d.rules.capstone || r.capstone_status ? (CAPSTONE[r.capstone_status] ?? '—') : '—'),
         h('td', {}, sg.eligible === null
-          ? h('span', { class: 'muted small' }, 'Chưa đủ dữ liệu')
+          ? h('span', { class: 'muted small' }, d.rules.status === 'none' ? '—' : 'Chưa đủ dữ liệu')
           : h('span', { class: `badge ${sg.eligible ? 'ok' : 'bad'}`, title: sg.reasons.join(' · ') }, sg.eligible ? 'Đạt' : 'Chưa đạt'),
         sg.eligible === false && sg.reasons.length ? h('div', { class: 'muted small' }, sg.reasons.join(' · ')) : null),
         h('td', {}, sel, r.decision.by ? h('div', { class: 'muted small' }, `${r.decision.by}${r.decision.at ? ` · ${fmtWhen(r.decision.at)}` : ''}`) : null),

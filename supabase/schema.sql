@@ -56,7 +56,8 @@ create table if not exists curricula (
   grad_attendance_min numeric(3,2) not null default 0.80,
   grad_hw_pool        integer,
   grad_hw_min         integer,
-  grad_capstone       boolean not null default false
+  grad_capstone       boolean not null default false,
+  grad_rules_status   text not null default 'none' check (grad_rules_status in ('none','provisional','confirmed'))
 );
 
 create table if not exists curriculum_items (
