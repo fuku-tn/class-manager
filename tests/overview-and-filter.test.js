@@ -115,3 +115,13 @@ test('công thức chuyên cần nằm ở stats.js: có phép không làm giả
   assert.equal(attendanceRate(0, 3, 3), null);   // toàn có phép → chưa có mẫu số
   assert.equal(attendanceRate(0, 0, 0), null);
 });
+
+test('norm: tìm tên học viên không phân biệt dấu, hoa/thường và chữ Đ', () => {
+  const hit = (name, q) => F.norm(name).includes(F.norm(q));
+  assert.ok(hit('Nguyễn Văn Bình', 'nguyen van'));
+  assert.ok(hit('Nguyễn Văn Bình', 'NGUYỄN'));
+  assert.ok(hit('Đặng Thu Giang', 'dang thu'));
+  assert.ok(hit('Phạm Hoài An', 'hoai an'));
+  assert.ok(!hit('Phạm Hoài An', 'tuan'));
+  assert.equal(F.norm('   ').trim(), '');   // các trang cắt khoảng trắng trước khi lọc
+});

@@ -16,6 +16,11 @@ export function h(tag, attrs = {}, ...children) {
   return el;
 }
 
+// Thay toàn bộ con của `el`, bỏ qua null/undefined/false (replaceChildren thô sẽ in ra chữ "null"/"false").
+export function setChildren(el, ...kids) {
+  el.replaceChildren(...kids.flat(Infinity).filter((c) => c != null && c !== false));
+}
+
 export function toast(message, bad = false) {
   const t = h('div', { class: `toast${bad ? ' bad' : ''}` }, message);
   document.getElementById('toasts').append(t);

@@ -1,7 +1,7 @@
 import { get, put } from '../api.js';
 import { h, toast, pct, formModal } from '../ui.js';
 import { startLive, LIVE_LABEL } from '../live.js';
-import { classDisplayName } from '../class-filter.mjs';
+import { classDisplayName, norm } from '../class-filter.mjs';
 
 const SHORT = { submitted: '✓', resubmit: '↻', missing: '✗' };
 const LABEL = { submitted: 'Đã nộp', resubmit: 'Nộp lại', missing: 'Thiếu' };
@@ -72,10 +72,10 @@ export async function renderHomework({ cls, state }) {
   }
 
   function renderBody() {
-    const q = search.value.trim().toLowerCase();
+    const q = norm(search.value).trim(); // không phân biệt hoa/thường và dấu tiếng Việt
     buttons.clear(); rateCells.clear();
     body.replaceChildren(...data.rows
-      .filter((r) => !q || r.full_name.toLowerCase().includes(q) || r.student_code.toLowerCase().includes(q))
+      .filter((r) => !q || norm(r.full_name).includes(q) || norm(r.student_code).includes(q))
       .map((row) => {
         const rate = h('td', { class: 'num' }, pct(row.hw_rate));
         rateCells.set(row.enrollment_id, rate);

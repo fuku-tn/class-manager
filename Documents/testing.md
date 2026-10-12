@@ -23,6 +23,7 @@ Dùng **PGlite** (Postgres thật chạy trong bộ nhớ) với `src/schema.sql
 | `tests/sync-company.test.js` | Tab COMPANY: tag B2B + tên công ty, bỏ DOB/FEE; `/api/classes` trả cờ B2B/B2C và công ty; lớp hỗn hợp; chưa gửi COMPANY thì không dò thiếu; thiếu cột → 422 |
 | `tests/class-segment.test.js` | `segmentFlags`/`countBySegment`/`filterClasses`/`pickerFilter` theo B2B/B2C (lớp hỗn hợp ở cả hai) |
 | `tests/enrollment-events.test.js` | Nhật ký ghi danh: thêm/đổi trạng thái trên web (kèm người làm), "Gỡ khỏi lớp" chỉ admin + bắt buộc lý do + chụp lại thông tin + kèm số điểm danh bị xóa; quyền xem nhật ký theo lớp; đồng bộ Sheet ghi sự kiện không trùng; "không còn trong Sheet" chỉ cảnh báo, không ghi trùng, "xuất hiện lại"; Sheet ít bất thường thì bỏ dò; không tự thêm lại người đã gỡ |
+| `tests/frontend-children.test.js` | Quét `public/js`: `replaceChildren`/`append` không được nhận tham số dạng `a && b`, `a ? b : null` (sẽ hiện chữ "false"/"null" trên trang) — dùng `h()` hoặc `setChildren()` |
 | `tests/frontend-syntax.test.js` | Mọi file `public/js` đọc được (lỗi cú pháp một file làm hỏng cả trang) |
 | `tests/sync.test.js` | Đồng bộ Google Sheet: cần đúng mã (401/503); tạo lớp/học viên/ghi danh, bỏ cột tiền, ngày không lệch múi giờ, chạy lại không đổi; không đè sửa tay (tên, trạng thái nghỉ); "Không tham gia" → dropped; thiếu cột → 422; lớp thiếu giáo trình vẫn nhận; nhật ký chỉ admin; danh sách cột trong script khớp máy chủ và không có chữ liên quan tiền |
 | `tests/attendance-extras.test.js` | PUT trả % chuyên cần + hiện diện/sĩ số khớp GET (có phép loại khỏi mẫu số, không có mẫu số → null); "Bỏ tất cả" xóa cả buổi, 404 buổi khác lớp, khách bị 403 |
@@ -34,7 +35,7 @@ Dùng **PGlite** (Postgres thật chạy trong bộ nhớ) với `src/schema.sql
 | `tests/db-errors.test.js` | Phân loại lỗi cấu hình/kết nối DB; thiếu `DATABASE_URL` → đăng nhập trả 503 có lý do |
 | `tests/import.test.js` | Nhập điểm danh nhiều sheet (workbook dựng trong test): X/O/trống, có phép không tính mẫu số, bỏ sheet ẩn và cột tiền, giáo trình theo tên sheet, khớp mã lớp lệch P/B, không ghi đè ô sửa trên app, dry-run |
 
-## Đã được kiểm thử tự động (118 test)
+## Đã được kiểm thử tự động (120 test)
 - Chưa đăng nhập → 401; đăng nhập sai/đúng.
 - Giảng viên không truy cập được lớp chưa được phân (403), sau khi phân thì được; không tạo lớp / xem user được.
 - Tỉ lệ điểm danh: có phép không tính vào mẫu số (A=0.67, B=0.5).

@@ -1,6 +1,6 @@
 import { get, post, put, del } from '../api.js';
 import { h, toast, pct, formModal, downloadCsv, COURSE_STATUS_LABEL, COURSE_STATUS_BADGE } from '../ui.js';
-import { classDisplayName } from '../class-filter.mjs';
+import { classDisplayName, norm } from '../class-filter.mjs';
 
 const MODE_OPTIONS = [['', '(chưa rõ)'], ['Online', 'Online'], ['Offline', 'Offline'], ['Hybrid', 'Hybrid']];
 const STATUS_OPTIONS = Object.entries(COURSE_STATUS_LABEL);
@@ -30,9 +30,9 @@ export async function renderStudents({ cls, state }) {
   const count = h('span', { class: 'muted' });
 
   const filtered = () => {
-    const q = search.value.trim().toLowerCase();
+    const q = norm(search.value).trim(); // không phân biệt hoa/thường và dấu tiếng Việt
     return rows.filter((r) =>
-      (!q || [r.full_name, r.student_code, r.email, r.phone].some((x) => String(x ?? '').toLowerCase().includes(q))) &&
+      (!q || [r.full_name, r.student_code, r.email, r.phone].some((x) => norm(x ?? '').includes(q))) &&
       (!status.value || r.course_status === status.value) && (!mode.value || r.mode === mode.value));
   };
 

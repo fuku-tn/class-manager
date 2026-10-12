@@ -2,7 +2,7 @@ import { get, put, post, del } from '../api.js';
 import { h, toast, pct, formModal, confirmModal } from '../ui.js';
 import { startLive, LIVE_LABEL } from '../live.js';
 import { SORTS, isSortKey, sortRows } from '../student-sort.mjs';
-import { classDisplayName } from '../class-filter.mjs';
+import { classDisplayName, norm } from '../class-filter.mjs';
 
 const STATUSES = ['present', 'late', 'absent', 'excused'];
 const SHORT = { present: '✓', late: 'T', absent: 'V', excused: 'P' };
@@ -178,10 +178,10 @@ export async function renderAttendance({ cls, state }) {
   }
 
   function renderBody() {
-    const q = search.value.trim().toLowerCase();
+    const q = norm(search.value).trim(); // không phân biệt hoa/thường và dấu tiếng Việt
     cells.clear(); rateCells.clear();
     const list = sortRows(data.rows, sortKey)
-      .filter((r) => !q || r.full_name.toLowerCase().includes(q) || r.student_code.toLowerCase().includes(q));
+      .filter((r) => !q || norm(r.full_name).includes(q) || norm(r.student_code).includes(q));
     body.replaceChildren(...list.map((row) => {
       const rate = h('td', { class: 'num' }, pct(row.attendance_rate));
       rateCells.set(row.enrollment_id, rate);

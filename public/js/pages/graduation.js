@@ -1,8 +1,8 @@
 // Danh sách tốt nghiệp của lớp: gợi ý tự động theo quy tắc giáo trình, quyết định do người đặt, công bố (admin).
 // Công thức tỉ lệ nằm ở máy chủ (stats.js); trang chỉ hiển thị và so sánh kết quả máy chủ trả về.
 import { get, put, post, del } from '../api.js';
-import { h, toast, pct, formModal, confirmModal, downloadCsv } from '../ui.js';
-import { classDisplayName, fmtDate, TIMING_LABEL } from '../class-filter.mjs';
+import { h, toast, pct, formModal, confirmModal, downloadCsv, setChildren } from '../ui.js';
+import { classDisplayName, fmtDate, TIMING_LABEL, norm } from '../class-filter.mjs';
 
 const DECISION = { pending: 'Chưa xét', passed: 'Tốt nghiệp', failed: 'Chưa đạt' };
 const DECISION_BADGE = { pending: '', passed: 'ok', failed: 'bad' };
@@ -32,7 +32,9 @@ export async function renderGraduation({ cls, state }) {
   const summaryEl = h('div', { class: 'chips' });
   const bannerEl = h('div');
   const rulesEl = h('p', { class: 'muted' });
-  const actionsEl = h('div', { class: 'toolbar' });
+  // Ô tìm kiếm nằm cố định (không dựng lại khi gõ) để không mất con trỏ sau mỗi ký tự; chỉ các nút được vẽ lại.
+  const buttonsEl = h('span', { class: 'contents' });
+  const actionsEl = h('div', { class: 'toolbar' }, search, buttonsEl);
 
   async function reload() { d = await get(`${base}/graduation`); paint(); }
 
@@ -107,27 +109,30 @@ export async function renderGraduation({ cls, state }) {
     rulesEl.textContent = st === 'none'
       ? `Chưa có quy định tốt nghiệp cho ${d.rules.source === 'default' ? 'lớp này (chưa gắn giáo trình)' : 'giáo trình này'} — chưa có gợi ý, bạn đặt kết quả thủ công.`
       : `Điều kiện gợi ý: ${ruleText(d.rules)}${st === 'provisional' ? ' — tạm theo công thức Excel cũ, chờ xác nhận chính thức' : ''}`;
-    summaryEl.replaceChildren(
+    setChildren(summaryEl,
       h('span', { class: 'badge ok' }, `Tốt nghiệp ${s.passed}`),
       h('span', { class: 'badge bad' }, `Chưa đạt ${s.failed}`),
       h('span', { class: 'badge' }, `Chưa xét ${s.pending}`),
       d.rules.status === 'none' ? null
         : h('span', { class: 'muted small' }, `Gợi ý: ${s.suggested_pass} đạt · ${s.suggested_fail} chưa đạt${s.no_data ? ` · ${s.no_data} chưa đủ dữ liệu` : ''}`));
-    bannerEl.replaceChildren(...[
+    setChildren(bannerEl,
       c.published_at ? h('div', { class: 'card', role: 'status' },
         h('b', {}, `Danh sách đã công bố lúc ${fmtWhen(c.published_at)}`), c.published_by ? ` bởi ${c.published_by}` : '',
-        locked() || readOnly ? '' : ' — admin có thể sửa hoặc hủy công bố.') : null,
-    ].filter(Boolean));
-    actionsEl.replaceChildren(search,
+        locked() || readOnly ? '' : ' — admin có thể sửa hoặc hủy công bố.') : null);
+    setChildren(buttonsEl,
       !readOnly && d.rules.status !== 'none' && h('button', { type: 'button', disabled: !canEdit(), onclick: applySuggestions, title: 'Chỉ đặt cho học viên chưa xét' }, 'Áp dụng gợi ý'),
       h('button', { type: 'button', onclick: exportCsv }, 'Xuất CSV'),
       admin && d.class.has_curriculum && h('button', { type: 'button', onclick: editRules }, d.rules.status === 'none' ? 'Thiết lập quy tắc' : 'Sửa quy tắc'),
       admin && (c.published_at
         ? h('button', { type: 'button', class: 'danger', onclick: () => publish(false) }, 'Hủy công bố')
         : h('button', { type: 'button', class: 'primary', onclick: () => publish(true) }, 'Công bố danh sách')));
+    paintRows();
+  }
 
-    const q = search.value.trim().toLowerCase();
-    const list = d.rows.filter((r) => !q || r.full_name.toLowerCase().includes(q) || r.student_code.toLowerCase().includes(q));
+  // Chỉ vẽ lại bảng (dùng khi gõ tìm kiếm).
+  function paintRows() {
+    const q = norm(search.value).trim(); // không phân biệt hoa/thường và dấu tiếng Việt
+    const list = d.rows.filter((r) => !q || norm(r.full_name).includes(q) || norm(r.student_code).includes(q));
     body.replaceChildren(...list.map((r) => {
       const sg = r.suggestion;
       const sel = h('select', { class: 'grad-sel', 'aria-label': `Kết quả của ${r.full_name}`, disabled: !canEdit() },
@@ -152,7 +157,7 @@ export async function renderGraduation({ cls, state }) {
     if (!list.length) body.append(h('tr', {}, h('td', { colspan: 7, class: 'empty-state' }, d.rows.length ? 'Không có học viên khớp tìm kiếm.' : 'Lớp chưa có học viên đang học.')));
   }
 
-  search.addEventListener('input', paint);
+  search.addEventListener('input', paintRows);
   paint();
 
   const c0 = d.class;
