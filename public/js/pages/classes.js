@@ -1,11 +1,12 @@
 import { post } from '../api.js';
 import { h, toast, formModal } from '../ui.js';
-import { filterClasses, sortClasses, programsOf, countByTiming, TIMING_LABEL, TIMING_ORDER, SHIFT_LABEL, fmtDate, classLabel } from '../class-filter.mjs';
+import { filterClasses, sortClasses, programsOf, countByTiming, countBySegment, segmentFlags, SEGMENT_LABEL, TIMING_LABEL, TIMING_ORDER, SHIFT_LABEL, fmtDate, classLabel } from '../class-filter.mjs';
 
 export async function renderClasses({ state, refreshClasses, navigate }) {
-  const f = { q: '', timing: 'all', program: '' };
+  const f = { q: '', timing: 'all', program: '', segment: '' };
   const rows = h('tbody');
   const chipsTiming = h('div', { class: 'chips' });
+  const chipsSegment = h('div', { class: 'chips' });
   const chipsProgram = h('div', { class: 'chips scroll' });
   const count = h('span', { class: 'muted small' });
   const search = h('input', { type: 'search', placeholder: 'Tìm lớp: mã, chương trình, ngày…', 'aria-label': 'Tìm lớp' });
@@ -18,15 +19,22 @@ export async function renderClasses({ state, refreshClasses, navigate }) {
     const counts = countByTiming(all);
     chipsTiming.replaceChildren(...['all', ...TIMING_ORDER.filter((t) => counts[t] > 0)].map((t) =>
       chip(t === 'all' ? 'Tất cả' : TIMING_LABEL[t], f.timing === t, () => { f.timing = t; paint(); }, counts[t])));
+    const seg = countBySegment(filterClasses(all, { timing: f.timing }));
+    chipsSegment.replaceChildren(
+      chip('B2C + B2B', !f.segment, () => { f.segment = ''; paint(); }),
+      ...['b2c', 'b2b'].filter((s) => seg[s] > 0).map((s) => chip(SEGMENT_LABEL[s], f.segment === s,
+        () => { f.segment = f.segment === s ? '' : s; paint(); }, seg[s])));
     chipsProgram.replaceChildren(
       chip('Mọi chương trình', !f.program, () => { f.program = ''; paint(); }),
-      ...programsOf(filterClasses(all, { timing: f.timing })).map((p) => chip(p.program, f.program === p.program,
+      ...programsOf(filterClasses(all, { timing: f.timing, segment: f.segment })).map((p) => chip(p.program, f.program === p.program,
         () => { f.program = f.program === p.program ? '' : p.program; paint(); }, p.count)));
     const list = sortClasses(filterClasses(all, f));
     count.textContent = `${list.length}/${all.length} lớp`;
     rows.replaceChildren(...list.map((c) => h('tr', { class: 'clickable', tabindex: 0,
       onclick: () => navigate(`#/c/${c.id}/dashboard`), onkeydown: (e) => { if (e.key === 'Enter') navigate(`#/c/${c.id}/dashboard`); } },
-    h('td', {}, h('b', {}, classLabel(c)), h('div', { class: 'muted small' }, c.code)),
+    h('td', {}, h('b', {}, classLabel(c)), ' ',
+      ...['b2c', 'b2b'].filter((s) => segmentFlags(c)[s]).map((s) => h('span', { class: `badge seg-${s}` }, SEGMENT_LABEL[s])),
+      h('div', { class: 'muted small' }, c.code + (c.companies ? ` · ${c.companies}` : ''))),
     h('td', {}, c.program || '—'),
     h('td', {}, [c.delivery_mode, SHIFT_LABEL[c.shift]].filter(Boolean).join(' · ') || '—'),
     h('td', {}, `${fmtDate(c.start_date) || '—'}${c.end_date ? ` → ${fmtDate(c.end_date)}` : ''}`),
@@ -52,8 +60,8 @@ export async function renderClasses({ state, refreshClasses, navigate }) {
         } catch (e) { toast(e.message, true); }
       } }, '+ Tạo lớp')),
     h('div', { class: 'toolbar' }, search, chipsTiming),
-    h('div', { class: 'toolbar' }, chipsProgram),
+    h('div', { class: 'toolbar' }, chipsSegment, chipsProgram),
     h('div', { class: 'table-wrap' }, h('table', {},
       h('thead', {}, h('tr', {}, ['Lớp', 'Chương trình', 'Hình thức · ca', 'Thời gian', 'Học viên', 'Trạng thái'].map((x) => h('th', {}, x)))), rows)),
-    h('p', { class: 'muted small' }, 'Nhập điểm danh từ Excel: chạy "npm run import -- <file.xlsx>" trên máy chủ.'));
+    h('p', { class: 'muted small' }, 'Nhập từ Excel: dùng mục "Nhập Excel" ở thanh trên. Học viên đăng ký mới được đồng bộ tự động từ Google Sheet.'));
 }

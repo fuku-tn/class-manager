@@ -47,10 +47,24 @@ export function matchesQuery(c, q) {
   return words.every((w) => hay.includes(w));
 }
 
-// opts: { q, program, timing: 'all' | 'running' | 'upcoming' | 'finished' | 'unknown' }
-export function filterClasses(list, { q = '', program = '', timing = 'all' } = {}) {
+// B2B/B2C của lớp: dùng cờ máy chủ trả về (is_b2b/is_b2c); thiếu thì suy từ chữ thứ 3 của mã lớp (B = B2B).
+export function segmentFlags(c) {
+  const letter = String(c?.code ?? '').split('.')[2]?.charAt(0)?.toUpperCase() ?? '';
+  return { b2b: c?.is_b2b ?? letter === 'B', b2c: c?.is_b2c ?? letter !== 'B' };
+}
+export const SEGMENT_LABEL = { b2c: 'B2C', b2b: 'B2B' };
+
+export function countBySegment(list) {
+  const out = { all: list.length, b2c: 0, b2b: 0 };
+  for (const c of list) { const s = segmentFlags(c); if (s.b2c) out.b2c++; if (s.b2b) out.b2b++; }
+  return out;
+}
+
+// opts: { q, program, timing: 'all' | 'running' | 'upcoming' | 'finished' | 'unknown', segment: '' | 'b2c' | 'b2b' }
+export function filterClasses(list, { q = '', program = '', timing = 'all', segment = '' } = {}) {
   return list.filter((c) => (timing === 'all' || (c.timing ?? 'unknown') === timing)
     && (!program || c.program === program)
+    && (!segment || segmentFlags(c)[segment])
     && matchesQuery(c, q));
 }
 
@@ -84,7 +98,7 @@ export function defaultTiming(list) {
 
 // Phạm vi lọc của bộ chọn lớp: đang gõ tìm thì tìm trong TẤT CẢ lớp (bỏ chip thời gian/chương trình),
 // để lớp cũ/đã kết thúc vẫn ra kết quả khi gõ tên.
-export function pickerFilter(list, { q = '', program = '', timing = 'all' } = {}) {
+export function pickerFilter(list, { q = '', program = '', timing = 'all', segment = '' } = {}) {
   const searching = String(q).trim() !== '';
-  return filterClasses(list, { q, program: searching ? '' : program, timing: searching ? 'all' : timing });
+  return filterClasses(list, { q, program: searching ? '' : program, timing: searching ? 'all' : timing, segment: searching ? '' : segment });
 }

@@ -11,7 +11,12 @@ module.exports = (db) => {
   const access = requireClassAccess(db);
 
   router.get('/', async (req, res) => {
-    const base = `select c.*, ${TIMING_SQL} as timing, (select count(*)::int from enrollments e where e.class_id = c.id) as student_count from classes c`;
+    // B2B: mã lớp có chữ B (P2.BIE.B067...) hoặc có học viên từ COMPANY; B2C: chữ khác B hoặc có học viên cá nhân. Lớp hỗn hợp có cả hai.
+    const base = `select c.*, ${TIMING_SQL} as timing, (select count(*)::int from enrollments e where e.class_id = c.id) as student_count,
+      (left(split_part(c.code, '.', 3), 1) = 'B' or exists (select 1 from enrollments e where e.class_id = c.id and e.segment = 'b2b')) as is_b2b,
+      (left(split_part(c.code, '.', 3), 1) <> 'B' or exists (select 1 from enrollments e where e.class_id = c.id and e.segment = 'b2c')) as is_b2c,
+      (select string_agg(distinct e.company_name, ' · ') from enrollments e where e.class_id = c.id and e.company_name is not null) as companies
+      from classes c`;
     const rows = req.user.role === 'admin'
       ? await db.all(`${base} order by c.start_date desc nulls last, c.id desc`)
       : await db.all(`${base} join class_instructors ci on ci.class_id = c.id and ci.user_id = $1 order by c.start_date desc nulls last, c.id desc`, [req.user.id]);

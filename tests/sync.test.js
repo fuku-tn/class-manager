@@ -97,11 +97,13 @@ test('script Apps Script dùng đúng danh sách cột cho phép như máy chủ
   const fs = require('node:fs');
   const path = require('node:path');
   const { ALLOWED_TX } = require('../src/services/importTransactions');
-  const { SYNC_COURSE_COLUMNS } = require('../src/routes/sync');
+  const { SYNC_COURSE_COLUMNS, SYNC_COMPANY_COLUMNS } = require('../src/routes/sync');
   const src = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'google-apps-script', 'sync-transactions.gs'), 'utf8');
   const list = (name) => JSON.parse(new RegExp(`const ${name} = (\\[.*?\\]);`).exec(src)[1].replace(/'/g, '"'));
   assert.deepEqual(list('ALLOWED_TX'), ALLOWED_TX);
   assert.deepEqual(list('ALLOWED_COURSE'), SYNC_COURSE_COLUMNS);
+  assert.match(src, /const ALLOWED_COMPANY = ALLOWED_TX\.concat\(\['COMPANY NAME'\]\);/);
+  assert.deepEqual([...ALLOWED_TX, 'COMPANY NAME'], SYNC_COMPANY_COLUMNS);
   for (const col of [...ALLOWED_TX, ...SYNC_COURSE_COLUMNS]) assert.ok(!/price|amount|paid|voucher|fee|giá|tiền|payment/i.test(col), col);
   assert.ok(!/SYNC_TOKEN\s*=\s*['"][^'"]+['"]/.test(src), 'không được ghi sẵn mã bí mật trong script');
 });

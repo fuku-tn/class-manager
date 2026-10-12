@@ -13,7 +13,7 @@ Excel `Transactions` không còn nằm trên đường đi (vẫn dùng cho báo
 | `PERSONAL` (~2.367 dòng) | **Có** — tương ứng sheet `Transactions` | 10 cột cho phép đều có đủ, trùng tên. Tab còn nhiều cột tiền (FEE, PAYMENT, DEPOSIT, AMOUNT DUE, ACTUAL REVENUE…) — **script không bao giờ đọc** |
 | `COURSE` (~124 lớp) | **Có** | Tên cột `START DATE`, `EXPECTED END DATE` (máy chủ tự đổi về STARTDATE/ENDDATE). Có `LINK MS TEAMS`, `MEETING ID`, `PASS CODE`, cột doanh thu — không đọc |
 | `FORM` (~610 dòng) | Chưa | Phiếu đăng ký (mã lớp, họ tên, SĐT, email, nguồn…) — dùng cho "đăng ký chờ duyệt" sau này |
-| `COMPANY` (~754 dòng) | Chưa | Học viên công ty — làm sau |
+| `COMPANY` (~754 dòng) | **Có** (học viên B2B) | Cùng cột với PERSONAL + `COMPANY NAME`; **không** lấy ngày sinh và cột tiền. Mỗi ghi danh được gắn nhãn B2B và tên công ty |
 
 Đối chiếu với dữ liệu hiện có (giả lập trong bộ nhớ): file mới chỉ hơn **3 học viên, 4 ghi danh**; 1 dòng thiếu khóa học và 3 dòng khóa "TƯ VẤN" (không có trong COURSE) bị bỏ qua; 86 lớp chưa có giáo trình; 1 email nhiều mã, 7 mã nhiều email, 2 SĐT nhiều mã (đã biết từ trước).
 
@@ -31,6 +31,12 @@ Excel `Transactions` không còn nằm trên đường đi (vẫn dùng cho báo
 4. Mở webapp → **Nhập Excel**: thẻ "Đồng bộ tự động" phải hiện "Lần nhận gần nhất …".
 
 Tạm dừng: chạy hàm `stop`. Bật lại: chạy `setup`.
+
+## B2B / B2C
+- Học viên từ tab `PERSONAL` là **B2C**, từ tab `COMPANY` là **B2B** (kèm tên công ty). Mỗi ghi danh có `segment` + `company_name`.
+- Lớp là **B2B** nếu mã lớp mang chữ `B` (vd `P2.BIE.B067...`) hoặc có học viên từ COMPANY; **B2C** nếu chữ khác `B` hoặc có học viên cá nhân. Lớp có cả hai hiện ở **cả hai bộ lọc**.
+- Bộ lọc chip **B2C / B2B** ở ô chọn lớp và trang Lớp học (đếm theo bộ lọc thời gian đang chọn). Gõ tìm thì tìm trong tất cả lớp.
+- Nếu script chưa gửi tab COMPANY thì app **không** dò "không còn trong Sheet" cho học viên B2B.
 
 ## Quy tắc đồng bộ
 | Việc | Hành vi |

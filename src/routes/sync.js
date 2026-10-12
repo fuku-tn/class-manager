@@ -9,6 +9,8 @@ const { ALLOWED_TX, ALLOWED_COURSE } = require('../services/importTransactions')
 // Tab COURSE của Google Sheet dùng tên cột "START DATE"/"EXPECTED END DATE" (Excel/Power Query đổi thành STARTDATE/ENDDATE).
 const COURSE_ALIASES = { 'START DATE': 'STARTDATE', 'EXPECTED END DATE': 'ENDDATE' };
 const SYNC_COURSE_COLUMNS = [...ALLOWED_COURSE, ...Object.keys(COURSE_ALIASES)];
+// Tab COMPANY (học viên B2B): cùng cột với PERSONAL + tên công ty. Không có cột ngày sinh/tiền.
+const SYNC_COMPANY_COLUMNS = [...ALLOWED_TX, 'COMPANY NAME'];
 
 const MAX_ROWS = 20000;
 const MAX_COLS = 60;
@@ -45,6 +47,16 @@ function pickColumns(table, allowed, dateCols = []) {
   };
 }
 
+// Gộp hai bảng về cùng bộ cột (ALLOWED_TX + COMPANY NAME + SEGMENT).
+function mergeSegments(personal, company) {
+  const headers = [...ALLOWED_TX, 'COMPANY NAME', 'SEGMENT'];
+  const conv = (table, segment) => table.rows.map((r) => headers.map((h) => (h === 'SEGMENT' ? segment : (() => {
+    const i = table.headers.indexOf(h);
+    return i >= 0 ? r[i] : null;
+  })())));
+  return { headers, rows: [...conv(personal, 'b2c'), ...(company ? conv(company, 'b2b') : [])] };
+}
+
 module.exports = (db) => {
   const router = express.Router();
   router.use(express.json({ limit: '3mb' }));
@@ -79,6 +91,13 @@ module.exports = (db) => {
     try {
       const tx = pickColumns(req.body?.transactions, ALLOWED_TX);
       if (!tx.headers.includes('STUDENT ID') || !tx.headers.includes('COURSE')) throw httpError(422, 'Thiếu cột STUDENT ID hoặc COURSE trong sheet Transactions');
+      // Gộp PERSONAL (B2C) và COMPANY (B2B) thành một bảng có thêm cột SEGMENT + COMPANY NAME.
+      let company = null;
+      if (req.body?.company) {
+        company = pickColumns(req.body.company, SYNC_COMPANY_COLUMNS);
+        if (!company.headers.includes('STUDENT ID') || !company.headers.includes('COURSE')) throw httpError(422, 'Thiếu cột STUDENT ID hoặc COURSE trong sheet COMPANY');
+      }
+      const merged = mergeSegments(tx, company);
       let course;
       if (req.body?.course) {
         course = pickColumns(req.body.course, SYNC_COURSE_COLUMNS, ['STARTDATE', 'ENDDATE', ...Object.keys(COURSE_ALIASES)]);
@@ -93,7 +112,7 @@ module.exports = (db) => {
       }
       const wb = new ExcelJS.Workbook();
       wb.addWorksheet('Course').addRows([course.headers, ...course.rows]);
-      wb.addWorksheet('Transactions').addRows([tx.headers, ...tx.rows]);
+      wb.addWorksheet('Transactions').addRows([merged.headers, ...merged.rows]);
 
       // Sheet đột nhiên ít hơn hẳn lần trước (xóa nhầm/hỏng): vẫn nhận dòng có mặt nhưng KHÔNG dò "không còn trong Sheet".
       const prevRun = await db.one("select (summary->>'transactions_rows')::int as n from sync_runs where ok order by id desc limit 1");
@@ -101,6 +120,7 @@ module.exports = (db) => {
       const { anomaly_details, class_ids = [], columns_read, ...brief } = await importTransactions(db, {
         transactionsFile: wb, curriculumFile: null, dryRun: false, preserveManual: true,
         eventSource: 'sync', detectMissing: !suspicious,
+        missingSegments: company ? ['b2c', 'b2b'] : ['b2c'], // chưa gửi COMPANY thì không dò B2B
       });
       if (suspicious) brief.missing_detection_skipped = true;
       const changed = Object.values(brief.added ?? {}).some((n) => n > 0);
@@ -125,3 +145,4 @@ module.exports = (db) => {
   return router;
 };
 module.exports.SYNC_COURSE_COLUMNS = SYNC_COURSE_COLUMNS;
+module.exports.SYNC_COMPANY_COLUMNS = SYNC_COMPANY_COLUMNS;

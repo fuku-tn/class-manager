@@ -115,6 +115,8 @@ create table if not exists enrollments (
   registration_source text,
   carried_over       boolean not null default false,
   origin             text not null default 'web' check (origin in ('web','sheet','import')),
+  segment            text not null default 'b2c' check (segment in ('b2c','b2b')),
+  company_name       text,
   created_at         timestamptz not null default now(),
   unique (class_id, student_id)
 );

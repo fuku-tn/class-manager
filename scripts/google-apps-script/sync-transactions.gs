@@ -14,6 +14,7 @@
 const CONFIG = {
   SHEET_TRANSACTIONS: ['PERSONAL', 'Transactions'], // tên tab chứa đăng ký học (lấy tab đầu tiên tìm thấy)
   SHEET_COURSE: ['COURSE', 'Course'],               // tên tab danh sách lớp (không có thì máy chủ dùng danh sách lớp sẵn có)
+  SHEET_COMPANY: ['COMPANY'],                       // tên tab học viên B2B (không có thì chỉ đồng bộ B2C)
   HEADER_ROW: 0,                      // 0 = tự tìm dòng tiêu đề (dòng 1 thường là dòng tổng); hoặc ghi cố định số dòng, vd 2
   MAX_HEADER_ROW: 10,                 // chỉ tìm tiêu đề trong 10 dòng đầu
   FALLBACK_HEADER_ROW: 2,             // dùng khi không tự tìm được
@@ -23,6 +24,8 @@ const CONFIG = {
 
 const ALLOWED_TX = ['STUDENT ID', 'CUSTOMER ID', 'FULL NAME', 'EMAIL', 'PHONE', 'COURSE', 'MODE', 'GENDER', 'STATUS', 'REGISTRATION SOURCE'];
 const ALLOWED_COURSE = ['COURSE', 'COURSE ID', 'STARTDATE', 'ENDDATE', 'NEXT COURSE', 'START DATE', 'EXPECTED END DATE'];
+// Tab COMPANY: cùng cột với PERSONAL + tên công ty (không lấy ngày sinh, không lấy cột tiền).
+const ALLOWED_COMPANY = ALLOWED_TX.concat(['COMPANY NAME']);
 
 /** Chạy MỘT lần: tạo bộ hẹn giờ rồi đồng bộ ngay. */
 function setup() {
@@ -64,7 +67,12 @@ function syncNow(forceArg) {
     if (!transactions) throw new Error('Không tìm thấy tab ' + CONFIG.SHEET_TRANSACTIONS.join(' / ') + ' hoặc tab trống');
     const course = readTable_(findSheet_(ss, CONFIG.SHEET_COURSE), ALLOWED_COURSE, ['STARTDATE', 'ENDDATE'], 'COURSE ID');
 
-    const body = JSON.stringify(course ? { transactions: transactions, course: course } : { transactions: transactions });
+    const company = readTable_(findSheet_(ss, CONFIG.SHEET_COMPANY), ALLOWED_COMPANY, [], 'STUDENT ID');
+
+    const payload = { transactions: transactions };
+    if (course) payload.course = course;
+    if (company) payload.company = company;
+    const body = JSON.stringify(payload);
     const hash = toHex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, body, Utilities.Charset.UTF_8));
     const lastHash = props.getProperty('LAST_HASH');
     const lastSent = Number(props.getProperty('LAST_SENT') || 0);

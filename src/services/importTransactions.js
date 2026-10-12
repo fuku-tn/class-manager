@@ -137,7 +137,7 @@ function stateFromStatus(raw) {
 }
 
 function parseTransactions(ws, classByShort) {
-  const { rows } = readAllowed(ws, ALLOWED_TX);
+  const { rows } = readAllowed(ws, [...ALLOWED_TX, 'COMPANY NAME', 'SEGMENT']);
   const skipped = { no_course: 0, unknown_course: new Map() };
   const students = new Map();   // STUDENT ID -> thông tin mới nhất
   const enrolls = new Map();    // `${short}|${student}` -> bản ghi
@@ -169,6 +169,7 @@ function parseTransactions(ws, classByShort) {
     enrolls.set(`${short}|${sid}`, {
       short_code: short, student_code: sid, customer_id: txt(r['CUSTOMER ID']), mode,
       registration_source: txt(r['REGISTRATION SOURCE']), ...stateFromStatus(r.STATUS),
+      segment: txt(r.SEGMENT) === 'b2b' ? 'b2b' : 'b2c', company_name: txt(r['COMPANY NAME']),
     });
   }
   const anomalies = {
@@ -214,7 +215,7 @@ const en0 = (enrolls, classId) => enrolls.map((e) => classId.get(e.short_code)).
 // không đè tên/email/SĐT/hình thức và không đưa học viên đã nghỉ/bảo lưu về "đang học" (sửa tay trên web được giữ).
 // eventSource: 'sync' | 'import' | 'web' (ghi vào nhật ký sự kiện). detectMissing: phát hiện học viên không còn trong Sheet (chỉ đồng bộ tự động).
 async function importTransactions(db, { transactionsFile, curriculumFile, dryRun = false, preserveManual = false,
-  eventSource = 'import', actor = null, detectMissing = false }) {
+  eventSource = 'import', actor = null, detectMissing = false, missingSegments = ['b2c', 'b2b'] }) {
   const tw = await loadWorkbook(transactionsFile);
   const courseWs = tw.getWorksheet('Course');
   const txWs = tw.getWorksheet('Transactions');
@@ -335,9 +336,10 @@ async function importTransactions(db, { transactionsFile, curriculumFile, dryRun
         summary.skipped_removed = before - en.length;
       }
       const upserted = await t.all(
-        `insert into enrollments (class_id, student_id, customer_id, mode, course_status, registration_source, carried_over, origin)
-         select u.*, 'sheet' from unnest($1::bigint[], $2::bigint[], $3::text[], $4::text[], $5::text[], $6::text[], $7::boolean[]) as u
-         on conflict (class_id, student_id) do update set origin = 'sheet', ${preserveManual
+        `insert into enrollments (class_id, student_id, customer_id, mode, course_status, registration_source, carried_over, segment, company_name, origin)
+         select u.*, 'sheet' from unnest($1::bigint[], $2::bigint[], $3::text[], $4::text[], $5::text[], $6::text[], $7::boolean[], $8::text[], $9::text[]) as u
+         on conflict (class_id, student_id) do update set origin = 'sheet', segment = excluded.segment,
+           company_name = coalesce(enrollments.company_name, excluded.company_name), ${preserveManual
     ? `customer_id = coalesce(enrollments.customer_id, excluded.customer_id),
            mode = coalesce(enrollments.mode, excluded.mode),
            registration_source = coalesce(enrollments.registration_source, excluded.registration_source),
@@ -352,7 +354,8 @@ async function importTransactions(db, { transactionsFile, curriculumFile, dryRun
                                 else excluded.course_status end`}
          returning id, class_id, student_id, course_status, (xmax = 0) as inserted`,
         [en.map((e) => classId.get(e.short_code)), en.map((e) => studentId.get(e.student_code)), en.map((e) => e.customer_id), en.map((e) => e.mode),
-          en.map((e) => e.course_status), en.map((e) => e.registration_source), en.map((e) => e.carried_over)]);
+          en.map((e) => e.course_status), en.map((e) => e.registration_source), en.map((e) => e.carried_over),
+          en.map((e) => e.segment), en.map((e) => e.company_name)]);
 
       // Nhật ký sự kiện (cùng transaction): thêm mới, đổi trạng thái, không còn/lại xuất hiện trong Sheet
       const stuByCode = new Map(st.map((s) => [s.student_code, s]));
@@ -375,7 +378,8 @@ async function importTransactions(db, { transactionsFile, curriculumFile, dryRun
         const cand = await t.all(
           `select e.id, e.class_id, e.student_id, s.student_code, s.full_name, c.code as class_code
            from enrollments e join students s on s.id = e.student_id join classes c on c.id = e.class_id
-           where e.class_id = any($1::bigint[]) and e.origin = 'sheet' and e.course_status = 'active'`, [involved]);
+           where e.class_id = any($1::bigint[]) and e.origin = 'sheet' and e.course_status = 'active'
+             and e.segment = any($2::text[])`, [involved, missingSegments]);
         let missing = 0;
         for (const e of cand) {
           if (present.has(`${e.class_id}:${e.student_id}`) || latest.get(e.id) === 'missing_from_sheet') continue;
