@@ -76,3 +76,16 @@ test('COMPANY: thiếu cột bắt buộc thì từ chối; B.2 biến mất kh�
   const miss = await t.db.all("select student_code from enrollment_events where event = 'missing_from_sheet'");
   assert.deepEqual(miss.map((m) => m.student_code), ['B.2']);
 });
+
+test('COMPANY: các dòng cùng CUSTOMER ID dùng chung tên công ty; thiếu tên thì /api/classes hiện mã khách hàng', async () => {
+  const noName = (id, cust, company = null) => [id, cust, 'NV ' + id, `${id.toLowerCase()}@c.vn`, '0905555555', 'EBA131', 'Offline', 'Male', null, 'Company', company, null, null];
+  const r = await sync(payload([], [noName('B.11', 'B.07.001', 'Công ty Mặt Trời'), noName('B.12', 'B.07.001'), noName('B.13', 'B.99.009')]));
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  const q = (code) => t.db.one('select e.company_name from enrollments e join students s on s.id = e.student_id where s.student_code = $1', [code]);
+  assert.equal((await q('B.11')).company_name, 'Công ty Mặt Trời');
+  assert.equal((await q('B.12')).company_name, 'Công ty Mặt Trời');   // cùng CUSTOMER ID: lấy tên từ dòng có tên
+  assert.equal((await q('B.13')).company_name, null);                  // chưa có tên ở bất kỳ dòng nào
+  const c = (await admin.get('/api/classes')).body.find((x) => x.short_code === 'EBA131');
+  assert.match(c.companies, /Công ty Mặt Trời/);
+  assert.match(c.companies, /B\.99\.009/);                            // hiện mã khách hàng khi chưa có tên
+});

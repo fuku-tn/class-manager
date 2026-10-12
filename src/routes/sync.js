@@ -51,6 +51,16 @@ function pickColumns(table, allowed, dateCols = []) {
 // Gộp hai bảng về cùng bộ cột (ALLOWED_TX + COMPANY NAME + SEGMENT).
 function mergeSegments(personal, company) {
   const headers = [...ALLOWED_TX, 'COMPANY NAME', 'SEGMENT'];
+  // Tên công ty trong Sheet thường chỉ ghi ở một số dòng: các dòng cùng CUSTOMER ID (mã công ty) dùng chung tên.
+  if (company) {
+    const ci = company.headers.indexOf('CUSTOMER ID');
+    const ni = company.headers.indexOf('COMPANY NAME');
+    if (ci >= 0 && ni >= 0) {
+      const nameOf = new Map();
+      for (const r of company.rows) if (r[ci] && r[ni] && !nameOf.has(r[ci])) nameOf.set(r[ci], r[ni]);
+      company = { headers: company.headers, rows: company.rows.map((r) => (r[ni] || !nameOf.has(r[ci]) ? r : r.map((v, i) => (i === ni ? nameOf.get(r[ci]) : v)))) };
+    }
+  }
   const conv = (table, segment) => table.rows.map((r) => headers.map((h) => (h === 'SEGMENT' ? segment : (() => {
     const i = table.headers.indexOf(h);
     return i >= 0 ? r[i] : null;

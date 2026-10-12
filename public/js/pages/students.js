@@ -122,7 +122,7 @@ export async function renderStudents({ cls, state }) {
     body.replaceChildren(...list.map((r) => h('tr', readOnly ? { class: r.course_status === 'active' ? '' : 'inactive' } : { class: `clickable${r.course_status === 'active' ? '' : ' inactive'}`, tabindex: 0,
       onclick: () => edit(r), onkeydown: (e) => { if (e.key === 'Enter') edit(r); } },
       h('td', {}, r.student_code),
-      h('td', {}, r.full_name, r.segment === 'b2b' ? h('div', { class: 'muted small' }, ['B2B', r.company_name].filter(Boolean).join(' · ')) : null),
+      h('td', {}, r.full_name, r.segment === 'b2b' ? h('div', { class: 'muted small' }, ['B2B', r.company_name || r.customer_id].filter(Boolean).join(' · ')) : null),
       h('td', {}, r.email || '—'), h('td', {}, r.phone || '—'),
       h('td', {}, r.mode || '—'),
       h('td', {}, h('span', { class: `badge ${COURSE_STATUS_BADGE[r.course_status] || ''}` }, COURSE_STATUS_LABEL[r.course_status]),

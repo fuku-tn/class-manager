@@ -15,7 +15,8 @@ module.exports = (db) => {
     const base = `select c.*, ${TIMING_SQL} as timing, ${PHASE_DATES_SQL}, (select count(*)::int from enrollments e where e.class_id = c.id) as student_count,
       (left(split_part(c.code, '.', 3), 1) = 'B' or exists (select 1 from enrollments e where e.class_id = c.id and e.segment = 'b2b')) as is_b2b,
       (left(split_part(c.code, '.', 3), 1) <> 'B' or exists (select 1 from enrollments e where e.class_id = c.id and e.segment = 'b2c')) as is_b2c,
-      (select string_agg(distinct e.company_name, ' · ') from enrollments e where e.class_id = c.id and e.company_name is not null) as companies
+      (select string_agg(distinct coalesce(e.company_name, e.customer_id), ' · ') from enrollments e
+        where e.class_id = c.id and e.segment = 'b2b' and coalesce(e.company_name, e.customer_id) is not null) as companies
       from classes c`;
     const rows = req.user.role === 'admin'
       ? await db.all(`${base} order by c.start_date desc nulls last, c.id desc`)
