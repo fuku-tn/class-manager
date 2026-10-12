@@ -111,10 +111,15 @@ function syncCard(s) {
   const missingNote = s.missing > 0
     ? h('p', { class: 'muted', role: 'status' }, `⚠ ${fmt(s.missing)} học viên đang học nhưng không còn thấy trong Google Sheet — mở trang Học viên của lớp (có nhãn "Không còn trong Sheet") để kiểm tra.`)
     : null;
+  const fp = s.form_pending;
+  const formNote = fp && fp.count > 0
+    ? h('p', { class: 'muted', role: 'status' }, `📝 ${fmt(fp.count)} phiếu đăng ký (FORM) chưa khớp học viên nào (chưa có trong PERSONAL/COMPANY hoặc email trùng nhiều người): ${fp.by_class.slice(0, 8).map((x) => `${x.short_code ?? '?'} (${x.n})`).join(', ')}${fp.by_class.length > 8 ? '…' : ''}.`)
+    : null;
   return h('section', { class: 'card' },
     h('h2', {}, 'Đồng bộ tự động từ Google Sheet'),
     h('p', { class: cls, role: cls === 'error' ? 'alert' : undefined }, line),
     missingNote,
+    formNote,
     h('p', { class: 'muted small' }, 'Mỗi phút Apps Script kiểm tra Sheet và chỉ gửi khi có thay đổi. Chỉ thêm học viên/ghi danh mới và điền chỗ trống; không xóa và không ghi đè phần đã sửa trên web.'));
 }
 

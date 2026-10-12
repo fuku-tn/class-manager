@@ -12,7 +12,7 @@ Excel `Transactions` không còn nằm trên đường đi (vẫn dùng cho báo
 |---|---|---|
 | `PERSONAL` (~2.367 dòng) | **Có** — tương ứng sheet `Transactions` | 10 cột cho phép đều có đủ, trùng tên. Tab còn nhiều cột tiền (FEE, PAYMENT, DEPOSIT, AMOUNT DUE, ACTUAL REVENUE…) — **script không bao giờ đọc** |
 | `COURSE` (~124 lớp) | **Có** | Tên cột `START DATE`, `EXPECTED END DATE` (máy chủ tự đổi về STARTDATE/ENDDATE). Có `LINK MS TEAMS`, `MEETING ID`, `PASS CODE`, cột doanh thu — không đọc |
-| `FORM` (~610 dòng) | Chưa | Phiếu đăng ký (mã lớp, họ tên, SĐT, email, nguồn…) — dùng cho "đăng ký chờ duyệt" sau này |
+| `FORM` (~610 dòng) | **Có** (hồ sơ đăng ký, **chỉ admin xem**) | Chỉ lấy 12 cột đã làm gọn; **không** lấy họ tên, giới tính, ngày sinh, SĐT, email, địa chỉ, tên công ty, kỳ vọng. Email/SĐT chỉ được băm để ghép |
 | `COMPANY` (~754 dòng) | **Có** (học viên B2B) | Cùng cột với PERSONAL + `COMPANY NAME`; **không** lấy ngày sinh và cột tiền. Mỗi ghi danh được gắn nhãn B2B và tên công ty |
 
 Đối chiếu với dữ liệu hiện có (giả lập trong bộ nhớ): file mới chỉ hơn **3 học viên, 4 ghi danh**; 1 dòng thiếu khóa học và 3 dòng khóa "TƯ VẤN" (không có trong COURSE) bị bỏ qua; 86 lớp chưa có giáo trình; 1 email nhiều mã, 7 mã nhiều email, 2 SĐT nhiều mã (đã biết từ trước).
@@ -37,6 +37,12 @@ Tạm dừng: chạy hàm `stop`. Bật lại: chạy `setup`.
 - Lớp là **B2B** nếu mã lớp mang chữ `B` (vd `P2.BIE.B067...`) hoặc có học viên từ COMPANY; **B2C** nếu chữ khác `B` hoặc có học viên cá nhân. Lớp có cả hai hiện ở **cả hai bộ lọc**.
 - Bộ lọc chip **B2C / B2B** ở ô chọn lớp và trang Lớp học (đếm theo bộ lọc thời gian đang chọn). Gõ tìm thì tìm trong tất cả lớp.
 - Nếu script chưa gửi tab COMPANY thì app **không** dò "không còn trong Sheet" cho học viên B2B.
+
+## FORM (phiếu đăng ký) → hồ sơ học viên
+- **Cột lấy (đã làm gọn):** thời gian đăng ký, mã lớp, hình thức học, vị trí, kinh nghiệm (theo khoảng), phòng ban (phần tiếng Việt), HR function, lĩnh vực, tỉnh/TP, nguồn biết đến (gom 5 nhóm), hình thức nhận giáo trình, **mục tiêu tham gia** (8 lựa chọn → nhãn ngắn: Tư duy phân tích · Thành thạo công cụ · Ra quyết định · Chứng chỉ · CV/chuyển việc · Kiến thức kinh doanh · Chuyển ngành · Theo yêu cầu công ty; chữ tự do → "Khác", không lưu).
+- **Không lấy và không bao giờ đọc:** Họ và tên, Giới tính, Ngày sinh, Địa chỉ liên hệ, Tên công ty, Địa chỉ nhận tại nhà, Kỳ vọng sau khóa học. Email và Số điện thoại chỉ được **băm SHA-256 ngay trong Google** (email thường hóa; SĐT lấy 9 số cuối) rồi mới gửi; giá trị gốc không rời Google.
+- **Ghép:** mã băm email (hoặc SĐT) + đúng mã lớp → ghi danh của lớp đó. Ghép được duy nhất một → hồ sơ của ghi danh (phiếu mới nhất thắng) và **bỏ mã băm**. Không khớp/mơ hồ (email dùng chung nhiều người trong cùng lớp) → "**chờ xử lý**" (giữ mã băm để ghép lại ở lần đồng bộ sau, khi học viên được đăng ký).
+- **Hiển thị:** chỉ **admin** — khối "Hồ sơ đăng ký (FORM)" trong hộp sửa học viên, thẻ "Hồ sơ lớp từ phiếu đăng ký" ở Dashboard, và số phiếu chờ xử lý ở trang Nhập Excel. Giảng viên/khách bị chặn (403).
 
 ## Quy tắc đồng bộ
 | Việc | Hành vi |

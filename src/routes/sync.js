@@ -5,6 +5,7 @@ const crypto = require('node:crypto');
 const express = require('express');
 const realtime = require('../services/realtime');
 const { ALLOWED_TX, ALLOWED_COURSE } = require('../services/importTransactions');
+const { FORM_COLUMNS, applyForms } = require('../services/formProfile');
 
 // Tab COURSE của Google Sheet dùng tên cột "START DATE"/"EXPECTED END DATE" (Excel/Power Query đổi thành STARTDATE/ENDDATE).
 const COURSE_ALIASES = { 'START DATE': 'STARTDATE', 'EXPECTED END DATE': 'ENDDATE' };
@@ -123,6 +124,12 @@ module.exports = (db) => {
         missingSegments: company ? ['b2c', 'b2b'] : ['b2c'], // chưa gửi COMPANY thì không dò B2B
       });
       if (suspicious) brief.missing_detection_skipped = true;
+      // Tab FORM: hồ sơ đăng ký (đã bỏ thông tin cá nhân ở Apps Script; máy chủ lọc lại theo FORM_COLUMNS).
+      if (req.body?.form) {
+        const form = pickColumns(req.body.form, FORM_COLUMNS);
+        if (!form.headers.includes('COURSE')) throw httpError(422, 'Thiếu cột Mã lớp trong sheet FORM');
+        brief.form = await applyForms(db, form);
+      }
       const changed = Object.values(brief.added ?? {}).some((n) => n > 0);
       if (changed) await realtime.publishMany(class_ids.flatMap((classId) => [{ classId, payload: { kind: 'attendance' } }]));
       await log(true, brief, null);
@@ -146,3 +153,4 @@ module.exports = (db) => {
 };
 module.exports.SYNC_COURSE_COLUMNS = SYNC_COURSE_COLUMNS;
 module.exports.SYNC_COMPANY_COLUMNS = SYNC_COMPANY_COLUMNS;
+module.exports.FORM_COLUMNS = FORM_COLUMNS;

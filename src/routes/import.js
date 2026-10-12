@@ -18,7 +18,10 @@ module.exports = (db) => {
       `select count(*)::int as n from (select distinct on (enrollment_id) enrollment_id, event from enrollment_events
          where enrollment_id is not null order by enrollment_id, id desc) l
        join enrollments e on e.id = l.enrollment_id and e.course_status = 'active' where l.event = 'missing_from_sheet'`)).n;
-    res.json({ enabled: !!process.env.SYNC_TOKEN, runs, missing });
+    const pending = await db.all(
+      `select short_code, count(*)::int as n from registration_forms where enrollment_id is null group by short_code order by n desc, short_code limit 20`);
+    const formPending = { count: pending.reduce((a, r) => a + r.n, 0), by_class: pending };
+    res.json({ enabled: !!process.env.SYNC_TOKEN, runs, missing, form_pending: formPending });
   });
 
   function readFile(req, res) {

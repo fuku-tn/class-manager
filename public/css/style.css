@@ -220,6 +220,17 @@ span.cell:focus-within { outline: 2px solid var(--gold); outline-offset: 2px; }
 .legend .cell:hover { filter: none; }
 .badge.seg-b2b { background: var(--warn-bg); color: var(--warn); font-size: .7rem; padding: .02rem .5rem; }
 .badge.seg-b2c { background: var(--info-bg); color: var(--info); font-size: .7rem; padding: .02rem .5rem; }
+.profile { margin: .8rem 0; padding: .7rem .9rem; border: 1px solid var(--border); border-radius: 12px; }
+.profile dl { display: grid; grid-template-columns: max-content 1fr; gap: .2rem .9rem; margin: .5rem 0 0; font-size: .88rem; }
+.profile dt { color: var(--muted); }
+.profile dd { margin: 0; }
+.prof-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem 1.6rem; margin-top: .8rem; }
+.prof-sec h3 { margin: 0 0 .45rem; font-size: .92rem; }
+.bar-row { display: grid; grid-template-columns: minmax(90px, 40%) 1fr 2.2rem; align-items: center; gap: .55rem; margin: .28rem 0; font-size: .84rem; }
+.bar-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar-track { height: 7px; border-radius: 99px; background: var(--border); overflow: hidden; }
+.bar-track i { display: block; height: 100%; border-radius: 99px; background: var(--btn-gold); }
+.bar-n { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
 .sess-count { font-size: .78rem; font-weight: 650; font-variant-numeric: tabular-nums; letter-spacing: 0; text-transform: none; }
 .sess-actions { display: flex; flex-wrap: wrap; gap: .25rem; justify-content: center; }
 .sort-label { display: inline-flex; align-items: center; gap: .5rem; color: var(--muted); font-size: .88rem; }

@@ -4,6 +4,7 @@ const { requireAdmin, requireClassAccess } = require('../auth');
 const { loadClassData, computeEnrollmentStats, sessionSummaries } = require('../services/stats');
 const realtime = require('../services/realtime');
 const { logEvents, latestEvents } = require('../services/history');
+const { tally } = require('../services/formProfile');
 
 const MODES = ['Online', 'Offline', 'Hybrid'];
 const COURSE_STATUS = ['active', 'deferred', 'dropped', 'completed'];
@@ -94,6 +95,29 @@ module.exports = (db) => {
       await t.run('delete from enrollments where id = $1', [e.id]);
     });
     res.json({ ok: true });
+  });
+
+  // Hồ sơ đăng ký (FORM) của lớp: CHỈ admin. Đã loại thông tin cá nhân; có tổng hợp theo lớp.
+  router.get('/profiles', requireAdmin, async (req, res) => {
+    const rows = await db.all(
+      `select r.enrollment_id, r.submitted_at, r.delivery, r.department, r.job_title, r.hr_function, r.industry, r.province,
+              r.experience, r.sources, r.material_delivery, r.goals
+       from registration_forms r join enrollments e on e.id = r.enrollment_id where e.class_id = $1`, [req.cls.id]);
+    const total = (await db.one('select count(*)::int as n from enrollments where class_id = $1', [req.cls.id])).n;
+    const arr = (v) => (Array.isArray(v) ? v : []);
+    res.json({
+      total, with_form: rows.length,
+      summary: {
+        delivery: tally(rows.map((r) => r.delivery)),
+        department: tally(rows.map((r) => r.department)),
+        job_title: tally(rows.map((r) => r.job_title)),
+        experience: tally(rows.map((r) => r.experience)),
+        sources: tally(rows.flatMap((r) => arr(r.sources))),
+        goals: tally(rows.flatMap((r) => arr(r.goals))),
+        province: tally(rows.map((r) => r.province)),
+      },
+      items: Object.fromEntries(rows.map((r) => [r.enrollment_id, r])),
+    });
   });
 
   // Lịch sử thay đổi ghi danh của lớp (100 sự kiện gần nhất).

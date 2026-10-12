@@ -15,6 +15,7 @@ const CONFIG = {
   SHEET_TRANSACTIONS: ['PERSONAL', 'Transactions'], // tên tab chứa đăng ký học (lấy tab đầu tiên tìm thấy)
   SHEET_COURSE: ['COURSE', 'Course'],               // tên tab danh sách lớp (không có thì máy chủ dùng danh sách lớp sẵn có)
   SHEET_COMPANY: ['COMPANY'],                       // tên tab học viên B2B (không có thì chỉ đồng bộ B2C)
+  SHEET_FORM: ['FORM'],                             // tên tab phiếu đăng ký (không có thì bỏ qua)
   HEADER_ROW: 0,                      // 0 = tự tìm dòng tiêu đề (dòng 1 thường là dòng tổng); hoặc ghi cố định số dòng, vd 2
   MAX_HEADER_ROW: 10,                 // chỉ tìm tiêu đề trong 10 dòng đầu
   FALLBACK_HEADER_ROW: 2,             // dùng khi không tự tìm được
@@ -26,6 +27,25 @@ const ALLOWED_TX = ['STUDENT ID', 'CUSTOMER ID', 'FULL NAME', 'EMAIL', 'PHONE', 
 const ALLOWED_COURSE = ['COURSE', 'COURSE ID', 'STARTDATE', 'ENDDATE', 'NEXT COURSE', 'START DATE', 'EXPECTED END DATE'];
 // Tab COMPANY: cùng cột với PERSONAL + tên công ty (không lấy ngày sinh, không lấy cột tiền).
 const ALLOWED_COMPANY = ALLOWED_TX.concat(['COMPANY NAME']);
+
+// Tab FORM: CHỈ các cột dưới đây được gửi (tên cột Tiếng Việt viết HOA -> tên chuẩn). Các cột KHÔNG có trong danh sách
+// (Họ và tên, Giới tính, Ngày sinh, Địa chỉ liên hệ, Tên công ty, Địa chỉ nhận tại nhà, Kỳ vọng sau khóa học...) không bao giờ được đọc.
+const FORM_MAP = {
+  'THỜI GIAN ĐĂNG KÝ': 'SUBMITTED AT',
+  'MÃ LỚP': 'COURSE',
+  'HÌNH THỨC HỌC': 'DELIVERY',
+  'VỊ TRÍ LÀM VIỆC': 'JOB TITLE',
+  'KINH NGHIỆM (NĂM)': 'EXPERIENCE',
+  'PHÒNG BAN': 'DEPARTMENT',
+  'HR FUNCTION (NẾU CÓ)': 'HR FUNCTION',
+  'LĨNH VỰC KINH DOANH': 'INDUSTRY',
+  'TỈNH/THÀNH PHỐ': 'PROVINCE',
+  'NGUỒN BIẾT ĐẾN': 'SOURCE',
+  'HÌNH THỨC NHẬN GIÁO TRÌNH': 'MATERIAL DELIVERY',
+  'MỤC TIÊU THAM GIA': 'GOALS',
+};
+// Chỉ để BĂM rồi mới gửi (giá trị gốc không bao giờ rời Google): ghép phiếu với học viên đã đăng ký.
+const FORM_HASHED = { 'EMAIL': 'EMAIL HASH', 'SỐ ĐIỆN THOẠI': 'PHONE HASH' };
 
 /** Chạy MỘT lần: tạo bộ hẹn giờ rồi đồng bộ ngay. */
 function setup() {
@@ -69,9 +89,12 @@ function syncNow(forceArg) {
 
     const company = readTable_(findSheet_(ss, CONFIG.SHEET_COMPANY), ALLOWED_COMPANY, [], 'STUDENT ID');
 
+    const form = readForm_(findSheet_(ss, CONFIG.SHEET_FORM));
+
     const payload = { transactions: transactions };
     if (course) payload.course = course;
     if (company) payload.company = company;
+    if (form) payload.form = form;
     const body = JSON.stringify(payload);
     const hash = toHex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, body, Utilities.Charset.UTF_8));
     const lastHash = props.getProperty('LAST_HASH');
@@ -100,7 +123,7 @@ function syncNow(forceArg) {
  * Đọc một tab nhưng CHỈ các cột trong `allowed` (đọc từng cột một; cột khác không bao giờ bị đọc).
  * Trả về { headers: [...], rows: [[...], ...] } hoặc null nếu không có tab / trống.
  */
-function readTable_(sheet, allowed, dateCols, keyHeader) {
+function readTable_(sheet, allowed, dateCols, keyHeader, dateFormat) {
   if (!sheet) return null;
   const lastRow = sheet.getLastRow();
   const lastCol = sheet.getLastColumn();
@@ -112,7 +135,7 @@ function readTable_(sheet, allowed, dateCols, keyHeader) {
   const cols = []; // { name, index (1-based) }
   const seen = {};
   titles.forEach(function (v, i) {
-    const name = String(v == null ? '' : v).trim().toUpperCase().replace(/\s+/g, ' ');
+    const name = String(v == null ? '' : v).trim().normalize('NFC').toUpperCase().replace(/\s+/g, ' ');
     if (allowed.indexOf(name) >= 0 && !seen[name]) { seen[name] = true; cols.push({ name: name, index: i + 1 }); }
   });
   if (!cols.length) return null;
@@ -121,7 +144,7 @@ function readTable_(sheet, allowed, dateCols, keyHeader) {
   const data = cols.map(function (c) {
     return sheet.getRange(headerRow + 1, c.index, n, 1).getValues().map(function (r) {
       let v = r[0];
-      if (v instanceof Date) v = Utilities.formatDate(v, tz, 'yyyy-MM-dd'); // ngày không bị lệch múi giờ
+      if (v instanceof Date) v = Utilities.formatDate(v, tz, dateFormat || 'yyyy-MM-dd'); // ngày không bị lệch múi giờ
       return v === '' ? null : v;
     });
   });
@@ -131,6 +154,38 @@ function readTable_(sheet, allowed, dateCols, keyHeader) {
     if (row.some(function (v) { return v !== null; })) rows.push(row); // bỏ dòng trống
   }
   return { headers: cols.map(function (c) { return c.name; }), rows: rows };
+}
+
+/**
+ * Đọc tab FORM: chỉ các cột trong FORM_MAP; email và số điện thoại được BĂM (SHA-256) ngay tại đây,
+ * giá trị gốc không được đưa vào dữ liệu gửi đi. Chuẩn hóa phải khớp src/services/formProfile.js.
+ */
+function readForm_(sheet) {
+  const allowed = Object.keys(FORM_MAP).concat(Object.keys(FORM_HASHED));
+  const t = readTable_(sheet, allowed, [], 'Mã lớp', "yyyy-MM-dd'T'HH:mm:ssXXX");
+  if (!t) return null;
+  const headers = t.headers.map(function (h) { return FORM_MAP[h] || FORM_HASHED[h]; });
+  const rows = t.rows.map(function (r) {
+    return r.map(function (v, i) {
+      const h = t.headers[i];
+      if (h === 'EMAIL') return hashEmail_(v);
+      if (h === 'SỐ ĐIỆN THOẠI') return hashPhone_(v);
+      return v;
+    });
+  });
+  return { headers: headers, rows: rows };
+}
+
+function sha256_(s) {
+  return toHex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, s, Utilities.Charset.UTF_8));
+}
+function hashEmail_(v) {
+  const e = String(v == null ? '' : v).trim().toLowerCase();
+  return e.indexOf('@') >= 0 ? sha256_(e) : null;
+}
+function hashPhone_(v) {
+  const d = String(v == null ? '' : v).replace(/\D/g, '');
+  return d.length >= 8 ? sha256_(d.slice(-9)) : null;
 }
 
 /**

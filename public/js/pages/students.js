@@ -19,6 +19,8 @@ export async function renderStudents({ cls, state }) {
   const readOnly = state.user.role === 'guest'; // khách chỉ xem
   const base = `/api/classes/${cls.id}`;
   let rows = await get(`${base}/students`);
+  // Hồ sơ đăng ký (FORM): chỉ admin; lỗi/không có thì bỏ qua.
+  const profiles = state.user.role === 'admin' ? await get(`${base}/profiles`).catch(() => null) : null;
   const search = h('input', { type: 'search', placeholder: 'Tìm theo tên, mã, email…', 'aria-label': 'Tìm học viên' });
   const status = h('select', { 'aria-label': 'Lọc trạng thái' }, h('option', { value: '' }, 'Mọi trạng thái'), STATUS_OPTIONS.map(([v, l]) => h('option', { value: v }, l)));
   const mode = h('select', { 'aria-label': 'Lọc hình thức' }, h('option', { value: '' }, 'Mọi hình thức'), MODE_OPTIONS.slice(1).map(([v, l]) => h('option', { value: v }, l)));
@@ -31,6 +33,20 @@ export async function renderStudents({ cls, state }) {
       (!q || [r.full_name, r.student_code, r.email, r.phone].some((x) => String(x ?? '').toLowerCase().includes(q))) &&
       (!status.value || r.course_status === status.value) && (!mode.value || r.mode === mode.value));
   };
+
+  const PROFILE_FIELDS = [['department', 'Phòng ban'], ['job_title', 'Vị trí'], ['hr_function', 'HR Function'], ['experience', 'Kinh nghiệm'],
+    ['industry', 'Lĩnh vực'], ['province', 'Tỉnh/TP'], ['delivery', 'Hình thức học'], ['material_delivery', 'Nhận giáo trình'],
+    ['sources', 'Nguồn biết đến'], ['goals', 'Mục tiêu tham gia']];
+  function profileBlock(r) {
+    const p = profiles?.items?.[r.id];
+    if (!profiles) return null;
+    if (!p) return h('p', { class: 'muted small' }, 'Chưa có phiếu đăng ký (FORM) khớp với học viên này.');
+    const show = (v) => (Array.isArray(v) ? v.join(' · ') : v);
+    return h('div', { class: 'profile' },
+      h('div', { class: 'eyebrow' }, `Hồ sơ đăng ký (FORM)${p.submitted_at ? ` · ${fmtWhen(p.submitted_at)}` : ''}`),
+      h('dl', {}, PROFILE_FIELDS.filter(([k]) => (Array.isArray(p[k]) ? p[k].length : p[k])).flatMap(([k, label]) =>
+        [h('dt', {}, label), h('dd', {}, show(p[k]))])));
+  }
 
   async function reload() { rows = await get(`${base}/students`); paint(); if (historyBox.open) await refreshHistory(); }
 
@@ -66,7 +82,7 @@ export async function renderStudents({ cls, state }) {
       { name: 'certificate_status', label: 'Chứng chỉ', value: r.certificate_status },
       { name: 'note', label: 'Ghi chú', type: 'textarea', value: r.note, full: true }],
     // Chỉ admin thấy nút này (máy chủ cũng chặn tài khoản khác). Bắt buộc có lý do; việc gỡ được ghi vào Lịch sử thay đổi.
-    extra: state.user.role === 'admin' && h('button', { type: 'button', class: 'danger', onclick: async () => {
+    extra: state.user.role === 'admin' && h('div', {}, profileBlock(r), h('button', { type: 'button', class: 'danger', onclick: async () => {
       const why = await formModal({
         title: `Gỡ ${r.full_name} khỏi lớp ${classDisplayName(cls)}`, submitLabel: 'Gỡ khỏi lớp',
         fields: [{ name: 'reason', label: 'Lý do gỡ khỏi lớp (bắt buộc)', type: 'textarea', required: true, full: true }],
@@ -79,7 +95,7 @@ export async function renderStudents({ cls, state }) {
         await reload(); await refreshHistory();
         toast('Đã gỡ khỏi lớp');
       } catch (e) { toast(e.message, true); }
-    } }, 'Gỡ khỏi lớp') });
+    } }, 'Gỡ khỏi lớp')) });
     if (!v) return;
     try {
       await put(`${base}/students/${r.id}`, {

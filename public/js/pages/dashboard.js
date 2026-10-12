@@ -13,7 +13,26 @@ function chartBox(title, hint, emptyText) {
 const shortcut = (href, iconName, title, text) =>
   h('a', { class: 'shortcut', href }, icon(iconName), h('b', {}, title), h('span', {}, text), h('div', { class: 'go' }, icon('arrow')));
 
-export async function renderDashboard({ cls }) {
+const PROFILE_SECTIONS = [['department', 'Phòng ban'], ['goals', 'Mục tiêu tham gia'], ['experience', 'Kinh nghiệm'], ['sources', 'Nguồn biết đến'], ['job_title', 'Vị trí'], ['delivery', 'Hình thức học']];
+function profileCard(p) {
+  const section = ([key, title]) => {
+    const list = (p.summary[key] ?? []).slice(0, 6);
+    if (!list.length) return null;
+    const max = Math.max(...list.map((x) => x.count));
+    return h('div', { class: 'prof-sec' }, h('h3', {}, title),
+      list.map((x) => h('div', { class: 'bar-row' },
+        h('span', { class: 'bar-label', title: x.label }, x.label),
+        h('span', { class: 'bar-track' }, h('i', { style: `width:${Math.round((x.count / max) * 100)}%` })),
+        h('span', { class: 'bar-n' }, x.count))));
+  };
+  return h('section', { class: 'card' },
+    h('div', { class: 'eyebrow' }, 'Chỉ admin'),
+    h('h2', {}, 'Hồ sơ lớp từ phiếu đăng ký'),
+    h('p', { class: 'muted small' }, `${p.with_form}/${p.total} học viên có phiếu đăng ký (FORM). Đã loại thông tin cá nhân (họ tên, SĐT, email, địa chỉ, ngày sinh, tên công ty).`),
+    h('div', { class: 'prof-grid' }, PROFILE_SECTIONS.map(section)));
+}
+
+export async function renderDashboard({ cls, state }) {
   const d = await get(`/api/classes/${cls.id}/dashboard`);
   const t = d.totals;
   const kpi = (label, value, bad) => h('div', { class: `kpi${bad ? ' bad' : ''}` }, h('div', { class: 'label' }, label), h('div', { class: 'value' }, value));
@@ -51,6 +70,12 @@ export async function renderDashboard({ cls }) {
   const b = chartBox('Nộp bài tập', 'Số học viên đang học theo trạng thái nộp', d.by_assignment.some((x) => x.collected) ? null : 'Chưa thu bài tập nào.');
   const c = chartBox('Hình thức học', 'Phân bố học viên đang học');
   root.append(h('div', { class: 'grid2' }, a.el, b.el, c.el));
+
+  // Hồ sơ lớp từ phiếu đăng ký (FORM): chỉ admin. Đã loại thông tin cá nhân, chỉ có số liệu tổng hợp.
+  if (state?.user?.role === 'admin') {
+    const prof = await get(`/api/classes/${cls.id}/profiles`).catch(() => null);
+    if (prof && prof.with_form > 0) root.append(profileCard(prof));
+  }
 
   // Chart cần canvas đã nằm trong DOM → vẽ ở tick sau.
   setTimeout(() => {
