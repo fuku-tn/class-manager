@@ -19,6 +19,12 @@ const CASES = [
   ['GRAD2', vn(-80), vn(-28), 'graduation'],  // đúng +28: còn công bố tốt nghiệp
   ['FIN', vn(-90), vn(-29), 'finished'],      // +29: đã kết thúc hẳn
 ];
+// Lớp B2B (mã có chữ B): kết thúc ngay trong ngày buổi cuối, không có +14 ngày chấm bài / +14 ngày công bố
+const B2B_CASES = [
+  ['P1.EBA.B900.OF.MA.010126', vn(-20), vn(0), 'running'],      // hôm nay là buổi cuối: vẫn đang học
+  ['P1.EBA.B901.OF.MA.010126', vn(-20), vn(-1), 'finished'],    // hôm sau đã kết thúc (lớp cá nhân sẽ là nộp & chấm bài)
+  ['P1.EBA.P902.OF.MA.010126', vn(-20), vn(-1), 'grading'],     // đối chứng: lớp cá nhân cùng ngày
+];
 
 before(async () => {
   F = await import('../public/js/class-filter.mjs');
@@ -32,6 +38,9 @@ before(async () => {
     await t.db.run("insert into students (student_code, full_name) values ($1, $1) on conflict do nothing", ['S-' + code]);
     await t.db.run("insert into enrollments (class_id, student_id) select $1, id from students where student_code = $2", [ids[code], 'S-' + code]);
   }
+  for (const [code, start, end] of B2B_CASES) {
+    ids[code] = (await t.db.one('insert into classes (code, name, short_code, start_date, end_date) values ($1, $1, $1, $2, $3) returning id', [code, start, end])).id;
+  }
   await admin.put(`/api/users/${gvId}/classes`, { class_ids: [ids.GRD1] });
 });
 after(async () => { await t.close(); });
@@ -40,6 +49,16 @@ test('giai đoạn của lớp: đang học → nộp & chấm bài (+14 ngày) 
   const list = (await admin.get('/api/classes')).body;
   const timing = Object.fromEntries(list.map((c) => [c.code, c.timing]));
   for (const [code, , , expected] of CASES) assert.equal(timing[code], expected, code);
+});
+
+test('lớp B2B kết thúc trong ngày buổi cuối; các mốc ngày trùng buổi cuối', async () => {
+  const list = (await admin.get('/api/classes')).body;
+  const by = Object.fromEntries(list.map((c) => [c.code, c]));
+  for (const [code, , , expected] of B2B_CASES) assert.equal(by[code].timing, expected, code);
+  const b = by['P1.EBA.B901.OF.MA.010126'];
+  assert.deepEqual([b.last_session_date, b.grading_until, b.graduation_on], [vn(-1), vn(-1), vn(-1)]);
+  const p = by['P1.EBA.P902.OF.MA.010126'];
+  assert.deepEqual([p.grading_until, p.graduation_on], [vn(+13), vn(+27)]);
 });
 
 test('lớp trả về các mốc ngày: buổi cuối, hạn nộp bài (+14), công bố tốt nghiệp (+28)', async () => {
@@ -57,10 +76,10 @@ test('lớp trả về các mốc ngày: buổi cuối, hạn nộp bài (+14), 
 
 test('tổng quan trang chủ: lớp nộp/chấm bài và công bố tốt nghiệp vẫn là lớp hoạt động', async () => {
   const r = (await admin.get('/api/overview')).body;
-  assert.equal(r.totals.running, 2);
-  assert.equal(r.totals.grading, 2);
+  assert.equal(r.totals.running, 3);          // + lớp B2B đang ở buổi cuối
+  assert.equal(r.totals.grading, 3);          // + lớp cá nhân đối chứng
   assert.equal(r.totals.graduation, 2);
-  assert.equal(r.totals.active, 6);
+  assert.equal(r.totals.active, 8);
   const order = r.featured.map((c) => c.timing);
   assert.deepEqual(order, [...order].sort((a, b) => ['running', 'grading', 'graduation'].indexOf(a) - ['running', 'grading', 'graduation'].indexOf(b)));
   assert.ok(r.featured.every((c) => ['running', 'grading', 'graduation'].includes(c.timing)));
@@ -75,9 +94,9 @@ test('tổng quan trang chủ: lớp nộp/chấm bài và công bố tốt nghi
 test('bộ lọc phía trình duyệt: nhóm "Đang hoạt động", chip và mặc định', async () => {
   const list = (await admin.get('/api/classes')).body;
   const counts = F.countByTiming(list);
-  assert.deepEqual([counts.running, counts.grading, counts.graduation, counts.active, counts.upcoming, counts.finished], [2, 2, 2, 6, 1, 1]);
-  assert.equal(F.filterClasses(list, { timing: 'active' }).length, 6);
-  assert.equal(F.filterClasses(list, { timing: 'grading' }).length, 2);
+  assert.deepEqual([counts.running, counts.grading, counts.graduation, counts.active, counts.upcoming, counts.finished], [3, 3, 2, 8, 1, 2]);
+  assert.equal(F.filterClasses(list, { timing: 'active' }).length, 8);
+  assert.equal(F.filterClasses(list, { timing: 'grading' }).length, 3);
   assert.equal(F.defaultTiming(list), 'active');   // có lớp đang chấm bài/công bố → mặc định hiện cả nhóm
   assert.deepEqual(F.timingChipKeys(counts), ['all', 'active', 'running', 'grading', 'graduation', 'upcoming', 'finished']);
   // chỉ có lớp đang học: không lặp chip "Đang hoạt động"

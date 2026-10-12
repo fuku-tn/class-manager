@@ -160,7 +160,9 @@ export async function renderGraduation({ cls, state }) {
     h('div', { class: 'page-head' }, h('h1', {}, 'Tốt nghiệp'), h('span', { class: 'muted', title: cls.code }, classDisplayName(cls)),
       h('span', { class: `badge ${{ running: 'ok', grading: 'warn', graduation: 'warn' }[c0.timing] ?? ''}` }, TIMING_LABEL[c0.timing] ?? '')),
     c0.last_session_date ? h('p', { class: 'muted small' },
-      `Buổi cuối ${fmtDate(c0.last_session_date)} · Nộp & chấm bài đến ${fmtDate(c0.grading_until)} · Công bố tốt nghiệp ${fmtDate(c0.graduation_on)}`) : null,
+      c0.grading_until === c0.last_session_date
+        ? `Buổi cuối ${fmtDate(c0.last_session_date)} · Lớp B2B kết thúc trong ngày buổi cuối`
+        : `Buổi cuối ${fmtDate(c0.last_session_date)} · Nộp & chấm bài đến ${fmtDate(c0.grading_until)} · Công bố tốt nghiệp ${fmtDate(c0.graduation_on)}`) : null,
     bannerEl, rulesEl, summaryEl, actionsEl,
     h('div', { class: 'table-wrap' }, h('table', {},
       h('thead', {}, h('tr', {}, ['Học viên', 'Chuyên cần', 'HW', 'Capstone', 'Gợi ý', 'Kết quả', 'Chứng chỉ / ghi chú', ''].map((x) => h('th', {}, x)))),

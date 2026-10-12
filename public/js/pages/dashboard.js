@@ -45,7 +45,9 @@ export async function renderDashboard({ cls, state }) {
         h('h1', {}, 'Theo dõi lớp ', h('span', { class: 'accent', title: cls.code }, classDisplayName(cls))),
         h('p', {}, `${t.active} học viên đang học · ${t.held_sessions}/${t.total_sessions} buổi đã diễn ra. Điểm danh, bài tập và cảnh báo được tổng hợp tự động.`),
         cls.last_session_date ? h('p', { class: 'muted small phase-line' },
-          `Buổi cuối ${fmtDate(cls.last_session_date)} · Nộp & chấm bài đến ${fmtDate(cls.grading_until)} · Công bố tốt nghiệp ${fmtDate(cls.graduation_on)}`) : null),
+          cls.grading_until === cls.last_session_date
+            ? `Buổi cuối ${fmtDate(cls.last_session_date)} · Lớp B2B kết thúc trong ngày buổi cuối`
+            : `Buổi cuối ${fmtDate(cls.last_session_date)} · Nộp & chấm bài đến ${fmtDate(cls.grading_until)} · Công bố tốt nghiệp ${fmtDate(cls.graduation_on)}`) : null),
       h('div', { class: 'hero-card' },
         h('div', { class: 'label' }, 'Chuyên cần trung bình'),
         h('div', { class: 'big' }, pct(t.avg_attendance_rate)),
