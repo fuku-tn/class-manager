@@ -231,6 +231,7 @@ span.cell:focus-within { outline: 2px solid var(--gold); outline-offset: 2px; }
 .bar-track { height: 7px; border-radius: 99px; background: var(--border); overflow: hidden; }
 .bar-track i { display: block; height: 100%; border-radius: 99px; background: var(--btn-gold); }
 .bar-n { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+.grad-sel { min-width: 8.5rem; padding: .3rem .6rem; border-radius: 999px; }
 .sess-count { font-size: .78rem; font-weight: 650; font-variant-numeric: tabular-nums; letter-spacing: 0; text-transform: none; }
 .sess-actions { display: flex; flex-wrap: wrap; gap: .25rem; justify-content: center; }
 .sort-label { display: inline-flex; align-items: center; gap: .5rem; color: var(--muted); font-size: .88rem; }

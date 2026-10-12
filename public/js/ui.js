@@ -123,6 +123,7 @@ const ICONS = {
   students: [['path', { d: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2' }], ['circle', { cx: 9, cy: 7, r: 4 }], ['path', { d: 'M22 21v-2a4 4 0 0 0-3-3.87' }], ['path', { d: 'M16 3.13a4 4 0 0 1 0 7.75' }]],
   attendance: [['rect', { x: 3, y: 4, width: 18, height: 18, rx: 2 }], ['path', { d: 'M16 2v4M8 2v4M3 10h18' }], ['path', { d: 'm9 16 2 2 4-4' }]],
   homework: [['path', { d: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z' }], ['path', { d: 'M14 2v6h6M16 13H8M16 17H8' }]],
+  graduation: [['path', { d: 'm2 9 10-5 10 5-10 5z' }], ['path', { d: 'M6 11.5V16c0 1.5 2.7 3 6 3s6-1.5 6-3v-4.5' }], ['path', { d: 'M22 9v6' }]],
   classes: [['path', { d: 'm12 2 10 5-10 5L2 7z' }], ['path', { d: 'm2 17 10 5 10-5M2 12l10 5 10-5' }]],
   users: [['path', { d: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' }]],
   arrow: [['path', { d: 'M5 12h14M12 5l7 7-7 7' }]],

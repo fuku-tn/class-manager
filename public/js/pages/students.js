@@ -7,8 +7,10 @@ const STATUS_OPTIONS = Object.entries(COURSE_STATUS_LABEL);
 
 const EVENT_LABEL = {
   enrolled: 'Được thêm vào lớp', status_changed: 'Đổi trạng thái', removed: 'Gỡ khỏi lớp',
-  missing_from_sheet: 'Không còn thấy trong Google Sheet', reappeared: 'Xuất hiện lại trong Google Sheet',
+  missing_from_sheet: 'Không còn thấy trong Google Sheet', reappeared: 'Xuất hiện lại trong Google Sheet', graduation: 'Kết quả tốt nghiệp',
 };
+const GRAD_LABEL = { pending: 'Chưa xét', passed: 'Tốt nghiệp', failed: 'Chưa đạt' };
+const statusLabel = (v) => COURSE_STATUS_LABEL[v] ?? GRAD_LABEL[v] ?? '—';
 const SOURCE_LABEL = { web: 'Web', sync: 'Google Sheet', import: 'Nhập Excel' };
 const fmtWhen = (iso) => {
   const d = new Date(iso);
@@ -63,7 +65,7 @@ export async function renderStudents({ cls, state }) {
             h('td', {}, fmtWhen(x.created_at)),
             h('td', {}, `${x.full_name ?? ''} `, h('span', { class: 'muted small' }, x.student_code ?? '')),
             h('td', {}, EVENT_LABEL[x.event] ?? x.event),
-            h('td', {}, x.from_status || x.to_status ? `${COURSE_STATUS_LABEL[x.from_status] ?? '—'} → ${COURSE_STATUS_LABEL[x.to_status] ?? '—'}` : '—'),
+            h('td', {}, x.from_status || x.to_status ? `${statusLabel(x.from_status)} → ${statusLabel(x.to_status)}` : '—'),
             h('td', {}, SOURCE_LABEL[x.source] ?? x.source),
             h('td', {}, x.actor_name || '—'),
             h('td', {}, x.note || ''))))))

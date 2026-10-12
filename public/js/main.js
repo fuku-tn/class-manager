@@ -5,6 +5,7 @@ import { renderDashboard } from './pages/dashboard.js';
 import { renderStudents } from './pages/students.js';
 import { renderAttendance } from './pages/attendance.js';
 import { renderHomework } from './pages/homework.js';
+import { renderGraduation } from './pages/graduation.js';
 import { renderClasses } from './pages/classes.js';
 import { renderUsers } from './pages/users.js';
 import { renderImport } from './pages/import.js';
@@ -24,6 +25,7 @@ const TABS = [
   ['students', 'Học viên', renderStudents],
   ['attendance', 'Điểm danh', renderAttendance],
   ['homework', 'Bài tập', renderHomework],
+  ['graduation', 'Tốt nghiệp', renderGraduation],
 ];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;

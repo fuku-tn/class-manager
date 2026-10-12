@@ -116,3 +116,10 @@ Excel là bảng "rộng" (mỗi buổi = 2 cột). Cơ sở dữ liệu nên l�
 - Ba giai đoạn đầu sau khi mở (đang học, nộp & chấm bài, công bố tốt nghiệp) gọi chung là lớp **đang hoạt động**: vẫn hiện ở Trang chủ, chọn lớp mặc định và có thể điểm danh/ghi bài tập.
 - Mốc ngày tính theo múi giờ Việt Nam; thiếu ngày kết thúc thì lấy ngày bắt đầu + 90 ngày. Hằng số nằm ở `src/services/timing.js` (`GRADING_DAYS`, `GRADUATION_DAYS`).
 - Chuyên cần trung bình của Trang chủ chỉ tính các lớp **đang học** (lớp đã hết buổi không còn buổi mới).
+
+## Danh sách tốt nghiệp
+- Mỗi lớp có tab **Tốt nghiệp**: với từng học viên đang học/hoàn thành, hệ thống đưa ra **gợi ý** "Đạt/Chưa đạt" theo quy tắc của giáo trình; **kết quả cuối do người đặt** (Chưa xét / Tốt nghiệp / Chưa đạt), kèm ghi chú và thông tin chứng chỉ (trạng thái, số, ngày gửi).
+- **Quy tắc theo giáo trình** (lấy từ cột ELIGIBLE của Excel, admin sửa được): chuyên cần ≥ ngưỡng (mặc định 80%), số bài HW hoàn thành ≥ yêu cầu trong N bài đầu, có nộp Capstone. Hiện: BIE-8 (HW 2/2, Capstone), BIE-12 (HW 5/7, Capstone), BIH-20 và BIH-11 (HW 5/5, Capstone). Lớp chưa gắn giáo trình: chỉ chuyên cần ≥ 80%.
+- "Nộp lại" chưa tính là hoàn thành HW. Chưa có buổi nào được điểm danh thì "chưa đủ dữ liệu" (không gợi ý).
+- **Công bố danh sách** (admin) vào giai đoạn "Công bố tốt nghiệp"; sau khi công bố giảng viên không sửa được, admin vẫn sửa và có thể hủy công bố.
+- Sắp tới: điểm từng Module sẽ được thêm vào quy tắc (chủ dự án sẽ đưa quy trình).

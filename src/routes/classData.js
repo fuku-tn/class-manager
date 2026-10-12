@@ -5,6 +5,8 @@ const { loadClassData, computeEnrollmentStats, sessionSummaries } = require('../
 const realtime = require('../services/realtime');
 const { logEvents, latestEvents } = require('../services/history');
 const { tally } = require('../services/formProfile');
+const grad = require('../services/graduation');
+const { TIMING_SQL, PHASE_DATES_SQL } = require('../services/timing');
 
 const MODES = ['Online', 'Offline', 'Hybrid'];
 const COURSE_STATUS = ['active', 'deferred', 'dropped', 'completed'];
@@ -118,6 +120,109 @@ module.exports = (db) => {
       },
       items: Object.fromEntries(rows.map((r) => [r.enrollment_id, r])),
     });
+  });
+
+  // ---------- Danh sách tốt nghiệp ----------
+  const GRAD_STATUS = ['pending', 'passed', 'failed'];
+  const isoDate = (v) => v == null || v === '' || /^\d{4}-\d{2}-\d{2}$/.test(v);
+  const published = (cls) => !!cls.graduation_published_at;
+
+  async function gradPayload(cls) {
+    const [data, cur, meta] = await Promise.all([
+      loadClassData(db, cls.id),
+      cls.curriculum_id ? db.one('select * from curricula where id = $1', [cls.curriculum_id]) : null,
+      db.one(`select ${TIMING_SQL} as timing, ${PHASE_DATES_SQL}, u.name as published_by_name
+              from classes c left join users u on u.id = c.graduation_published_by where c.id = $1`, [cls.id]),
+    ]);
+    // tên người quyết định
+    const names = new Map((await db.all('select id, name from users')).map((u) => [u.id, u.name]));
+    for (const e of data.enrollments) e.graduation_by_name = e.graduation_by ? names.get(e.graduation_by) ?? null : null;
+    const stats = computeEnrollmentStats(data);
+    const rules = grad.rulesFromCurriculum(cur);
+    const rows = grad.buildGraduationRows(data, stats, rules);
+    return {
+      class: { id: cls.id, published_at: cls.graduation_published_at ?? null, published_by: meta.published_by_name ?? null,
+        timing: meta.timing, last_session_date: meta.last_session_date, grading_until: meta.grading_until, graduation_on: meta.graduation_on,
+        has_curriculum: !!cls.curriculum_id },
+      rules, summary: grad.summarize(rows), rows,
+    };
+  }
+
+  router.get('/graduation', async (req, res) => { res.json(await gradPayload(req.cls)); });
+
+  // Đặt quyết định cho một học viên (giảng viên của lớp hoặc admin; sau khi công bố chỉ admin).
+  router.put('/graduation/:enrollmentId', async (req, res) => {
+    if (published(req.cls) && req.user.role !== 'admin') return res.status(403).json({ error: 'Danh sách đã công bố, chỉ admin được sửa' });
+    const b = req.body;
+    if (b.status !== undefined && !GRAD_STATUS.includes(b.status)) return res.status(400).json({ error: 'Kết quả tốt nghiệp không hợp lệ' });
+    if (!isoDate(b.certificate_sent_date)) return res.status(400).json({ error: 'Ngày gửi chứng chỉ phải dạng yyyy-mm-dd' });
+    await db.tx(async (t) => {
+      const e = await findEnrollment(t, req.cls.id, req.params.enrollmentId);
+      if (!e) throw httpError(404, 'Không tìm thấy học viên trong lớp');
+      const status = b.status ?? e.graduation_status;
+      const changed = status !== e.graduation_status;
+      await t.run(
+        `update enrollments set graduation_status = $1, graduation_note = $2, certificate_status = $3, certificate_number = $4,
+           certificate_sent_date = $5, graduation_by = $6, graduation_at = now() where id = $7`,
+        [status, b.note === undefined ? e.graduation_note : str(b.note)?.slice(0, 500) ?? null,
+          b.certificate_status === undefined ? e.certificate_status : str(b.certificate_status)?.slice(0, 40) ?? null,
+          b.certificate_number === undefined ? e.certificate_number : str(b.certificate_number)?.slice(0, 60) ?? null,
+          b.certificate_sent_date === undefined ? e.certificate_sent_date : (b.certificate_sent_date || null), req.user.id, e.id]);
+      if (changed) {
+        const stu = await t.one('select student_code, full_name from students where id = $1', [e.student_id]);
+        await logEvents(t, [{ enrollment_id: e.id, class_id: req.cls.id, class_code: req.cls.code, student_id: e.student_id,
+          student_code: stu.student_code, full_name: stu.full_name, event: 'graduation', from_status: e.graduation_status,
+          to_status: status, source: 'web', actor_id: req.user.id, actor_name: req.user.name, note: str(b.note)?.slice(0, 500) ?? null }]);
+      }
+    });
+    res.json({ ok: true });
+  });
+
+  // Áp dụng gợi ý cho những học viên CHƯA xét (không đụng quyết định đã đặt).
+  router.post('/graduation-apply', async (req, res) => {
+    if (published(req.cls) && req.user.role !== 'admin') return res.status(403).json({ error: 'Danh sách đã công bố, chỉ admin được sửa' });
+    const p = await gradPayload(req.cls);
+    const todo = p.rows.filter((r) => r.decision.status === 'pending' && r.suggestion.eligible !== null);
+    if (todo.length) {
+      await db.tx(async (t) => {
+        const ev = [];
+        for (const r of todo) {
+          const to = r.suggestion.eligible ? 'passed' : 'failed';
+          await t.run('update enrollments set graduation_status = $1, graduation_by = $2, graduation_at = now() where id = $3', [to, req.user.id, r.enrollment_id]);
+          ev.push({ enrollment_id: r.enrollment_id, class_id: req.cls.id, class_code: req.cls.code, student_code: r.student_code, full_name: r.full_name,
+            event: 'graduation', from_status: 'pending', to_status: to, source: 'web', actor_id: req.user.id, actor_name: req.user.name,
+            note: 'Áp dụng gợi ý tự động' });
+        }
+        await logEvents(t, ev);
+      });
+    }
+    res.json({ applied: todo.length });
+  });
+
+  // Công bố / hủy công bố danh sách (admin).
+  router.post('/graduation-publish', requireAdmin, async (req, res) => {
+    await db.run('update classes set graduation_published_at = now(), graduation_published_by = $1 where id = $2', [req.user.id, req.cls.id]);
+    res.json({ ok: true });
+  });
+  router.delete('/graduation-publish', requireAdmin, async (req, res) => {
+    await db.run('update classes set graduation_published_at = null, graduation_published_by = null where id = $1', [req.cls.id]);
+    res.json({ ok: true });
+  });
+
+  // Sửa quy tắc của giáo trình mà lớp đang dùng (admin).
+  router.put('/graduation-rules', requireAdmin, async (req, res) => {
+    if (!req.cls.curriculum_id) return res.status(409).json({ error: 'Lớp chưa gắn giáo trình nên chưa có quy tắc riêng' });
+    const b = req.body;
+    const min = Number(b.attendance_min);
+    if (!Number.isFinite(min) || min < 0 || min > 1) return res.status(400).json({ error: 'Ngưỡng chuyên cần phải từ 0 đến 100%' });
+    const intOrNull = (v) => (v === null || v === '' || v === undefined ? null : Number(v));
+    const pool = intOrNull(b.hw_pool);
+    const hwMin = intOrNull(b.hw_min);
+    for (const v of [pool, hwMin]) if (v !== null && (!Number.isInteger(v) || v < 0 || v > 60)) return res.status(400).json({ error: 'Số bài HW phải là số nguyên không âm' });
+    if (pool !== null && hwMin !== null && hwMin > pool) return res.status(400).json({ error: 'Số HW tối thiểu không được lớn hơn số HW xét' });
+    await db.run('update curricula set grad_attendance_min = $1, grad_hw_pool = $2, grad_hw_min = $3, grad_capstone = $4 where id = $5',
+      [Math.round(min * 100) / 100, pool, hwMin, !!b.capstone, req.cls.curriculum_id]);
+    res.json({ ok: true });
   });
 
   // Lịch sử thay đổi ghi danh của lớp (100 sự kiện gần nhất).

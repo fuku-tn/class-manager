@@ -1,0 +1,164 @@
+// Danh sách tốt nghiệp của lớp: gợi ý tự động theo quy tắc giáo trình, quyết định do người đặt, công bố (admin).
+// Công thức tỉ lệ nằm ở máy chủ (stats.js); trang chỉ hiển thị và so sánh kết quả máy chủ trả về.
+import { get, put, post, del } from '../api.js';
+import { h, toast, pct, formModal, confirmModal, downloadCsv } from '../ui.js';
+import { classDisplayName, fmtDate, TIMING_LABEL } from '../class-filter.mjs';
+
+const DECISION = { pending: 'Chưa xét', passed: 'Tốt nghiệp', failed: 'Chưa đạt' };
+const DECISION_BADGE = { pending: '', passed: 'ok', failed: 'bad' };
+const CAPSTONE = { submitted: 'Đã nộp', resubmit: 'Nộp lại', missing: 'Thiếu' };
+
+const fmtWhen = (iso) => {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: '2-digit' });
+};
+const ruleText = (r) => [
+  `Chuyên cần ≥ ${Math.round(r.attendance_min * 100)}%`,
+  r.hw_min != null ? `Hoàn thành ≥ ${r.hw_min}/${r.hw_pool ?? 'tất cả'} bài HW` : null,
+  r.capstone ? 'Nộp Capstone' : null,
+].filter(Boolean).join(' · ');
+
+export async function renderGraduation({ cls, state }) {
+  const base = `/api/classes/${cls.id}`;
+  const role = state.user.role;
+  const admin = role === 'admin';
+  const readOnly = role === 'guest';
+  let d = await get(`${base}/graduation`);
+  const locked = () => !!d.class.published_at && !admin;     // sau khi công bố chỉ admin được sửa
+  const canEdit = () => !readOnly && !locked();
+
+  const search = h('input', { type: 'search', placeholder: 'Tìm học viên…', 'aria-label': 'Tìm học viên' });
+  const body = h('tbody');
+  const summaryEl = h('div', { class: 'chips' });
+  const bannerEl = h('div');
+  const rulesEl = h('p', { class: 'muted' });
+  const actionsEl = h('div', { class: 'toolbar' });
+
+  async function reload() { d = await get(`${base}/graduation`); paint(); }
+
+  async function decide(r, status) {
+    try {
+      await put(`${base}/graduation/${r.enrollment_id}`, { status });
+      await reload();
+    } catch (e) { toast(e.message, true); await reload(); }
+  }
+
+  async function editDetails(r) {
+    const v = await formModal({ title: `${r.full_name} — thông tin tốt nghiệp`, fields: [
+      { name: 'note', label: 'Ghi chú', type: 'textarea', value: r.decision.note, full: true },
+      { name: 'certificate_status', label: 'Trạng thái chứng chỉ (vd Printed, Sent)', value: r.certificate.status },
+      { name: 'certificate_number', label: 'Số chứng chỉ', value: r.certificate.number },
+      { name: 'certificate_sent_date', label: 'Ngày gửi chứng chỉ', type: 'date', value: r.certificate.sent_date }] });
+    if (!v) return;
+    try {
+      await put(`${base}/graduation/${r.enrollment_id}`, { note: v.note, certificate_status: v.certificate_status,
+        certificate_number: v.certificate_number, certificate_sent_date: v.certificate_sent_date || null });
+      await reload(); toast('Đã lưu');
+    } catch (e) { toast(e.message, true); }
+  }
+
+  async function editRules() {
+    const r = d.rules;
+    const v = await formModal({ title: `Quy tắc tốt nghiệp — ${r.curriculum_code ?? 'giáo trình của lớp'}`, submitLabel: 'Lưu quy tắc', fields: [
+      { name: 'attendance_min', label: 'Chuyên cần tối thiểu (%)', type: 'number', value: Math.round(r.attendance_min * 100), required: true },
+      { name: 'hw_pool', label: 'Xét N bài HW đầu tiên (để trống = tất cả)', type: 'number', value: r.hw_pool ?? '' },
+      { name: 'hw_min', label: 'Số bài HW tối thiểu phải hoàn thành (để trống = không yêu cầu)', type: 'number', value: r.hw_min ?? '' },
+      { name: 'capstone', label: 'Bắt buộc nộp Capstone', type: 'checkbox', value: r.capstone }],
+    extra: h('p', { class: 'muted small' }, 'Quy tắc áp dụng cho mọi lớp dùng cùng giáo trình này. Đây chỉ là gợi ý; kết quả cuối do người đặt.') });
+    if (!v) return;
+    try {
+      await put(`${base}/graduation-rules`, { attendance_min: Number(v.attendance_min) / 100, hw_pool: v.hw_pool === '' ? null : Number(v.hw_pool),
+        hw_min: v.hw_min === '' ? null : Number(v.hw_min), capstone: v.capstone });
+      await reload(); toast('Đã lưu quy tắc');
+    } catch (e) { toast(e.message, true); }
+  }
+
+  async function applySuggestions() {
+    const n = d.rows.filter((r) => r.decision.status === 'pending' && r.suggestion.eligible !== null).length;
+    if (!n) { toast('Không có học viên nào chưa xét và đủ dữ liệu để gợi ý'); return; }
+    if (!await confirmModal(`Áp dụng gợi ý cho ${n} học viên chưa xét? Quyết định đã đặt sẽ được giữ nguyên.`, 'Áp dụng')) return;
+    try { const r = await post(`${base}/graduation-apply`); await reload(); toast(`Đã áp dụng cho ${r.applied} học viên`); }
+    catch (e) { toast(e.message, true); }
+  }
+
+  async function publish(on) {
+    const pending = d.summary.pending;
+    const msg = on
+      ? `Công bố danh sách tốt nghiệp của lớp ${classDisplayName(cls)}?${pending ? ` Còn ${pending} học viên chưa xét.` : ''} Sau khi công bố, giảng viên không sửa được nữa.`
+      : 'Hủy công bố để chỉnh sửa lại danh sách?';
+    if (!await confirmModal(msg, on ? 'Công bố' : 'Hủy công bố')) return;
+    try { await (on ? post(`${base}/graduation-publish`) : del(`${base}/graduation-publish`)); await reload(); toast(on ? 'Đã công bố danh sách' : 'Đã hủy công bố'); }
+    catch (e) { toast(e.message, true); }
+  }
+
+  function exportCsv() {
+    downloadCsv(`${cls.code}-tot-nghiep.csv`, [
+      ['Mã', 'Họ tên', 'Chuyên cần', 'HW hoàn thành', 'Capstone', 'Gợi ý', 'Kết quả', 'Ghi chú', 'Chứng chỉ', 'Số chứng chỉ', 'Ngày gửi'],
+      ...d.rows.map((r) => [r.student_code, r.full_name, pct(r.attendance_rate), `${r.hw_done}/${r.hw_pool}`, CAPSTONE[r.capstone_status] ?? '',
+        r.suggestion.eligible === null ? 'Chưa đủ dữ liệu' : r.suggestion.eligible ? 'Đạt' : `Chưa đạt: ${r.suggestion.reasons.join('; ')}`,
+        DECISION[r.decision.status], r.decision.note ?? '', r.certificate.status ?? '', r.certificate.number ?? '', r.certificate.sent_date ?? '']),
+    ]);
+  }
+
+  function paint() {
+    const c = d.class;
+    const s = d.summary;
+    rulesEl.textContent = `Điều kiện gợi ý: ${ruleText(d.rules)}${d.rules.source === 'default' ? ' (lớp chưa gắn giáo trình — dùng quy tắc mặc định)' : ''}`;
+    summaryEl.replaceChildren(
+      h('span', { class: 'badge ok' }, `Tốt nghiệp ${s.passed}`),
+      h('span', { class: 'badge bad' }, `Chưa đạt ${s.failed}`),
+      h('span', { class: 'badge' }, `Chưa xét ${s.pending}`),
+      h('span', { class: 'muted small' }, `Gợi ý: ${s.suggested_pass} đạt · ${s.suggested_fail} chưa đạt${s.no_data ? ` · ${s.no_data} chưa đủ dữ liệu` : ''}`));
+    bannerEl.replaceChildren(...[
+      c.published_at ? h('div', { class: 'card', role: 'status' },
+        h('b', {}, `Danh sách đã công bố lúc ${fmtWhen(c.published_at)}`), c.published_by ? ` bởi ${c.published_by}` : '',
+        locked() || readOnly ? '' : ' — admin có thể sửa hoặc hủy công bố.') : null,
+    ].filter(Boolean));
+    actionsEl.replaceChildren(search,
+      !readOnly && h('button', { type: 'button', disabled: !canEdit(), onclick: applySuggestions, title: 'Chỉ đặt cho học viên chưa xét' }, 'Áp dụng gợi ý'),
+      h('button', { type: 'button', onclick: exportCsv }, 'Xuất CSV'),
+      admin && h('button', { type: 'button', onclick: editRules }, 'Sửa quy tắc'),
+      admin && (c.published_at
+        ? h('button', { type: 'button', class: 'danger', onclick: () => publish(false) }, 'Hủy công bố')
+        : h('button', { type: 'button', class: 'primary', onclick: () => publish(true) }, 'Công bố danh sách')));
+
+    const q = search.value.trim().toLowerCase();
+    const list = d.rows.filter((r) => !q || r.full_name.toLowerCase().includes(q) || r.student_code.toLowerCase().includes(q));
+    body.replaceChildren(...list.map((r) => {
+      const sg = r.suggestion;
+      const sel = h('select', { class: 'grad-sel', 'aria-label': `Kết quả của ${r.full_name}`, disabled: !canEdit() },
+        Object.entries(DECISION).map(([k, label]) => h('option', { value: k }, label)));
+      sel.value = r.decision.status;
+      sel.addEventListener('change', () => decide(r, sel.value));
+      return h('tr', {},
+        h('td', {}, r.full_name, h('div', { class: 'muted small' }, [r.student_code, r.segment === 'b2b' ? ['B2B', r.company_name].filter(Boolean).join(' ') : null].filter(Boolean).join(' · '))),
+        h('td', { class: 'num' }, pct(r.attendance_rate)),
+        h('td', { class: 'num' }, r.hw_pool ? `${r.hw_done}/${r.hw_pool}` : '—'),
+        h('td', {}, d.rules.capstone || r.capstone_status ? (CAPSTONE[r.capstone_status] ?? '—') : '—'),
+        h('td', {}, sg.eligible === null
+          ? h('span', { class: 'muted small' }, 'Chưa đủ dữ liệu')
+          : h('span', { class: `badge ${sg.eligible ? 'ok' : 'bad'}`, title: sg.reasons.join(' · ') }, sg.eligible ? 'Đạt' : 'Chưa đạt'),
+        sg.eligible === false && sg.reasons.length ? h('div', { class: 'muted small' }, sg.reasons.join(' · ')) : null),
+        h('td', {}, sel, r.decision.by ? h('div', { class: 'muted small' }, `${r.decision.by}${r.decision.at ? ` · ${fmtWhen(r.decision.at)}` : ''}`) : null),
+        h('td', {}, r.certificate.status || r.certificate.number
+          ? h('span', { class: 'small' }, [r.certificate.status, r.certificate.number].filter(Boolean).join(' · ')) : h('span', { class: 'muted small' }, '—'),
+        r.decision.note ? h('div', { class: 'muted small', title: r.decision.note }, `“${r.decision.note.slice(0, 40)}${r.decision.note.length > 40 ? '…' : ''}”`) : null),
+        h('td', {}, canEdit() ? h('button', { class: 'small', type: 'button', title: 'Ghi chú và thông tin chứng chỉ', onclick: () => editDetails(r) }, '✎') : null));
+    }));
+    if (!list.length) body.append(h('tr', {}, h('td', { colspan: 7, class: 'empty-state' }, d.rows.length ? 'Không có học viên khớp tìm kiếm.' : 'Lớp chưa có học viên đang học.')));
+  }
+
+  search.addEventListener('input', paint);
+  paint();
+
+  const c0 = d.class;
+  return h('div', {},
+    h('div', { class: 'page-head' }, h('h1', {}, 'Tốt nghiệp'), h('span', { class: 'muted', title: cls.code }, classDisplayName(cls)),
+      h('span', { class: `badge ${{ running: 'ok', grading: 'warn', graduation: 'warn' }[c0.timing] ?? ''}` }, TIMING_LABEL[c0.timing] ?? '')),
+    c0.last_session_date ? h('p', { class: 'muted small' },
+      `Buổi cuối ${fmtDate(c0.last_session_date)} · Nộp & chấm bài đến ${fmtDate(c0.grading_until)} · Công bố tốt nghiệp ${fmtDate(c0.graduation_on)}`) : null,
+    bannerEl, rulesEl, summaryEl, actionsEl,
+    h('div', { class: 'table-wrap' }, h('table', {},
+      h('thead', {}, h('tr', {}, ['Học viên', 'Chuyên cần', 'HW', 'Capstone', 'Gợi ý', 'Kết quả', 'Chứng chỉ / ghi chú', ''].map((x) => h('th', {}, x)))),
+      body)));
+}

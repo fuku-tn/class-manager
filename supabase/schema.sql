@@ -25,7 +25,7 @@ create table if not exists enrollment_events (
   student_id    bigint,
   student_code  text,
   full_name     text,
-  event         text not null check (event in ('enrolled','status_changed','removed','missing_from_sheet','reappeared')),
+  event         text not null check (event in ('enrolled','status_changed','removed','missing_from_sheet','reappeared','graduation')),
   from_status   text,
   to_status     text,
   source        text not null check (source in ('web','sync','import')),
@@ -52,7 +52,11 @@ create table if not exists curricula (
   program       text not null,
   name          text not null,
   session_count integer not null,
-  total_hours   numeric(6,1) not null default 0
+  total_hours   numeric(6,1) not null default 0,
+  grad_attendance_min numeric(3,2) not null default 0.80,
+  grad_hw_pool        integer,
+  grad_hw_min         integer,
+  grad_capstone       boolean not null default false
 );
 
 create table if not exists curriculum_items (
@@ -82,6 +86,8 @@ create table if not exists classes (
   end_date        date,
   next_short_code text,
   curriculum_id   bigint references curricula(id) on delete set null,
+  graduation_published_at timestamptz,
+  graduation_published_by bigint references users(id) on delete set null,
   created_at timestamptz not null default now()
 );
 create unique index if not exists classes_short_code_key on classes (short_code) where short_code is not null;
@@ -117,6 +123,12 @@ create table if not exists enrollments (
   origin             text not null default 'web' check (origin in ('web','sheet','import')),
   segment            text not null default 'b2c' check (segment in ('b2c','b2b')),
   company_name       text,
+  graduation_status  text not null default 'pending' check (graduation_status in ('pending','passed','failed')),
+  graduation_note    text,
+  graduation_by      bigint references users(id) on delete set null,
+  graduation_at      timestamptz,
+  certificate_number text,
+  certificate_sent_date date,
   created_at         timestamptz not null default now(),
   unique (class_id, student_id)
 );
