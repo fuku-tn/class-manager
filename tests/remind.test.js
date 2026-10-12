@@ -108,7 +108,7 @@ test('GET: bài đã thu thành cột; nộp lại không tính; tài khoản c�
   assert.match(by.R1.message, /^Chị Ngọc Duyên ơi, em check HW lớp EBA thấy mình chỉ còn HW2 nữa là hoàn thành đầy đủ homework các tuần đã học \(HW1 và HW2\)\./);
   assert.ok(!by.R3.message.includes('(HW1'));                                   // chưa làm bài nào
   assert.equal(r.body.config.cls_label, 'EBA');
-  assert.equal(r.body.config.theme, 'class-manager');
+  assert.equal(r.body.config.theme, 'excel-green');
   assert.match(r.body.snap_date, /^\d{2}\/\d{2}\/\d{4}$/);
 });
 

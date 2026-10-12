@@ -268,7 +268,7 @@ span.cell:focus-within { outline: 2px solid var(--gold); outline-offset: 2px; }
 .remind-cap-stage .remind-card-img { max-width: min(560px, 100%); }
 .remind-capbar { display: flex; gap: 8px; }
 .remind-capbar .hide { visibility: hidden; }
-.remind-plain { max-width: 560px; border: 1px solid var(--border); border-radius: 16px; padding: 1rem 1.2rem; background: var(--glass); }
+.remind-plain { max-width: 560px; }
 .remind-plain h2 { margin: 0 0 .4rem; }
 .remind-plain-bar { height: 10px; border-radius: 99px; background: var(--border); overflow: hidden; margin: .5rem 0 1rem; }
 .remind-plain-bar i { display: block; height: 100%; background: var(--ok); }

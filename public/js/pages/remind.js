@@ -46,24 +46,18 @@ export async function renderRemind({ cls, state }) {
   prevBtn.addEventListener('click', () => go(cur - 1));
   nextBtn.addEventListener('click', () => go(cur + 1));
 
-  // ---------------- tài khoản không có quyền: chỉ xem tiến độ từng học viên
+  // ---------------- tài khoản không có quyền: xem thẻ tiến độ từng học viên (không tin nhắn, không nút sao chép/chụp)
   const plainBox = h('div', { class: 'remind-plain' });
   function paintPlain() {
     const s = student();
-    if (!s) { setChildren(plainBox, h('p', { class: 'empty-state' }, d.no_homework ? 'Lớp chưa có bài tập nào được thu.' : 'Lớp chưa có học viên đang học.')); return; }
-    setChildren(plainBox,
-      h('h2', {}, s.name),
-      h('div', { class: 'remind-plain-sum' }, h('b', {}, `${s.done}/${s.total} bài đã hoàn thành`), ` · ${s.pct}%`),
-      h('div', { class: 'remind-plain-bar' }, h('i', { style: `width:${s.pct}%` })),
-      h('ul', { class: 'remind-plain-list' }, d.hdr.map((hd, k) => h('li', { class: s.d[k] ? 'ok' : '' },
-        h('span', { class: 'tick', 'aria-hidden': 'true' }, s.d[k] ? '✓' : ''),
-        h('span', { class: 'lbl' }, LABEL(hd)),
-        h('span', { class: 'st' }, s.d[k] ? 'Đã hoàn thành' : 'Đang thực hiện')))));
+    if (!s || d.no_homework) { cardImg.removeAttribute('src'); setChildren(plainBox, h('p', { class: 'empty-state' }, d.no_homework ? 'Lớp chưa có bài tập nào được thu.' : 'Lớp chưa có học viên đang học.')); return; }
+    cardImg.src = drawCard({ name: s.name, d: s.d, done: s.done, total: s.total, pct: s.pct }, { hdr: d.hdr, theme: theme(), snapDate: d.snap_date }).toDataURL('image/png');
+    setChildren(plainBox, cardImg);
   }
 
   // ---------------- tài khoản có quyền
   const cfg = () => d.config;
-  const theme = () => themeOf(cfg()?.theme);
+  const theme = () => themeOf(cfg()?.theme ?? d.theme);
   const snap = h('input', { class: 'remind-in', 'aria-label': 'Ngày cập nhật', placeholder: 'dd/mm/yyyy' });
   const inCls = h('input', { class: 'remind-in', 'aria-label': 'Tên lớp trong tin nhắn' });
   const inScope = h('input', { class: 'remind-in', 'aria-label': 'Phạm vi bài đã học' });
@@ -71,7 +65,9 @@ export async function renderRemind({ cls, state }) {
   const inTitle = h('input', { class: 'remind-in wide', 'aria-label': 'Tiêu đề tổng quan' });
   const inMin = h('input', { class: 'remind-in', type: 'number', min: '1', max: '50', 'aria-label': 'Ngưỡng ẩn danh', style: 'width:5rem' });
   const themeSel = h('select', { 'aria-label': 'Theme màu' }, Object.entries(THEMES).map(([k, t]) => h('option', { value: k }, t.label)));
-  const cardImg = h('img', { alt: 'Thẻ tiến độ homework', title: 'Chuột phải → Copy image', class: 'remind-card-img' });
+  const cardImg = h('img', { alt: 'Thẻ tiến độ homework', class: 'remind-card-img' });
+  if (!priv) cardImg.addEventListener('contextmenu', (e) => e.preventDefault());
+  else cardImg.title = 'Chuột phải → Copy image';
   const msgBox = h('div', { class: 'remind-msg', id: 'remind-note' });
   const prBtn = h('button', { type: 'button', title: 'Đổi Anh/Chị (lưu theo học viên)' }, 'Anh/Chị');
   const copyImgBtn = h('button', { type: 'button', class: 'primary' }, 'Sao chép ảnh');
@@ -95,7 +91,7 @@ export async function renderRemind({ cls, state }) {
   function paintStudent() {
     if (!priv) { paintPlain(); return; }
     const s = student();
-    if (!s) {
+    if (!s || d.no_homework) {
       cardImg.removeAttribute('src');
       msgBox.textContent = d.no_homework ? 'Lớp chưa có bài tập nào được thu — thêm bài ở tab Bài tập hoặc nạp bảng homework bên dưới.' : 'Lớp chưa có học viên đang học.';
       return;
@@ -273,7 +269,6 @@ export async function renderRemind({ cls, state }) {
 
   if (!priv) {
     root.append(
-      h('p', { class: 'muted small' }, 'Bạn có quyền xem tiến độ homework của từng học viên. Tin nhắn nhắc bài, sao chép ảnh và chế độ chụp chỉ dành cho tài khoản được cấp quyền.'),
       h('div', { class: 'toolbar' }, sel, prevBtn, nextBtn), warnEl, plainBox);
     paintPlain();
     return root;

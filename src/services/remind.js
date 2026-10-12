@@ -5,8 +5,11 @@
 
 const THEME_KEYS = ['class-manager', 'excel-green', 'bih-forest-sand', 'sca-olive-lemon', 'bie-ocean-blue', 'pbm-plum-gold'];
 // Theme mặc định: bảng màu của trang (lớp có thể chọn theme theo chương trình; BIE/PBM là đề xuất mới).
-const DEFAULT_THEME = {}; // mọi chương trình mặc định 'class-manager' (đồng bộ màu trang); chọn theme khác theo lớp trên giao diện
-const FALLBACK_THEME = 'class-manager';
+const DEFAULT_THEME = {
+  EBA: 'excel-green', BIH: 'bih-forest-sand', SCA: 'sca-olive-lemon', SIA: 'sca-olive-lemon',
+  BIE: 'bie-ocean-blue', PBM: 'pbm-plum-gold',
+};
+const FALLBACK_THEME = 'class-manager'; // chương trình lạ: màu của trang
 
 function joinVi(a) { return a.length < 2 ? a.join('') : `${a.slice(0, -1).join(', ')} và ${a[a.length - 1]}`; }
 

@@ -60,7 +60,8 @@ module.exports = (db) => {
     res.json({
       privileged: priv, hdr, students, warnings, no_homework: cols.length === 0,
       class: { id: req.cls.id, code: req.cls.code, short_code: req.cls.short_code, program: req.cls.program },
-      ...(priv ? { config: cfg, themes: R.THEME_KEYS, snap_date: vnToday() } : {}),
+      snap_date: vnToday(), theme: cfg.theme,
+      ...(priv ? { config: cfg, themes: R.THEME_KEYS } : {}),
     });
   });
 
