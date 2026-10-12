@@ -12,3 +12,6 @@ legacy/*.db
 legacy/*.db-*
 .claude/settings.local.json
 .mcp.json
+
+# Bộ kit nhắc bài: chứa tên học viên thật (samples/output/legacy) — không đưa lên Git
+remind-homework-kit/

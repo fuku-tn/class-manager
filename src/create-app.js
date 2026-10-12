@@ -38,6 +38,7 @@ function createApp(db) {
   app.use('/api/overview', requireAuth, require('./routes/overview')(db));
   app.use('/api/classes', requireAuth, require('./routes/classes')(db));
   app.use('/api/classes/:classId', requireAuth, require('./routes/classData')(db));
+  app.use('/api/classes/:classId/remind', requireAuth, require('./routes/remind')(db));
 
   app.use('/api', (_req, res) => res.status(404).json({ error: 'Không tìm thấy' }));
 

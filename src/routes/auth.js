@@ -34,7 +34,7 @@ module.exports = (db) => {
     }
     attempts.delete(key);
     setSessionCookie(res, await createSession(db, user.id));
-    res.json({ id: user.id, email: user.email, name: user.name, role: user.role });
+    res.json({ id: user.id, email: user.email, name: user.name, role: user.role, can_remind: user.can_remind === true });
   });
 
   router.post('/logout', async (req, res) => {

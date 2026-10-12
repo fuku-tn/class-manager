@@ -5,7 +5,7 @@ module.exports = (db) => {
   const router = express.Router(); // đã được bảo vệ requireAdmin ở app.js
 
   router.get('/', async (_req, res) => {
-    const users = await db.all('select id, email, name, role, active from users order by name');
+    const users = await db.all('select id, email, name, role, active, can_remind from users order by name');
     const links = await db.all('select class_id, user_id from class_instructors');
     res.json(users.map((u) => ({ ...u, class_ids: links.filter((l) => l.user_id === u.id).map((l) => l.class_id) })));
   });
@@ -32,6 +32,14 @@ module.exports = (db) => {
       await t.run('delete from class_instructors where user_id = $1', [id]);
       await t.run('insert into class_instructors (class_id, user_id) select id, $2::bigint from classes where id = any($1::bigint[])', [ids, id]);
     });
+    res.json({ ok: true });
+  });
+
+  // Bật/tắt quyền dùng tin nhắn nhắc bài + chụp ảnh (admin luôn có quyền, không cần bật).
+  router.put('/:id/remind', async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isSafeInteger(id) || !await db.one('select 1 as x from users where id = $1', [id])) return res.status(404).json({ error: 'Không tìm thấy người dùng' });
+    await db.run('update users set can_remind = $1 where id = $2', [!!req.body.can_remind, id]);
     res.json({ ok: true });
   });
 

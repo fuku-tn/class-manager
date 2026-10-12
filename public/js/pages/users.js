@@ -31,9 +31,13 @@ export async function renderUsers({ state, navigate }) {
         try { await post('/api/users', v); toast('Đã tạo'); location.reload(); } catch (e) { toast(e.message, true); }
       } }, '+ Thêm người dùng')),
     h('div', { class: 'table-wrap' }, h('table', {},
-      h('thead', {}, h('tr', {}, ['Họ tên', 'Email', 'Vai trò', 'Lớp được phân', 'Trạng thái', ''].map((x) => h('th', {}, x)))),
+      h('thead', {}, h('tr', {}, ['Họ tên', 'Email', 'Vai trò', 'Nhắc bài (tin nhắn + chụp ảnh)', 'Lớp được phân', 'Trạng thái', ''].map((x) => h('th', {}, x)))),
       h('tbody', {}, users.map((u) => h('tr', { class: u.active ? '' : 'inactive' },
         h('td', {}, u.name), h('td', {}, u.email), h('td', {}, ({ admin: 'Admin', guest: 'Khách (chỉ xem)' })[u.role] ?? 'Giảng viên'),
+        h('td', {}, u.role === 'admin' ? 'Có (admin)' : u.role === 'guest' ? '—'
+          : h('button', { class: u.can_remind ? 'primary' : '', title: 'Bật/tắt quyền dùng tin nhắn nhắc bài, sao chép ảnh và chế độ chụp', onclick: async () => {
+            try { await put(`/api/users/${u.id}/remind`, { can_remind: !u.can_remind }); location.reload(); } catch (e) { toast(e.message, true); }
+          } }, u.can_remind ? 'Được dùng — tắt' : 'Chỉ xem — bật')),
         h('td', {}, u.role === 'admin' ? 'Tất cả' : (u.class_ids.map(classOf).join(', ') || '—')),
         h('td', {}, u.active ? 'Hoạt động' : 'Đã khóa'),
         h('td', {},

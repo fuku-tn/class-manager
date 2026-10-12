@@ -57,6 +57,7 @@ Cần Node >= 22.13. Dữ liệu thật nằm trên **Supabase (Postgres)**.
 11. **Ghi một ô điểm danh/bài tập** phải đi qua route có `expected` + `updated_by` và gọi `realtime.publish` sau khi ghi thành công; frontend cập nhật ô tại chỗ (không dựng lại bảng). Đừng bỏ cơ chế này khi thêm loại ô mới.
 12. Không commit `.env`, `node_modules/`, `legacy/*.db`, file `.xlsx/.csv` (dữ liệu học viên thật). Không đưa dữ liệu học viên thật vào repo/test ngoài file mẫu.
 13. Xong một thay đổi: chạy `npm test`; cập nhật [memory.md](memory.md) nếu có quyết định/giả định mới; nội dung lỗi thời chuyển sang [Archive.md](Archive.md).
+14. **Nhắc bài** (`routes/remind.js`): tin nhắn mẫu, tổng quan, cấu hình, ảnh thẻ chỉ cho admin hoặc `users.can_remind` — kiểm ở máy chủ, người khác chỉ nhận tiến độ từng học viên; tổng quan lớp **không có tên học viên**; khách 403. `remind-homework-kit/` (tên thật) git-ignore.
 
 ## Skill của project (`.claude/skills/`)
 - `student-webapp-dev` — thêm/sửa tính năng đúng kiến trúc của project

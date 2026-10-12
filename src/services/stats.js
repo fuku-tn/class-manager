@@ -11,6 +11,35 @@ function attendanceRate(attended, excused, held) {
   return denom > 0 ? round(attended / denom) : null;
 }
 
+// Tiến độ homework của một học viên: done/total, % làm tròn số nguyên 0–100 (theo bộ kit nhắc bài).
+function homeworkProgress(done, total) {
+  return { done, total, pct: total ? Math.round((done / total) * 100) : 0, complete: total > 0 && done === total };
+}
+
+// Thống kê homework cả lớp để gửi group chung — CHỈ số tổng hợp, không có tên.
+// rows: mảng các d (mảng 0/1 theo từng bài); labels: nhãn bài. minGroup ≥ 2: nếu có nhóm "k/T bài" chưa đủ mà 0 < n < minGroup
+// thì gộp mọi nhóm chưa đủ thành "Chưa đủ T/T bài" để không ai bị nhận ra là người duy nhất trong nhóm.
+function classHomeworkStats(rows, labels, { minGroup = 1 } = {}) {
+  const N = rows.length;
+  const T = labels.length;
+  const cnt = rows.map((d) => d.reduce((a, b) => a + b, 0));
+  const full = cnt.filter((c) => c === T).length;
+  const avg = N && T ? Math.round((cnt.reduce((a, b) => a + b, 0) / (N * T)) * 100) : 0;
+  const byCol = labels.map((label, k) => ({ label, n: rows.filter((d) => d[k]).length }));
+  let dist = [];
+  for (let k = T; k >= 0; k--) dist.push({ k, label: `${k}/${T} bài`, n: cnt.filter((c) => c === k).length, merged: false });
+  let mergedNote = false;
+  if (minGroup > 1 && dist.some((b) => b.k < T && b.n > 0 && b.n < minGroup)) {
+    const rest = dist.filter((b) => b.k < T);
+    dist = [dist.find((b) => b.k === T), { k: -1, label: `Chưa đủ ${T}/${T} bài`, n: rest.reduce((a, b) => a + b.n, 0), merged: true }];
+    mergedNote = true;
+  }
+  const remaining = N - full;
+  // Còn ít người chưa xong hơn ngưỡng: KPI "x/N hoàn thành" ngầm cho biết có người chưa xong — để người vận hành tự cân nhắc.
+  const smallRemainder = remaining > 0 && minGroup > 1 && remaining < minGroup;
+  return { N, T, full, avg, byCol, dist, mergedNote, remaining, smallRemainder };
+}
+
 // Điểm trung bình của khảo sát (bỏ giá trị trống). null khi không có phiếu nào.
 function averageScore(values) {
   const v = values.filter((x) => typeof x === 'number');
@@ -30,7 +59,7 @@ async function loadClassData(db, classId) {
     db.all('select * from sessions where class_id = $1 order by session_no', [classId]),
     db.all('select * from assignments where class_id = $1', [classId]),
     db.all(`
-      select e.*, s.student_code, s.full_name, s.email, s.phone
+      select e.*, s.student_code, s.full_name, s.email, s.phone, s.gender, s.honorific, s.call_name
       from enrollments e
       join students s on s.id = e.student_id
       where e.class_id = $1 order by lower(s.full_name), s.id`, [classId]),
@@ -166,4 +195,4 @@ async function buildDashboard(db, cls) {
   };
 }
 
-module.exports = { loadClassData, computeEnrollmentStats, sessionSummaries, buildDashboard, attendanceRate, averageScore, npsScore, ATTENDANCE_THRESHOLD };
+module.exports = { loadClassData, computeEnrollmentStats, sessionSummaries, buildDashboard, attendanceRate, averageScore, npsScore, homeworkProgress, classHomeworkStats, ATTENDANCE_THRESHOLD };

@@ -232,6 +232,52 @@ span.cell:focus-within { outline: 2px solid var(--gold); outline-offset: 2px; }
 .bar-track i { display: block; height: 100%; border-radius: 99px; background: var(--btn-gold); }
 .bar-n { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
 .contents { display: contents; }
+
+/* Nhắc bài */
+.remind-tabs { max-width: 520px; margin: 0 0 1rem; }
+.remind-fld { display: inline-flex; align-items: center; gap: .45rem; font-size: .84rem; color: var(--muted); }
+.remind-fld.grow { flex: 1; min-width: 240px; }
+.remind-in { padding: .4rem .7rem; min-width: 8rem; }
+.remind-in.wide { width: 100%; }
+.remind-sel { min-width: 15rem; }
+.remind-grid { display: grid; grid-template-columns: minmax(300px, 560px) 1fr; gap: 1.2rem; align-items: start; }
+@media (max-width: 900px) { .remind-grid { grid-template-columns: 1fr; } }
+.remind-card-img { display: block; width: 100%; max-width: 560px; height: auto; border-radius: 12px; }
+.remind-msgbox { border: 1px dashed var(--border); border-radius: 14px; padding: .8rem 1rem; background: var(--glass); }
+.remind-msgbox .ml { font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: .35rem; }
+.remind-msg { font-size: .95rem; line-height: 1.6; user-select: text; -webkit-user-select: text; white-space: pre-wrap; }
+.remind-import { width: 100%; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .8rem; margin: .5rem 0; }
+.remind-import-out p { margin: .35rem 0; }
+.remind-ovcard { max-width: 760px; background: #fff; color: var(--ink); border-radius: 18px; overflow: hidden; box-shadow: 0 8px 28px rgba(0, 0, 0, .18); }
+.remind-ovcard .head { background: linear-gradient(135deg, var(--hfrom), var(--hto)); color: var(--htext); padding: 22px 24px 20px; border-bottom: 5px solid var(--accent); }
+.remind-ovcard .head h1 { font-size: 25px; font-weight: 400; margin: 0; }
+.remind-ovcard .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 20px 24px 4px; }
+.remind-ovcard .kpi { border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+.remind-ovcard .kpi b { display: block; font-size: 26px; color: var(--ok); }
+.remind-ovcard .kpi span { font-size: 13px; color: var(--mute); }
+.remind-ovcard .tbl { padding: 18px 24px 24px; }
+.remind-ovcard .tbl h3 { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--ok); margin: 14px 0 8px; }
+.remind-ovcard .hr { display: grid; grid-template-columns: 90px 1fr 120px; gap: 12px; align-items: center; margin: 8px 0; font-size: 14px; }
+.remind-ovcard .hl { font-weight: 700; }
+.remind-ovcard .hb { height: 12px; border-radius: 99px; background: var(--dtrack); overflow: hidden; }
+.remind-ovcard .hb u { display: block; height: 100%; background: var(--dfill); border-radius: 99px; }
+.remind-ovcard .hv { text-align: right; color: var(--mute); }
+.remind-ovcard .hv b { color: var(--ok); }
+.remind-cap { position: fixed; inset: 0; z-index: 200; background: var(--capbg, #e9efeb); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 16px; overflow: auto; }
+.remind-cap-stage { display: grid; place-items: center; width: 100%; }
+.remind-cap-stage .remind-card-img { max-width: min(560px, 100%); }
+.remind-capbar { display: flex; gap: 8px; }
+.remind-capbar .hide { visibility: hidden; }
+.remind-plain { max-width: 560px; border: 1px solid var(--border); border-radius: 16px; padding: 1rem 1.2rem; background: var(--glass); }
+.remind-plain h2 { margin: 0 0 .4rem; }
+.remind-plain-bar { height: 10px; border-radius: 99px; background: var(--border); overflow: hidden; margin: .5rem 0 1rem; }
+.remind-plain-bar i { display: block; height: 100%; background: var(--ok); }
+.remind-plain-list { list-style: none; margin: 0; padding: 0; }
+.remind-plain-list li { display: grid; grid-template-columns: 30px 1fr auto; align-items: center; gap: .7rem; padding: .55rem 0; border-top: 1px solid var(--border); }
+.remind-plain-list .tick { width: 24px; height: 24px; border-radius: 7px; border: 2px dashed var(--border); display: grid; place-items: center; color: #fff; font-size: .85rem; }
+.remind-plain-list li.ok .tick { background: var(--ok); border-style: solid; border-color: var(--ok); }
+.remind-plain-list .st { font-size: .8rem; font-weight: 700; color: var(--warn); }
+.remind-plain-list li.ok .st { color: var(--ok); }
 .grad-sel { min-width: 8.5rem; padding: .3rem .6rem; border-radius: 999px; }
 .sess-count { font-size: .78rem; font-weight: 650; font-variant-numeric: tabular-nums; letter-spacing: 0; text-transform: none; }
 .sess-actions { display: flex; flex-wrap: wrap; gap: .25rem; justify-content: center; }
