@@ -36,5 +36,15 @@ export const THEMES = {
     donutTrack: '#e3f4ea', ink: '#231a2e', mute: '#6a5c78', line: '#e3d8ee', dash: '#cdbfdc', warn: '#9a6a0a', bg: '#f3eef8', shadow: 'rgba(74,44,109,.18)',
   },
 };
-export const themeOf = (key) => THEMES[key] ?? THEMES['class-manager'];
+// Bản sáng của theme mặc định (khi trang đang ở chế độ sáng): nền kem, thẻ trắng, header xanh đêm, nhấn vàng đồng đậm.
+const CM_LIGHT = {
+  surface: '#ffffff', onOk: '#ffffff', tagColor: '#e3c48e', subColor: '#c5cde0', nameWeight: 600,
+  headerFrom: '#15203a', headerTo: '#26385f', accent: '#a97d38', headerText: '#f6f2ea', ok: '#0f7a56', donutFill: '#1a9a6e',
+  donutTrack: '#e4e8f1', ink: '#15203a', mute: '#5d6a85', line: 'rgba(21,32,58,.11)', dash: '#c7cfdf', warn: '#9a5a00', bg: '#f4f1ea', shadow: 'rgba(21,32,58,.18)',
+};
+const isLight = () => typeof document !== 'undefined' && document.documentElement.dataset.theme === 'light';
+export const themeOf = (key) => {
+  const k = THEMES[key] ? key : 'class-manager';
+  return k === 'class-manager' && isLight() ? { ...THEMES[k], ...CM_LIGHT } : THEMES[k];
+};
 export const shortHw = (h) => (/CAPSTONE/i.test(h) ? 'Capstone' : h.replace(/HOMEWORK /i, 'HW'));
