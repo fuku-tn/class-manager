@@ -5,6 +5,7 @@ const { loadClassData, computeEnrollmentStats, sessionSummaries } = require('../
 const realtime = require('../services/realtime');
 const { logEvents, latestEvents } = require('../services/history');
 const { tally } = require('../services/formProfile');
+const feedback = require('../services/feedback');
 const grad = require('../services/graduation');
 const { TIMING_SQL, PHASE_DATES_SQL } = require('../services/timing');
 
@@ -120,6 +121,12 @@ module.exports = (db) => {
       },
       items: Object.fromEntries(rows.map((r) => [r.enrollment_id, r])),
     });
+  });
+
+  // Khảo sát sau khóa của lớp: CHỈ admin (không có thông tin cá nhân; xem services/feedback.js).
+  router.get('/feedback', requireAdmin, async (req, res) => {
+    const rows = await db.all('select scores, more_courses, next_courses from course_feedback where class_id = $1', [req.cls.id]);
+    res.json({ summary: feedback.summarize(rows), group_labels: feedback.GROUP_LABEL });
   });
 
   // ---------- Danh sách tốt nghiệp ----------

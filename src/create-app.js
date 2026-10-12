@@ -34,6 +34,7 @@ function createApp(db) {
   app.use('/api/auth', require('./routes/auth')(db));
   app.use('/api/users', requireAuth, requireAdmin, require('./routes/users')(db));
   app.use('/api/import', requireAuth, requireAdmin, require('./routes/import')(db));
+  app.use('/api/feedback', requireAuth, requireAdmin, require('./routes/feedback')(db));
   app.use('/api/overview', requireAuth, require('./routes/overview')(db));
   app.use('/api/classes', requireAuth, require('./routes/classes')(db));
   app.use('/api/classes/:classId', requireAuth, require('./routes/classData')(db));

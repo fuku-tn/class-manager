@@ -11,6 +11,20 @@ function attendanceRate(attended, excused, held) {
   return denom > 0 ? round(attended / denom) : null;
 }
 
+// Điểm trung bình của khảo sát (bỏ giá trị trống). null khi không có phiếu nào.
+function averageScore(values) {
+  const v = values.filter((x) => typeof x === 'number');
+  return v.length ? round(v.reduce((a, b) => a + b, 0) / v.length) : null;
+}
+// NPS trên thang 0–10: (%người ≥ 9) − (%người ≤ 6), làm tròn số nguyên từ −100 đến 100. null khi không có phiếu.
+function npsScore(values) {
+  const v = values.filter((x) => typeof x === 'number');
+  if (!v.length) return null;
+  const promoters = v.filter((x) => x >= 9).length;
+  const detractors = v.filter((x) => x <= 6).length;
+  return Math.round(((promoters - detractors) / v.length) * 100);
+}
+
 async function loadClassData(db, classId) {
   const [sessions, assignments, enrollments, attendance, submissions] = await Promise.all([
     db.all('select * from sessions where class_id = $1 order by session_no', [classId]),
@@ -152,4 +166,4 @@ async function buildDashboard(db, cls) {
   };
 }
 
-module.exports = { loadClassData, computeEnrollmentStats, sessionSummaries, buildDashboard, attendanceRate, ATTENDANCE_THRESHOLD };
+module.exports = { loadClassData, computeEnrollmentStats, sessionSummaries, buildDashboard, attendanceRate, averageScore, npsScore, ATTENDANCE_THRESHOLD };

@@ -1,6 +1,7 @@
 import { get } from '../api.js';
 import { h, pct, icon } from '../ui.js';
 import { classDisplayName, fmtDate, TIMING_LABEL } from '../class-filter.mjs';
+import { feedbackSummaryBlock } from './feedback.js';
 
 const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
@@ -79,6 +80,11 @@ export async function renderDashboard({ cls, state }) {
   if (state?.user?.role === 'admin') {
     const prof = await get(`/api/classes/${cls.id}/profiles`).catch(() => null);
     if (prof && prof.with_form > 0) root.append(profileCard(prof));
+    const fb = await get(`/api/classes/${cls.id}/feedback`).catch(() => null);
+    if (fb && fb.summary.n > 0) {
+      root.append(h('section', { class: 'card' }, h('div', { class: 'eyebrow' }, 'Chỉ admin'), h('h2', {}, 'Khảo sát sau khóa của lớp'),
+        feedbackSummaryBlock(fb.summary, fb.group_labels, { limitNote: fb.summary.n < 5 ? `Mới có ${fb.summary.n} phiếu — số liệu chỉ mang tính tham khảo.` : '' })));
+    }
   }
 
   // Chart cần canvas đã nằm trong DOM → vẽ ở tick sau.
