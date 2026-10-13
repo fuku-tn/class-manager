@@ -13,7 +13,7 @@ const fmtWhen = (iso) => {
   return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: '2-digit' });
 };
 const ruleText = (r) => [
-  `Chuyên cần ≥ ${Math.round(r.attendance_min * 100)}%`,
+  r.min_sessions != null ? `Có mặt ≥ ${r.min_sessions} buổi (vắng có phép không bị trừ)` : `Chuyên cần ≥ ${Math.round(r.attendance_min * 100)}%`,
   r.hw_min != null ? `Hoàn thành ≥ ${r.hw_min}/${r.hw_pool ?? 'tất cả'} bài HW` : null,
   r.capstone ? 'Nộp Capstone' : null,
 ].filter(Boolean).join(' · ');
@@ -62,7 +62,7 @@ export async function renderGraduation({ cls, state }) {
   async function editRules() {
     const r = d.rules;
     const v = await formModal({ title: `Quy tắc tốt nghiệp — ${r.curriculum_code ?? 'giáo trình của lớp'}`, submitLabel: 'Lưu quy tắc', fields: [
-      { name: 'attendance_min', label: 'Chuyên cần tối thiểu (%)', type: 'number', value: Math.round(r.attendance_min * 100), required: true },
+      { name: 'attendance_min', label: r.min_sessions != null ? `Chuyên cần tối thiểu (%) — không dùng, đã có quy định ${r.min_sessions} buổi` : 'Chuyên cần tối thiểu (%)', type: 'number', value: Math.round(r.attendance_min * 100), required: true },
       { name: 'hw_pool', label: 'Xét N bài HW đầu tiên (để trống = tất cả)', type: 'number', value: r.hw_pool ?? '' },
       { name: 'hw_min', label: 'Số bài HW tối thiểu phải hoàn thành (để trống = không yêu cầu)', type: 'number', value: r.hw_min ?? '' },
       { name: 'capstone', label: 'Bắt buộc nộp Capstone', type: 'checkbox', value: r.capstone }],
@@ -108,7 +108,8 @@ export async function renderGraduation({ cls, state }) {
     const st = d.rules.status;
     rulesEl.textContent = st === 'none'
       ? `Chưa có quy định tốt nghiệp cho ${d.rules.source === 'default' ? 'lớp này (chưa gắn giáo trình)' : 'giáo trình này'} — chưa có gợi ý, bạn đặt kết quả thủ công.`
-      : `Điều kiện gợi ý: ${ruleText(d.rules)}${st === 'provisional' ? ' — tạm theo công thức Excel cũ, chờ xác nhận chính thức' : ''}`;
+      : `Điều kiện gợi ý: ${ruleText(d.rules)}${d.rules.min_sessions != null ? ` — số buổi theo ${d.rules.min_sessions_source}` : ''}${
+        st === 'partial' ? '; bài tập/điểm chưa có quy định nên chưa xét' : st === 'provisional' ? '; phần bài tập tạm theo công thức Excel cũ, chờ xác nhận chính thức' : ''}`;
     setChildren(summaryEl,
       h('span', { class: 'badge ok' }, `Tốt nghiệp ${s.passed}`),
       h('span', { class: 'badge bad' }, `Chưa đạt ${s.failed}`),

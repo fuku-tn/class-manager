@@ -30,8 +30,8 @@ before(async () => {
   admin = await t.login('admin@x.com');
   gv = await t.login('gv@x.com');
   guest = await t.login('khach@x.com');
-  await t.db.run("insert into curricula (code, program, name, session_count, grad_attendance_min, grad_hw_pool, grad_hw_min, grad_capstone, grad_rules_status) values ('BIE-8','BIE','BIE 8 buổi',3, 0.80, 2, 2, true, 'provisional')");
-  const cur = (await t.db.one("select id from curricula where code = 'BIE-8'")).id;
+  await t.db.run("insert into curricula (code, program, name, session_count, grad_attendance_min, grad_hw_pool, grad_hw_min, grad_capstone, grad_rules_status) values ('TEST-3','BIE','BIE 8 buổi',3, 0.80, 2, 2, true, 'provisional')");
+  const cur = (await t.db.one("select id from curricula where code = 'TEST-3'")).id;
   classId = (await admin.post('/api/classes', { code: 'GR.01', session_count: 3, hw_count: 3 })).body.id;
   await t.db.run('update classes set curriculum_id = $1 where id = $2', [cur, classId]);
   for (const id of [gvId, gId]) await admin.put(`/api/users/${id}/classes`, { class_ids: [classId] });
@@ -134,4 +134,23 @@ test('lớp chưa gắn giáo trình dùng quy tắc mặc định và không s�
   assert.equal(r.rules.status, 'none');
   assert.equal(r.rules.attendance_min, 0.8);
   assert.equal((await admin.put(`/api/classes/${other}/graduation-rules`, { attendance_min: 0.9, capstone: false })).status, 409);
+});
+
+test('số buổi tối thiểu theo Quy định 003/2026: bảng theo mã giáo trình/chương trình, vắng có phép không bị trừ', () => {
+  const m = (program, code) => grad.minSessionsFor(program, code ? { code } : null);
+  assert.deepEqual([m('EBA'), m('PBM'), m('SCA'), m('DDM'), m('SQL')], [5, 8, 7, 5, 4]);
+  assert.deepEqual([m('BIE', 'BIE-8'), m('BIE', 'BIE-12'), m('BIH', 'BIH-20')], [6, 9, 16]);
+  assert.equal(m('BIH', 'BIH-11'), null);                 // không có trong quy định
+  assert.equal(m('BIE'), null);                           // BIE phải biết giáo trình (8 hay 12 buổi)
+  const rules = grad.withSessionRule({ status: 'none', attendance_min: 0.8, hw_pool: null, hw_min: null, capstone: false }, 'EBA', null);
+  assert.deepEqual([rules.min_sessions, rules.status], [5, 'partial']);
+  const ev = (a) => grad.evaluateGraduation(rules, { attendanceRate: 0.5, hwStatuses: [], capstoneStatus: null, attendance: { held: 6, total: 6, ...a } });
+  assert.equal(ev({ attended: 5, excused: 0 }).eligible, true);
+  assert.equal(ev({ attended: 4, excused: 1 }).eligible, true);          // vắng có phép tính vào số buổi đạt
+  const bad = ev({ attended: 4, excused: 0 });
+  assert.deepEqual([bad.eligible, bad.reasons], [false, ['Có mặt 4/5 buổi tối thiểu']]);
+  // đang học: còn buổi có thể đạt thì chưa kết luận; không thể đạt nữa thì chưa đạt
+  assert.equal(ev({ attended: 2, excused: 0, held: 3 }).eligible, null);
+  assert.equal(ev({ attended: 1, excused: 0, held: 4 }).eligible, false);
+  assert.equal(ev({ attended: 0, excused: 0, held: 0 }).eligible, null);   // chưa có buổi nào diễn ra
 });

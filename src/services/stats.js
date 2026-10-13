@@ -103,6 +103,7 @@ function computeEnrollmentStats({ sessions, assignments, enrollments, attendance
     const cap = capstone && subIdx.get(`${e.id}:${capstone.id}`)?.status;
     stats.set(e.id, {
       attended, absent, excused,
+      held: heldIds.size, sessions_total: sessions.length,
       attendance_rate: attendanceRate(attended, excused, heldIds.size),
       hw_done: hwDone, hw_missing: hwMissing,
       hw_rate: hwIds.size > 0 ? round(hwDone / hwIds.size) : null,

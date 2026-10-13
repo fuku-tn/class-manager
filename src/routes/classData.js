@@ -145,7 +145,7 @@ module.exports = (db) => {
     const names = new Map((await db.all('select id, name from users')).map((u) => [u.id, u.name]));
     for (const e of data.enrollments) e.graduation_by_name = e.graduation_by ? names.get(e.graduation_by) ?? null : null;
     const stats = computeEnrollmentStats(data);
-    const rules = grad.rulesFromCurriculum(cur);
+    const rules = grad.withSessionRule(grad.rulesFromCurriculum(cur), cls.program, cur);
     const rows = grad.buildGraduationRows(data, stats, rules);
     return {
       class: { id: cls.id, published_at: cls.graduation_published_at ?? null, published_by: meta.published_by_name ?? null,

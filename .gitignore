@@ -15,3 +15,6 @@ legacy/*.db-*
 
 # Bộ kit nhắc bài: chứa tên học viên thật (samples/output/legacy) — không đưa lên Git
 remind-homework-kit/
+
+# Văn bản nội bộ (bản scan có dấu/mã số thuế công ty)
+Quy-dinh-cap-cong-nhan.pdf
