@@ -43,8 +43,8 @@ async function makeFiles() {
   return { txFile, curFile, dir };
 }
 
-test('trạng thái: chỉ giữ 2 sự kiện không phải tiền; giá trị thanh toán không để lại dấu vết', () => {
-  assert.deepEqual(stateFromStatus('Không tham gia'), { course_status: 'dropped', carried_over: false });
+test('trạng thái: Không tham gia = bảo lưu, Bảo lưu khóa trước đi tiếp, các nhãn khác đang học (nhãn lưu riêng, không có số tiền)', () => {
+  assert.deepEqual(stateFromStatus('Không tham gia'), { course_status: 'deferred', carried_over: false });   // hiển thị giống Bảo lưu
   assert.deepEqual(stateFromStatus('Bảo lưu khóa trước'), { course_status: 'active', carried_over: true });
   for (const pay of ['Đã thanh toán', 'Chưa thanh toán', 'Đã cọc', 'Scholarship']) {
     assert.deepEqual(stateFromStatus(pay), { course_status: 'active', carried_over: false }, pay);
@@ -105,7 +105,7 @@ test('nhập: lớp, giáo trình, học viên, ghi danh đúng; lớp cũ theo 
   assert.equal(get('P.1', 'BIE101').course_status, 'active');
   assert.equal(get('P.1', 'BIE102').carried_over, true);        // suất chuyển từ khóa trước, KHÔNG phải bảo lưu
   assert.equal(get('P.1', 'BIE102').course_status, 'active');
-  assert.equal(get('P.2', 'BIE101').course_status, 'dropped');  // không tham gia
+  assert.equal(get('P.2', 'BIE101').course_status, 'deferred');  // không tham gia (hiển thị giống bảo lưu)
   assert.equal(get('P.3', 'EBA070').carried_over, false);
   assert.equal(get('P.3', 'EBA070').registration_source, 'Zalo');
   await db.close();

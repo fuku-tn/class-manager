@@ -69,7 +69,7 @@ test('đồng bộ không đè sửa tay: tên, trạng thái "đã nghỉ"; v�
   assert.equal(r.body.added.students, 1);
   const q = (code) => t.db.one(`select s.full_name, e.course_status from students s join enrollments e on e.student_id = s.id where s.student_code = $1`, [code]);
   assert.deepEqual(await q('P.1'), { full_name: 'Tên sửa tay', course_status: 'dropped' });
-  assert.equal((await q('P.2')).course_status, 'dropped');   // sheet báo không tham gia
+  assert.equal((await q('P.2')).course_status, 'deferred');   // sheet báo không tham gia (hiển thị giống bảo lưu)
   assert.equal((await q('P.3')).course_status, 'active');
 });
 
@@ -180,7 +180,7 @@ test('đồng bộ chỉ nhận dòng có đủ mã học viên hợp lệ và m
   const carry = await post({ transactions: tx(mkRow('P.7004', 'BIE104', 'Bảo lưu khóa trước'), mkRow('P.7005', 'BIE104', 'Không tham gia')), course: COURSE });
   assert.equal(carry.status, 200, JSON.stringify(carry.body));
   const rows = await t.db.all("select s.student_code, e.course_status, e.carried_over from enrollments e join students s on s.id = e.student_id where s.student_code in ('P.7004','P.7005') order by 1");
-  assert.deepEqual(rows, [{ student_code: 'P.7004', course_status: 'active', carried_over: true }, { student_code: 'P.7005', course_status: 'dropped', carried_over: false }]);
+  assert.deepEqual(rows, [{ student_code: 'P.7004', course_status: 'active', carried_over: true }, { student_code: 'P.7005', course_status: 'deferred', carried_over: false }]);
 });
 
 test('giáo trình mặc định: EBA 6 buổi, PBM 10 buổi tự tạo danh sách buổi; 7 lớp BIE cũ dùng BIE-12', async () => {
@@ -197,4 +197,38 @@ test('giáo trình mặc định: EBA 6 buổi, PBM 10 buổi tự tạo danh s�
   assert.deepEqual(await n('EBA131'), { n: 6, cur: 'EBA-6' });
   assert.deepEqual(await n('PBM030'), { n: 10, cur: 'PBM-10' });
   assert.deepEqual(await n('BIE068'), { n: 12, cur: 'BIE-12' });
+});
+
+test('STATUS: "Chưa thanh toán" (PERSONAL) không có trong danh sách/điểm danh mà vào Potential; thanh toán xong thì vào lớp; ghi lại lịch sử đổi trạng thái; không có số tiền', async () => {
+  const course = { headers: ['COURSE', 'COURSE ID', 'STARTDATE', 'ENDDATE'], rows: [['PAY101', 'P1.EBA.P101.ON.EE.150126', '2026-12-01', '2026-12-30']] };
+  const r = (id, status) => [id, 'CP', `Người ${id}`, `${id.replace(/\W/g, '')}@x.com`, '0905555555', 'PAY101', 'Online', 'Male', status, 'Form'];
+  const enrolled = async (code) => (await t.db.one("select count(*)::int n from enrollments e join students s on s.id = e.student_id where s.student_code = $1", [code])).n;
+  const pot = async (code) => t.db.one("select reason, last_status from potential_students where student_code = $1", [code]);
+  // lần 1: P.9001 chưa thanh toán, P.9002 đã cọc, P.9003 đã thanh toán, P.9004 scholarship
+  let res = await post({ transactions: tx(r('P.9001', 'Chưa thanh toán'), r('P.9002', 'Đã cọc'), r('P.9003', 'Đã thanh toán'), r('P.9004', 'Scholarship')), course });
+  assert.equal(res.status, 200, JSON.stringify(res.body));
+  assert.deepEqual([await enrolled('P.9001'), await enrolled('P.9002'), await enrolled('P.9003'), await enrolled('P.9004')], [0, 1, 1, 1]);
+  assert.deepEqual(await pot('P.9001'), { reason: 'unpaid', last_status: 'Chưa thanh toán' });
+  // lần 2: P.9002 đặt cọc → đã thanh toán (ghi lịch sử); P.9001 thanh toán xong → vào lớp, rời Potential
+  res = await post({ transactions: tx(r('P.9001', 'Đã thanh toán'), r('P.9002', 'Đã thanh toán'), r('P.9003', 'Đã thanh toán'), r('P.9004', 'Scholarship')), course });
+  assert.equal(res.status, 200, JSON.stringify(res.body));
+  assert.equal(await enrolled('P.9001'), 1);
+  assert.ok(!(await pot('P.9001')));
+  const hist = await t.db.all("select student_code, event, from_status, to_status from enrollment_events where event = 'sheet_status' order by id");
+  assert.deepEqual(hist, [{ student_code: 'P.9002', event: 'sheet_status', from_status: 'Đã cọc', to_status: 'Đã thanh toán' }]);
+  assert.equal((await t.db.one("select sheet_status from enrollments e join students s on s.id = e.student_id where s.student_code = 'P.9002'")).sheet_status, 'Đã thanh toán');
+  // đã vào lớp rồi mới chuyển "Chưa thanh toán" → rời danh sách, vào Potential
+  res = await post({ transactions: tx(r('P.9001', 'Chưa thanh toán'), r('P.9002', 'Đã thanh toán'), r('P.9003', 'Đã thanh toán'), r('P.9004', 'Scholarship')), course });
+  assert.equal(res.status, 200, JSON.stringify(res.body));
+  assert.equal(await enrolled('P.9001'), 0);
+  assert.equal((await pot('P.9001')).reason, 'unpaid');
+  // số tiền không bao giờ có trong các bảng mới
+  for (const table of ['potential_students', 'enrollment_events', 'enrollments']) {
+    const hit = await t.db.one(`select count(*)::int n from ${table} x where to_jsonb(x)::text like $1`, [`%${MONEY}%`]);
+    assert.equal(hit.n, 0, table);
+  }
+  // nhãn lạ (ví dụ có số tiền) không được lưu
+  res = await post({ transactions: tx(r('P.9003', 'Đã trả 5.000.000'), r('P.9002', 'Đã thanh toán'), r('P.9004', 'Scholarship'), r('P.9001', 'Chưa thanh toán')), course });
+  assert.equal(res.status, 200, JSON.stringify(res.body));
+  assert.equal((await t.db.one("select sheet_status from enrollments e join students s on s.id = e.student_id where s.student_code = 'P.9003'")).sheet_status, null);
 });

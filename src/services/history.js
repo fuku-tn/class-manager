@@ -1,7 +1,7 @@
 // Nhật ký sự kiện ghi danh (append-only): ai/khi nào/từ đâu thêm, đổi trạng thái, gỡ khỏi lớp học viên.
 // Có chụp lại mã/tên học viên và mã lớp để vẫn đọc được khi bản ghi gốc đã bị xóa.
 // q: db hoặc transaction (cần .run/.all). Ghi trong CÙNG transaction với thay đổi để không bao giờ lệch nhau.
-const EVENTS = ['enrolled', 'status_changed', 'removed', 'missing_from_sheet', 'reappeared'];
+const EVENTS = ['enrolled', 'status_changed', 'removed', 'missing_from_sheet', 'reappeared', 'graduation', 'sheet_status', 'moved_to_potential'];
 
 async function logEvents(q, events) {
   if (!events.length) return 0;

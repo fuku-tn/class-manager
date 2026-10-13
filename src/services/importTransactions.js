@@ -132,10 +132,18 @@ function parseCourse(ws) {
   });
 }
 
-// STATUS → trạng thái học. Giá trị thanh toán KHÔNG được lưu.
+// STATUS của Google Sheet. Chủ dự án cho phép lưu NHÃN trạng thái (không bao giờ đọc/lưu số tiền, giá, giảm giá).
+const SHEET_STATUSES = ['Đã thanh toán', 'Đã cọc', 'Chưa thanh toán', 'Scholarship', 'Bảo lưu khóa trước', 'Không tham gia'];
+const UNPAID = 'Chưa thanh toán';
+function sheetStatusOf(raw) {
+  const s = String(raw ?? '').trim().toLowerCase();
+  return SHEET_STATUSES.find((x) => x.toLowerCase() === s) ?? null;   // nhãn lạ không được lưu
+}
+
+// STATUS → trạng thái học. "Không tham gia" hiển thị/đếm giống "Bảo lưu" (deferred).
 function stateFromStatus(raw) {
   const s = String(raw ?? '').trim().toLowerCase();
-  if (s === 'không tham gia') return { course_status: 'dropped', carried_over: false };
+  if (s === 'không tham gia') return { course_status: 'deferred', carried_over: false };
   if (s === 'bảo lưu khóa trước') return { course_status: 'active', carried_over: true };
   return { course_status: 'active', carried_over: false };
 }
@@ -182,7 +190,7 @@ function parseTransactions(ws, classByShort) {
     const mode = ['Online', 'Offline', 'Hybrid'].includes(txt(r.MODE)) ? txt(r.MODE) : null;
     enrolls.set(`${short}|${sid}`, {
       short_code: short, student_code: sid, customer_id: txt(r['CUSTOMER ID']), mode,
-      registration_source: txt(r['REGISTRATION SOURCE']), ...stateFromStatus(r.STATUS),
+      registration_source: txt(r['REGISTRATION SOURCE']), ...stateFromStatus(r.STATUS), sheet_status: sheetStatusOf(r.STATUS),
       segment: txt(r.SEGMENT) === 'b2b' ? 'b2b' : 'b2c', company_name: txt(r['COMPANY NAME']),
     });
   }
@@ -346,8 +354,11 @@ async function importTransactions(db, { transactionsFile, curriculumFile, dryRun
       // 5) Ghi danh (giữ trạng thái đã đặt tay "bảo lưu"/"hoàn thành")
       let en = parsed.enrolls;
       const involved = [...new Set(en.map((e) => classId.get(e.short_code)).filter(Boolean))];
-      const prev = new Map((await t.all('select class_id, student_id, course_status from enrollments where class_id = any($1::bigint[])', [involved]))
-        .map((r) => [`${r.class_id}:${r.student_id}`, r.course_status]));
+      const prevRows = await t.all(
+        `select id, class_id, student_id, course_status, sheet_status, origin, segment, graduation_status, certificate_status, certificate_number
+           from enrollments where class_id = any($1::bigint[])`, [involved]);
+      const prevFull = new Map(prevRows.map((r) => [`${r.class_id}:${r.student_id}`, r]));
+      const prev = new Map(prevRows.map((r) => [`${r.class_id}:${r.student_id}`, r.course_status]));
       if (preserveManual) {
         // Admin đã chủ động gỡ học viên khỏi lớp: đồng bộ không tự thêm lại (muốn thêm lại thì thêm tay trên web).
         const removed = new Set((await t.all("select distinct class_code, student_code from enrollment_events where event = 'removed'"))
@@ -358,80 +369,185 @@ async function importTransactions(db, { transactionsFile, curriculumFile, dryRun
           || prev.has(`${classId.get(e.short_code)}:${studentId.get(e.student_code)}`));
         summary.skipped_removed = before - en.length;
       }
+      const keyOf = (e) => `${classId.get(e.short_code)}:${studentId.get(e.student_code)}`;
+      // "Chưa thanh toán" (PERSONAL/B2C): không có tên trong danh sách và điểm danh; chuyển sang bảng Potential.
+      const isUnpaid = (e) => e.sheet_status === UNPAID && e.segment === 'b2c';
+      const unpaid = en.filter(isUnpaid);
+      en = en.filter((e) => !isUnpaid(e));
+      const potRows = involved.length ? await t.all('select * from potential_students where class_id = any($1::bigint[])', [involved]) : [];
+      const potential = new Map(potRows.map((p) => [`${p.class_id}:${p.student_id}`, p]));
+      const newSheet = new Map(en.map((e) => [keyOf(e), e.sheet_status]));
+
       const upserted = await t.all(
-        `insert into enrollments (class_id, student_id, customer_id, mode, course_status, registration_source, carried_over, segment, company_name, origin)
-         select u.*, 'sheet' from unnest($1::bigint[], $2::bigint[], $3::text[], $4::text[], $5::text[], $6::text[], $7::boolean[], $8::text[], $9::text[]) as u
-         on conflict (class_id, student_id) do update set origin = 'sheet', segment = excluded.segment,
+        `insert into enrollments (class_id, student_id, customer_id, mode, course_status, registration_source, carried_over, segment, company_name, sheet_status, origin)
+         select u.*, 'sheet' from unnest($1::bigint[], $2::bigint[], $3::text[], $4::text[], $5::text[], $6::text[], $7::boolean[], $8::text[], $9::text[], $10::text[]) as u
+         on conflict (class_id, student_id) do update set origin = 'sheet', segment = excluded.segment, sheet_status = excluded.sheet_status,
            company_name = coalesce(enrollments.company_name, excluded.company_name), ${preserveManual
     ? `customer_id = coalesce(enrollments.customer_id, excluded.customer_id),
            mode = coalesce(enrollments.mode, excluded.mode),
            registration_source = coalesce(enrollments.registration_source, excluded.registration_source),
            carried_over = enrollments.carried_over or excluded.carried_over,
-           course_status = case when enrollments.course_status = 'active' and excluded.course_status = 'dropped'
-                                then 'dropped' else enrollments.course_status end`
+           course_status = case
+             when enrollments.course_status = 'active' and excluded.course_status = 'dropped' then 'dropped'
+             when excluded.course_status = 'deferred' and enrollments.course_status in ('active', 'dropped') then 'deferred'
+             when enrollments.course_status = 'deferred' and enrollments.sheet_status = 'Không tham gia' and excluded.course_status = 'active' then 'active'
+             else enrollments.course_status end`
     : `customer_id = coalesce(excluded.customer_id, enrollments.customer_id),
            mode = coalesce(excluded.mode, enrollments.mode),
            registration_source = coalesce(excluded.registration_source, enrollments.registration_source),
            carried_over = excluded.carried_over,
-           course_status = case when enrollments.course_status in ('deferred', 'completed') then enrollments.course_status
+           course_status = case when enrollments.course_status in ('deferred', 'completed') and not (enrollments.sheet_status = 'Không tham gia' and excluded.course_status = 'active')
+                                     and not (excluded.course_status = 'deferred' and enrollments.course_status = 'deferred') then enrollments.course_status
                                 else excluded.course_status end`}
          returning id, class_id, student_id, course_status, (xmax = 0) as inserted`,
         [en.map((e) => classId.get(e.short_code)), en.map((e) => studentId.get(e.student_code)), en.map((e) => e.customer_id), en.map((e) => e.mode),
           en.map((e) => e.course_status), en.map((e) => e.registration_source), en.map((e) => e.carried_over),
-          en.map((e) => e.segment), en.map((e) => e.company_name)]);
+          en.map((e) => e.segment), en.map((e) => e.company_name), en.map((e) => e.sheet_status)]);
 
-      // Chốt chặn (đồng bộ tự động): một lượt không được thêm/đánh dấu "không còn" quá nhiều ghi danh cùng lúc.
+      // Chốt chặn (đồng bộ tự động): một lượt không được thêm/chuyển/đánh dấu quá nhiều ghi danh cùng lúc.
       // Sheet đang bị sửa dở (lệch cột, sắp xếp...) từng tạo hơn 1.500 ghi danh sai trong một lượt (13/10/2026).
       // Ném lỗi trong transaction = không ghi gì; muốn nhập khối lượng lớn thì dùng trang Nhập Excel.
       const addedNow = upserted.filter((r) => r.inserted).length;
+      const unpaidMovers = unpaid.filter((e) => prevFull.get(keyOf(e))?.origin === 'sheet');
       if (guard) {
         const total = Number((await t.one('select count(*)::int as n from enrollments')).n) - addedNow;   // số ghi danh TRƯỚC lượt này
         const limit = Math.max(GUARD_MIN, Math.ceil(total * GUARD_RATIO));
         if (total >= GUARD_MIN * 2 && addedNow > limit) throw guardError(`định thêm ${addedNow} ghi danh mới cùng lúc (giới hạn ${limit})`);
+        if (total >= GUARD_MIN * 2 && unpaidMovers.length > limit) throw guardError(`định chuyển ${unpaidMovers.length} học viên sang Potential (chưa thanh toán) cùng lúc (giới hạn ${limit})`);
       }
 
-      // Nhật ký sự kiện (cùng transaction): thêm mới, đổi trạng thái, không còn/lại xuất hiện trong Sheet
+      // Nhật ký sự kiện (cùng transaction): thêm mới, đổi trạng thái, đổi trạng thái đăng ký, chuyển Potential, không còn/lại xuất hiện
       const stuByCode = new Map(st.map((s) => [s.student_code, s]));
       const codeById = new Map(studentRows.map((r) => [r.id, r.student_code]));
       const classCodeById = new Map(classRows.map((r) => [r.id, r.code]));
+      const nameOf = (studentIdVal) => stuByCode.get(codeById.get(studentIdVal))?.full_name ?? null;
       const base = (r) => ({
         enrollment_id: r.id, class_id: r.class_id, class_code: classCodeById.get(r.class_id), student_id: r.student_id,
-        student_code: codeById.get(r.student_id), full_name: stuByCode.get(codeById.get(r.student_id))?.full_name ?? null,
+        student_code: codeById.get(r.student_id), full_name: nameOf(r.student_id),
         source: eventSource, actor_id: actor?.id ?? null, actor_name: actor?.name ?? null,
       });
       const events = [];
+      let statusChanges = 0;
       for (const r of upserted) {
-        const was = prev.get(`${r.class_id}:${r.student_id}`);
-        if (r.inserted) events.push({ ...base(r), event: 'enrolled', to_status: r.course_status });
-        else if (was && was !== r.course_status) events.push({ ...base(r), event: 'status_changed', from_status: was, to_status: r.course_status });
+        const k = `${r.class_id}:${r.student_id}`;
+        const was = prev.get(k);
+        const sheetNow = newSheet.get(k) ?? null;
+        if (r.inserted) events.push({ ...base(r), event: 'enrolled', to_status: r.course_status, note: sheetNow ? `Trạng thái Sheet: ${sheetNow}` : null });
+        else {
+          if (was && was !== r.course_status) events.push({ ...base(r), event: 'status_changed', from_status: was, to_status: r.course_status });
+          const sheetWas = prevFull.get(k)?.sheet_status ?? null;
+          if (sheetWas && sheetNow && sheetWas !== sheetNow) {
+            statusChanges++;
+            events.push({ ...base(r), event: 'sheet_status', from_status: sheetWas, to_status: sheetNow });
+          }
+        }
       }
+      summary.sheet_status_changes = statusChanges;
+
+      // Chuyển học viên sang Potential: chụp lại điểm danh/bài tập (để khôi phục nếu họ quay lại), rồi xóa khỏi lớp.
+      const movePotential = async (items) => {
+        const ids = items.map((i) => i.enrollment_id).filter(Boolean);
+        const att = ids.length ? await t.all('select enrollment_id, session_id as s, status as st, note as n from attendance where enrollment_id = any($1::bigint[])', [ids]) : [];
+        const sub = ids.length ? await t.all('select enrollment_id, assignment_id as a, status as st, note as n from submissions where enrollment_id = any($1::bigint[])', [ids]) : [];
+        const snapOf = (id) => {
+          if (!id) return '';
+          const a = att.filter((x) => x.enrollment_id === id).map(({ s, st: v, n }) => ({ s, st: v, n }));
+          const b = sub.filter((x) => x.enrollment_id === id).map(({ a: aid, st: v, n }) => ({ a: aid, st: v, n }));
+          return a.length || b.length ? JSON.stringify({ att: a, sub: b }) : '';
+        };
+        await t.run(
+          `insert into potential_students (class_id, student_id, class_code, student_code, full_name, last_status, reason, snapshot)
+           select u.c, u.s, u.cc, u.sc, u.fn, u.ls, u.rs, nullif(u.sn, '')::jsonb
+             from unnest($1::bigint[], $2::bigint[], $3::text[], $4::text[], $5::text[], $6::text[], $7::text[], $8::text[]) as u(c, s, cc, sc, fn, ls, rs, sn)
+           on conflict (class_id, student_id) do update set last_status = excluded.last_status, reason = excluded.reason,
+             snapshot = coalesce(excluded.snapshot, potential_students.snapshot), updated_at = now()`,
+          [items.map((i) => i.class_id), items.map((i) => i.student_id), items.map((i) => i.class_code), items.map((i) => i.student_code),
+            items.map((i) => i.full_name), items.map((i) => i.last_status), items.map((i) => i.reason), items.map((i) => snapOf(i.enrollment_id))]);
+        if (ids.length) await t.run('delete from enrollments where id = any($1::bigint[])', [ids]);
+        for (const i of items) {
+          if (!i.enrollment_id) continue;
+          events.push({ enrollment_id: i.enrollment_id, class_id: i.class_id, class_code: i.class_code, student_id: i.student_id, student_code: i.student_code,
+            full_name: i.full_name, event: 'moved_to_potential', from_status: i.from_status ?? null, to_status: i.last_status ?? null,
+            source: eventSource, actor_id: actor?.id ?? null, actor_name: actor?.name ?? null,
+            note: i.reason === 'unpaid' ? 'Chưa thanh toán: không có tên trong danh sách' : 'Không còn trong sheet PERSONAL' });
+        }
+      };
+
+      const toPotential = [];
+      for (const e of unpaid) {
+        const cid = classId.get(e.short_code); const sid = studentId.get(e.student_code);
+        const ex = prevFull.get(`${cid}:${sid}`);
+        if (ex && ex.origin !== 'sheet') continue;          // thêm tay trên web: không đụng
+        toPotential.push({
+          enrollment_id: ex?.id ?? null, class_id: cid, student_id: sid, class_code: classCodeById.get(cid), student_code: e.student_code,
+          full_name: nameOf(sid), last_status: UNPAID, reason: 'unpaid', from_status: ex?.course_status ?? null,
+        });
+      }
+
+      // Học viên đã thanh toán/được ghi danh trở lại: bỏ khỏi Potential, khôi phục điểm danh/bài tập đã chụp.
+      const back = upserted.filter((r) => potential.has(`${r.class_id}:${r.student_id}`));
+      let restored = 0;
+      for (const r of back) {
+        const p = potential.get(`${r.class_id}:${r.student_id}`);
+        const snap = typeof p.snapshot === 'string' ? JSON.parse(p.snapshot) : p.snapshot;
+        if (r.inserted && snap) {
+          if (snap.att?.length) await t.run(
+            `insert into attendance (enrollment_id, session_id, status, note)
+             select $1::bigint, x.s, x.st, x.n from jsonb_to_recordset($2::jsonb) as x(s bigint, st text, n text)
+              where exists (select 1 from sessions where id = x.s) on conflict do nothing`, [r.id, JSON.stringify(snap.att)]);
+          if (snap.sub?.length) await t.run(
+            `insert into submissions (enrollment_id, assignment_id, status, note)
+             select $1::bigint, x.a, x.st, x.n from jsonb_to_recordset($2::jsonb) as x(a bigint, st text, n text)
+              where exists (select 1 from assignments where id = x.a) on conflict do nothing`, [r.id, JSON.stringify(snap.sub)]);
+          restored++;
+        }
+        events.push({ ...base(r), event: 'reappeared', to_status: r.course_status, note: 'Từ danh sách Potential' });
+      }
+      if (back.length) await t.run('delete from potential_students where id = any($1::bigint[])',
+        [back.map((r) => potential.get(`${r.class_id}:${r.student_id}`).id)]);
+      summary.restored_from_potential = restored;
+
       if (detectMissing && involved.length) {
-        const present = new Set(upserted.map((r) => `${r.class_id}:${r.student_id}`));
+        const present = new Set([...upserted.map((r) => `${r.class_id}:${r.student_id}`), ...unpaid.map(keyOf)]);
         const latest = await latestEvents(t, involved);
         const cand = await t.all(
-          `select e.id, e.class_id, e.student_id, s.student_code, s.full_name, c.code as class_code
+          `select e.id, e.class_id, e.student_id, e.course_status, e.segment, e.graduation_status, e.certificate_status, e.certificate_number,
+                  s.student_code, s.full_name, c.code as class_code
            from enrollments e join students s on s.id = e.student_id join classes c on c.id = e.class_id
-           where e.class_id = any($1::bigint[]) and e.origin = 'sheet' and e.course_status = 'active'
+           where e.class_id = any($1::bigint[]) and e.origin = 'sheet' and e.course_status in ('active', 'deferred', 'dropped')
              and e.segment = any($2::text[])`, [involved, missingSegments]);
-        let missing = 0;
-        const gone = cand.filter((e) => !present.has(`${e.class_id}:${e.student_id}`) && latest.get(e.id) !== 'missing_from_sheet');
+        const gone = cand.filter((e) => !present.has(`${e.class_id}:${e.student_id}`));
         if (guard && cand.length >= GUARD_MIN * 2 && gone.length > Math.max(GUARD_MIN, Math.ceil(cand.length * GUARD_RATIO))) {
           throw guardError(`định đánh dấu ${gone.length} học viên "không còn trong Sheet" cùng lúc`);
         }
+        let missing = 0;
+        let removedToPotential = 0;
         for (const e of gone) {
-          missing++;
-          events.push({ enrollment_id: e.id, class_id: e.class_id, class_code: e.class_code, student_id: e.student_id, student_code: e.student_code,
-            full_name: e.full_name, event: 'missing_from_sheet', from_status: 'active', source: eventSource });
+          // PERSONAL (B2C) không còn trong Sheet → xóa khỏi danh sách/điểm danh, chuyển Potential.
+          // Không tự xóa nếu đã có kết quả tốt nghiệp/chứng chỉ (chỉ cảnh báo). COMPANY (B2B) chỉ cảnh báo.
+          const safe = e.segment === 'b2c' && e.graduation_status === 'pending' && !e.certificate_status && !e.certificate_number;
+          if (safe) {
+            toPotential.push({ enrollment_id: e.id, class_id: e.class_id, student_id: e.student_id, class_code: e.class_code, student_code: e.student_code,
+              full_name: e.full_name, last_status: prevFull.get(`${e.class_id}:${e.student_id}`)?.sheet_status ?? null, reason: 'removed_from_sheet', from_status: e.course_status });
+            removedToPotential++;
+          } else if (e.course_status === 'active' && latest.get(e.id) !== 'missing_from_sheet') {
+            missing++;
+            events.push({ enrollment_id: e.id, class_id: e.class_id, class_code: e.class_code, student_id: e.student_id, student_code: e.student_code,
+              full_name: e.full_name, event: 'missing_from_sheet', from_status: 'active', source: eventSource });
+          }
         }
-        let back = 0;
+        let backCount = 0;
         for (const r of upserted) {
           if (latest.get(r.id) !== 'missing_from_sheet') continue;
-          back++;
+          backCount++;
           events.push({ ...base(r), event: 'reappeared', to_status: r.course_status });
         }
         summary.missing_new = missing;
-        summary.reappeared = back;
+        summary.removed_to_potential = removedToPotential;
+        summary.reappeared = backCount;
       }
+      if (toPotential.length) await movePotential(toPotential);
+      summary.moved_to_potential = toPotential.length;
       summary.events_logged = await logEvents(t, events);
 
       const after = { classes: await count('classes'), students: await count('students'), enrollments: await count('enrollments'), sessions: await count('sessions') };

@@ -7,6 +7,7 @@ import { renderAttendance } from './pages/attendance.js';
 import { renderHomework } from './pages/homework.js';
 import { renderGraduation } from './pages/graduation.js';
 import { renderRemind } from './pages/remind.js';
+import { renderPotential } from './pages/potential.js';
 import { renderClasses } from './pages/classes.js';
 import { renderUsers } from './pages/users.js';
 import { renderImport } from './pages/import.js';
@@ -29,6 +30,7 @@ const TABS = [
   ['homework', 'Bài tập', renderHomework],
   ['graduation', 'Tốt nghiệp', renderGraduation],
   ['remind', 'Nhắc bài', renderRemind],
+  ['potential', 'Potential', renderPotential],
 ];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -53,7 +55,7 @@ function buildShell() {
   });
   const homeLink = h('a', { class: 'nav-link', 'data-key': 'home', href: '#/' }, icon('home'), h('span', {}, 'Trang chủ'));
   // Khách không dùng phần nhắc bài (máy chủ cũng chặn)
-  const navLinks = TABS.filter(([key]) => !(key === 'remind' && state.user.role === 'guest')).map(([key, label]) => h('a', { class: 'nav-link', 'data-key': key }, icon(key), h('span', {}, label)));
+  const navLinks = TABS.filter(([key]) => !((key === 'remind' || key === 'potential') && state.user.role === 'guest')).map(([key, label]) => h('a', { class: 'nav-link', 'data-key': key }, icon(key), h('span', {}, label)));
   const adminLinks = admin ? [
     h('a', { class: 'nav-link', 'data-key': 'classes', href: '#/classes', title: 'Quản lý lớp học' }, icon('classes'), h('span', {}, 'Lớp học')),
     h('a', { class: 'nav-link', 'data-key': 'users', href: '#/users', title: 'Quản lý người dùng' }, icon('users'), h('span', {}, 'Người dùng')),

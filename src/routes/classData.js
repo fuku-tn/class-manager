@@ -157,6 +157,18 @@ module.exports = (db) => {
 
   router.get('/graduation', async (req, res) => { res.json(await gradPayload(req.cls)); });
 
+  // ---------- Potential: học viên trong sheet PERSONAL nhưng không có tên trong danh sách/điểm danh ----------
+  // (Chưa thanh toán, hoặc đã bị xóa khỏi Sheet). Admin + giảng viên của lớp xem; khách thì không.
+  router.get('/potential', async (req, res) => {
+    if (req.user.role === 'guest') return res.status(403).json({ error: 'Tài khoản khách không xem được danh sách Potential' });
+    const rows = await db.all(
+      `select p.id, p.student_code, p.full_name, p.last_status, p.reason, p.created_at, p.updated_at, s.email, s.phone,
+              (p.snapshot is not null) as has_snapshot
+         from potential_students p join students s on s.id = p.student_id
+        where p.class_id = $1 order by p.updated_at desc, p.id desc`, [req.cls.id]);
+    res.json(rows);
+  });
+
   // Đặt quyết định cho một học viên (giảng viên của lớp hoặc admin; sau khi công bố chỉ admin).
   router.put('/graduation/:enrollmentId', async (req, res) => {
     if (published(req.cls) && req.user.role !== 'admin') return res.status(403).json({ error: 'Danh sách đã công bố, chỉ admin được sửa' });

@@ -8,9 +8,10 @@ const STATUS_OPTIONS = Object.entries(COURSE_STATUS_LABEL);
 const EVENT_LABEL = {
   enrolled: 'Được thêm vào lớp', status_changed: 'Đổi trạng thái', removed: 'Gỡ khỏi lớp',
   missing_from_sheet: 'Không còn thấy trong Google Sheet', reappeared: 'Xuất hiện lại trong Google Sheet', graduation: 'Kết quả tốt nghiệp',
+  sheet_status: 'Đổi trạng thái đăng ký (Sheet)', moved_to_potential: 'Chuyển sang Potential',
 };
 const GRAD_LABEL = { pending: 'Chưa xét', passed: 'Tốt nghiệp', failed: 'Chưa đạt' };
-const statusLabel = (v) => COURSE_STATUS_LABEL[v] ?? GRAD_LABEL[v] ?? '—';
+const statusLabel = (v) => COURSE_STATUS_LABEL[v] ?? GRAD_LABEL[v] ?? v ?? '—';
 const SOURCE_LABEL = { web: 'Web', sync: 'Google Sheet', import: 'Nhập Excel' };
 const fmtWhen = (iso) => {
   const d = new Date(iso);
@@ -131,6 +132,7 @@ export async function renderStudents({ cls, state }) {
       h('td', {}, r.email || '—'), h('td', {}, r.phone || '—'),
       h('td', {}, r.mode || '—'),
       h('td', {}, h('span', { class: `badge ${upcoming && r.course_status === 'active' ? '' : COURSE_STATUS_BADGE[r.course_status] || ''}`, title: upcoming && r.course_status === 'active' ? 'Lớp chưa tới ngày khai giảng' : null }, shownStatus(r)),
+        r.sheet_status ? h('div', { class: 'muted small', title: 'Trạng thái đăng ký trong Google Sheet' }, r.sheet_status) : null,
         r.missing_from_sheet ? h('span', { class: 'badge warn', title: 'Không còn thấy trong Google Sheet — hãy kiểm tra: học viên đã nghỉ, hay Sheet bị xóa nhầm?' }, 'Không còn trong Sheet') : null),
       h('td', { class: 'num' }, pct(r.attendance_rate)), h('td', { class: 'num' }, pct(r.hw_rate)))));
     if (!list.length) body.append(h('tr', {}, h('td', { colspan: 8, class: 'empty-state' }, rows.length ? 'Không có học viên khớp bộ lọc.' : (readOnly ? 'Chưa có học viên.' : 'Chưa có học viên. Bấm "Thêm học viên".'))));

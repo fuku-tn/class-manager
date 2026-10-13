@@ -95,31 +95,42 @@ test('đồng bộ Sheet: ghi sự kiện thêm mới/đổi trạng thái; ch�
   await sync(A, row('E.2', 'Bình', 'Không tham gia'), C);
   const chg = await events("where class_id = $1 and event = 'status_changed'", [id]);
   assert.equal(chg.length, 1);
-  assert.deepEqual([chg[0].student_code, chg[0].from_status, chg[0].to_status], ['E.2', 'active', 'dropped']);
+  assert.deepEqual([chg[0].student_code, chg[0].from_status, chg[0].to_status], ['E.2', 'active', 'deferred']);
 });
 
-test('không còn thấy trong Sheet: chỉ cảnh báo (không tự chuyển nghỉ), không ghi trùng, xuất hiện lại thì ghi nhận', async () => {
+test('bị xóa khỏi sheet PERSONAL: xóa khỏi danh sách/điểm danh, chuyển Potential (không ghi trùng); xuất hiện lại thì khôi phục điểm danh', async () => {
   const id = await eba();
   const dropB = row('E.2', 'Bình', 'Không tham gia');
-  await sync(A, dropB);                         // C biến mất
-  let miss = await events("where class_id = $1 and event = 'missing_from_sheet'", [id]);
-  assert.equal(miss.length, 1);
-  assert.equal(miss[0].student_code, 'E.3');
-  const cStatus = await t.db.one("select e.course_status from enrollments e join students s on s.id = e.student_id where s.student_code = 'E.3'");
-  assert.equal(cStatus.course_status, 'active');  // KHÔNG tự đổi sang nghỉ
+  // C có điểm danh trước khi bị xóa
+  const c = (await admin.get(`/api/classes/${id}/students`)).body.find((s) => s.student_code === 'E.3');
+  await t.db.run('insert into sessions (class_id, session_no, title, held) values ($1, 1, $2, true) on conflict do nothing', [id, 'Buổi 1']);
+  const sess = (await admin.get(`/api/classes/${id}/sessions`)).body[0];
+  assert.equal((await admin.put(`/api/classes/${id}/attendance`, { enrollment_id: c.id, session_id: sess.id, status: 'present', expected: null })).status, 200);
+
+  await sync(A, dropB);                         // C biến mất khỏi sheet
+  const gone = await t.db.one("select count(*)::int n from enrollments e join students s on s.id = e.student_id where s.student_code = 'E.3' and e.class_id = $1", [id]);
+  assert.equal(gone.n, 0);                      // không còn trong danh sách/điểm danh
+  const pot = (await admin.get(`/api/classes/${id}/potential`)).body;
+  assert.deepEqual(pot.map((p) => [p.student_code, p.reason]), [['E.3', 'removed_from_sheet']]);
+  assert.equal(pot[0].has_snapshot, true);
+  let mv = await events("where class_id = $1 and event = 'moved_to_potential'", [id]);
+  assert.equal(mv.length, 1);
+  assert.equal((await admin.get(`/api/classes/${id}/students`)).body.some((s) => s.student_code === 'E.3'), false);
 
   await sync(A, dropB);                         // lần nữa: không ghi trùng
-  miss = await events("where class_id = $1 and event = 'missing_from_sheet'", [id]);
-  assert.equal(miss.length, 1);
+  mv = await events("where class_id = $1 and event = 'moved_to_potential'", [id]);
+  assert.equal(mv.length, 1);
+  assert.equal((await admin.get('/api/import/sync-status')).body.missing, 0);
+  await t.db.run("insert into class_instructors (class_id, user_id) select $1, id from users where email in ('gv@x.com', 'khach@x.com') on conflict do nothing", [id]);
+  assert.equal((await gv.get(`/api/classes/${id}/potential`)).status, 200);      // giảng viên của lớp xem được
+  assert.equal((await guest.get(`/api/classes/${id}/potential`)).status, 403);   // khách thì không
 
-  const flagged = (await admin.get(`/api/classes/${id}/students`)).body.find((s) => s.student_code === 'E.3');
-  assert.equal(flagged.missing_from_sheet, true);
-  assert.equal((await admin.get('/api/import/sync-status')).body.missing, 1);
-
-  await sync(A, dropB, C);                      // xuất hiện lại
+  await sync(A, dropB, C);                      // xuất hiện lại: về danh sách, khôi phục điểm danh, rời Potential
   const back = await events("where class_id = $1 and event = 'reappeared'", [id]);
   assert.equal(back.length, 1);
-  assert.equal((await admin.get(`/api/classes/${id}/students`)).body.find((s) => s.student_code === 'E.3').missing_from_sheet, false);
+  assert.equal((await admin.get(`/api/classes/${id}/potential`)).body.length, 0);
+  const again = (await admin.get(`/api/classes/${id}/attendance`)).body.rows.find((r) => r.student_code === 'E.3');
+  assert.equal(Object.values(again.cells)[0].status, 'present');
 });
 
 test('Sheet ít bất thường (xóa nhầm): không dò "không còn trong Sheet"', async () => {
