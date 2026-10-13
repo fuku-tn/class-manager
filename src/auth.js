@@ -54,7 +54,7 @@ function attachUser(db) {
     try {
       if (token) {
         const row = await db.one(
-          `select u.id, u.email, u.name, u.role, u.can_remind, u.can_view_upcoming from auth_sessions s
+          `select u.id, u.email, u.name, u.role, u.can_remind, u.can_view_upcoming, u.can_view_potential from auth_sessions s
            join users u on u.id = s.user_id
            where s.token_hash = $1 and s.expires_at > now() and u.active`, [sha256(token)]);
         if (row) req.user = { ...row };
@@ -84,6 +84,8 @@ function requireAdmin(req, res, next) {
 
 // Tin nhắn nhắc bài, copy ảnh, chế độ chụp, tổng quan gửi group: chỉ admin và tài khoản được bật can_remind.
 // Tài khoản khác (vd giảng viên chỉ được xem) vẫn xem được tiến độ từng học viên nhưng KHÔNG nhận được nội dung tin nhắn.
+// Danh sách Potential (và lịch sử chuyển sang Potential): chỉ admin + tài khoản được bật can_view_potential.
+const canViewPotential = (user) => !!user && user.role !== 'guest' && (user.role === 'admin' || user.can_view_potential === true);
 const canRemind = (user) => !!user && user.role !== 'guest' && (user.role === 'admin' || user.can_remind === true);
 function requireRemind(req, res, next) {
   if (!canRemind(req.user)) return res.status(403).json({ error: 'Tài khoản của bạn chưa được cấp quyền dùng tin nhắn nhắc bài và chụp ảnh' });
@@ -113,5 +115,5 @@ function requireClassAccess(db) {
 
 module.exports = {
   hashPassword, verifyPassword, createSession, setSessionCookie, clearSessionCookie,
-  attachUser, requireAuth, requireAdmin, requireRemind, canRemind, blockGuestWrites, requireClassAccess, sha256,
+  attachUser, requireAuth, requireAdmin, requireRemind, canRemind, canViewPotential, blockGuestWrites, requireClassAccess, sha256,
 };

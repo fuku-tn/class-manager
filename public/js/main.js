@@ -55,7 +55,7 @@ function buildShell() {
   });
   const homeLink = h('a', { class: 'nav-link', 'data-key': 'home', href: '#/' }, icon('home'), h('span', {}, 'Trang chủ'));
   // Khách không dùng phần nhắc bài (máy chủ cũng chặn)
-  const navLinks = TABS.filter(([key]) => !((key === 'remind' || key === 'potential') && state.user.role === 'guest')).map(([key, label]) => h('a', { class: 'nav-link', 'data-key': key }, icon(key), h('span', {}, label)));
+  const navLinks = TABS.filter(([key]) => !((key === 'remind' && state.user.role === 'guest') || (key === 'potential' && !(state.user.role === 'admin' || state.user.can_view_potential === true)))).map(([key, label]) => h('a', { class: 'nav-link', 'data-key': key }, icon(key), h('span', {}, label)));
   const adminLinks = admin ? [
     h('a', { class: 'nav-link', 'data-key': 'classes', href: '#/classes', title: 'Quản lý lớp học' }, icon('classes'), h('span', {}, 'Lớp học')),
     h('a', { class: 'nav-link', 'data-key': 'users', href: '#/users', title: 'Quản lý người dùng' }, icon('users'), h('span', {}, 'Người dùng')),
@@ -72,7 +72,7 @@ function buildShell() {
   const root = h('div', {},
     progress,
     h('header', { class: 'topbar' },
-      h('a', { class: 'brand', href: '#/' }, logo(36), h('div', { class: 'brand-text' },
+      h('a', { class: 'brand', href: '#/' }, logo(44), h('div', { class: 'brand-text' },
         h('span', { class: 'brand-name' }, BRAND.name), h('span', { class: 'brand-tag' }, BRAND.tagline))),
       h('nav', { class: 'top-nav', 'aria-label': 'Điều hướng' }, homeLink, navLinks),
       h('div', { class: 'top-right' },

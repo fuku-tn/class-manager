@@ -1,6 +1,6 @@
 // Học viên, điểm danh, bài tập của một lớp. Mount tại /api/classes/:classId
 const express = require('express');
-const { requireAdmin, requireClassAccess } = require('../auth');
+const { requireAdmin, requireClassAccess, canViewPotential } = require('../auth');
 const { loadClassData, computeEnrollmentStats, sessionSummaries } = require('../services/stats');
 const realtime = require('../services/realtime');
 const { logEvents, latestEvents } = require('../services/history');
@@ -158,9 +158,9 @@ module.exports = (db) => {
   router.get('/graduation', async (req, res) => { res.json(await gradPayload(req.cls)); });
 
   // ---------- Potential: học viên trong sheet PERSONAL nhưng không có tên trong danh sách/điểm danh ----------
-  // (Chưa thanh toán, hoặc đã bị xóa khỏi Sheet). Admin + giảng viên của lớp xem; khách thì không.
+  // (Chưa thanh toán, hoặc đã bị xóa khỏi Sheet). Chỉ admin và tài khoản được bật can_view_potential (hiện: Đoàn Ly).
   router.get('/potential', async (req, res) => {
-    if (req.user.role === 'guest') return res.status(403).json({ error: 'Tài khoản khách không xem được danh sách Potential' });
+    if (!canViewPotential(req.user)) return res.status(403).json({ error: 'Bạn không có quyền xem danh sách Potential' });
     const rows = await db.all(
       `select p.id, p.student_code, p.full_name, p.last_status, p.reason, p.created_at, p.updated_at, s.email, s.phone,
               (p.snapshot is not null) as has_snapshot
@@ -248,7 +248,8 @@ module.exports = (db) => {
   router.get('/events', async (req, res) => {
     const rows = await db.all(
       `select id, event, student_code, full_name, from_status, to_status, source, actor_name, note, created_at
-       from enrollment_events where class_id = $1 order by id desc limit 100`, [req.cls.id]);
+       from enrollment_events where class_id = $1
+        ${canViewPotential(req.user) ? '' : "and event <> 'moved_to_potential'"} order by id desc limit 100`, [req.cls.id]);
     res.json(rows);
   });
 

@@ -9,6 +9,7 @@ create table if not exists users (
   role          text not null default 'instructor' check (role in ('admin','instructor','guest')),
   can_remind    boolean not null default false,
   can_view_upcoming boolean not null default false,
+  can_view_potential boolean not null default false,
   active        boolean not null default true,
   created_at    timestamptz not null default now()
 );

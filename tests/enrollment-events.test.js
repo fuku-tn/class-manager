@@ -122,8 +122,17 @@ test('bị xóa khỏi sheet PERSONAL: xóa khỏi danh sách/điểm danh, chuy
   assert.equal(mv.length, 1);
   assert.equal((await admin.get('/api/import/sync-status')).body.missing, 0);
   await t.db.run("insert into class_instructors (class_id, user_id) select $1, id from users where email in ('gv@x.com', 'khach@x.com') on conflict do nothing", [id]);
-  assert.equal((await gv.get(`/api/classes/${id}/potential`)).status, 200);      // giảng viên của lớp xem được
-  assert.equal((await guest.get(`/api/classes/${id}/potential`)).status, 403);   // khách thì không
+  // Potential chỉ cho admin và tài khoản được bật can_view_potential: giảng viên của lớp/khách không xem được
+  assert.equal((await gv.get(`/api/classes/${id}/potential`)).status, 403);
+  assert.equal((await guest.get(`/api/classes/${id}/potential`)).status, 403);
+  assert.equal((await gv.get(`/api/classes/${id}/events`)).body.some((e) => e.event === 'moved_to_potential'), false);   // lịch sử cũng ẩn
+  assert.equal((await admin.get(`/api/classes/${id}/events`)).body.some((e) => e.event === 'moved_to_potential'), true);
+  const gvId = (await t.db.one("select id from users where email = 'gv@x.com'")).id;
+  assert.equal((await admin.put(`/api/users/${gvId}/view-potential`, { can_view_potential: true })).status, 200);
+  const gv2 = await t.login('gv@x.com');
+  assert.equal((await gv2.get(`/api/classes/${id}/potential`)).status, 200);     // được bật thì xem được
+  assert.equal((await gv2.get(`/api/classes/${id}/events`)).body.some((e) => e.event === 'moved_to_potential'), true);
+  assert.equal((await gv.put(`/api/users/${gvId}/view-potential`, { can_view_potential: false })).status, 403);   // chỉ admin bật/tắt
 
   await sync(A, dropB, C);                      // xuất hiện lại: về danh sách, khôi phục điểm danh, rời Potential
   const back = await events("where class_id = $1 and event = 'reappeared'", [id]);

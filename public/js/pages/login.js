@@ -9,7 +9,7 @@ export function renderLogin(root, onSuccess) {
 
   root.append(h('div', { class: 'auth' },
     h('section', { class: 'auth-hero' },
-      h('div', { class: 'brand' }, logo(44), h('div', { class: 'brand-text' },
+      h('div', { class: 'brand' }, logo(72), h('div', { class: 'brand-text' },
         h('span', { class: 'brand-name' }, BRAND.name), h('span', { class: 'brand-tag' }, BRAND.tagline))),
       h('div', {},
         h('div', { class: 'eyebrow' }, 'Quản lý lớp học'),
