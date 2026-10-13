@@ -61,7 +61,7 @@ module.exports = (db) => {
     res.json(c);
   });
 
-  router.get('/:classId/dashboard', access, async (req, res) => res.json(await buildDashboard(db, req.cls)));
+  router.get('/:classId/dashboard', access, async (req, res) => res.json(await buildDashboard(db, req.cls, { withScores: req.user.role !== 'guest' })));
 
   router.get('/:classId/sessions', access, async (req, res) =>
     res.json(await db.all('select * from sessions where class_id = $1 order by session_no', [req.cls.id])));

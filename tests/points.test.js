@@ -132,3 +132,13 @@ test('danh sách học viên có điểm TB (không cho khách)', async () => {
   const g = (await guest.get(`/api/classes/${classId}/students`)).body.find((s) => s.student_code === 'P.5001');
   assert.equal('score_avg' in g, false);
 });
+
+test('Dashboard: điểm TB của lớp (không cho khách)', async () => {
+  await t.db.run('delete from homework_scores');
+  await post([row('P.5001', 'HW1', 9), row('P.5001', 'HW2', 8), row('P.5002', 'HW1', 6)]);
+  const a = (await admin.get(`/api/classes/${classId}/dashboard`)).body.totals;
+  assert.equal(a.avg_score, 7.67);            // (9 + 8 + 6) / 3
+  assert.equal(a.scored_students, 2);
+  const g = (await guest.get(`/api/classes/${classId}/dashboard`)).body.totals;
+  assert.equal(g.avg_score, null);
+});

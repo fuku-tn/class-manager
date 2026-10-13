@@ -134,7 +134,7 @@ function sessionSummaries({ sessions, enrollments, attendance }) {
 
 const mean = (xs) => (xs.length ? round(xs.reduce((a, b) => a + b, 0) / xs.length) : null);
 
-async function buildDashboard(db, cls) {
+async function buildDashboard(db, cls, { withScores = false } = {}) {
   const data = await loadClassData(db, cls.id);
   const stats = computeEnrollmentStats(data);
   const active = data.enrollments.filter((e) => e.course_status === 'active' || e.course_status === 'completed');
@@ -175,6 +175,15 @@ async function buildDashboard(db, cls) {
     .sort((a, b) => (a.attendance_rate ?? 1) - (b.attendance_rate ?? 1));
 
   const stat = (e) => stats.get(e.id);
+  // Điểm bài tập (tab Point, thang 10): trung bình các điểm của học viên đang học; null nếu lớp chưa có điểm hoặc người xem là khách.
+  let avgScore = null;
+  let scoredStudents = 0;
+  if (withScores) {
+    const ids = active.map((e) => e.id);
+    const rows = ids.length ? await db.all('select enrollment_id, score::float8 as score from homework_scores where enrollment_id = any($1::bigint[])', [ids]) : [];
+    avgScore = averageScore(rows.map((r) => r.score));
+    scoredStudents = new Set(rows.map((r) => r.enrollment_id)).size;
+  }
   return {
     class: cls,
     thresholds: { attendance: ATTENDANCE_THRESHOLD, missing_hw: MISSING_HW_ALERT },
@@ -187,6 +196,8 @@ async function buildDashboard(db, cls) {
       total_sessions: data.sessions.length,
       avg_attendance_rate: mean(active.map(stat).map((s) => s.attendance_rate).filter((x) => x != null)),
       avg_hw_rate: mean(active.map(stat).map((s) => s.hw_rate).filter((x) => x != null)),
+      avg_score: avgScore,
+      scored_students: scoredStudents,
       at_risk: atRisk.length,
     },
     by_session: bySession,

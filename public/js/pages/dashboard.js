@@ -5,11 +5,54 @@ import { feedbackSummaryBlock } from './feedback.js';
 
 const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
+// Ghi giá trị lên biểu đồ (thay cho số ở trục Y): ở giữa mỗi đoạn cột / mỗi cung tròn; đoạn quá thấp thì bỏ qua (xem tooltip).
+function luminance(color) {
+  const m = /rgba?\(([^)]+)\)/.exec(color);
+  let r; let g; let b;
+  if (m) [r, g, b] = m[1].split(',').map((x) => parseFloat(x));
+  else {
+    const hex = String(color).replace('#', '');
+    const f = hex.length === 3 ? hex.split('').map((c) => c + c).join('') : hex.padEnd(6, '0');
+    [r, g, b] = [0, 2, 4].map((i) => parseInt(f.slice(i, i + 2), 16));
+  }
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+}
+const valueLabels = {
+  id: 'valueLabels',
+  afterDatasetsDraw(chart) {
+    const { ctx } = chart;
+    ctx.save();
+    ctx.font = `700 12px ${getComputedStyle(document.body).fontFamily}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    chart.data.datasets.forEach((ds, i) => {
+      const meta = chart.getDatasetMeta(i);
+      if (meta.hidden) return;
+      meta.data.forEach((el, j) => {
+        const v = ds.data[j];
+        if (!v) return;
+        let x; let y;
+        if (chart.config.type === 'doughnut') { ({ x, y } = el.tooltipPosition()); }
+        else {
+          if (Math.abs(el.base - el.y) < 14) return; // đoạn cột quá thấp: không đủ chỗ ghi số
+          x = el.x; y = (el.y + el.base) / 2;
+        }
+        const bg = Array.isArray(ds.backgroundColor) ? ds.backgroundColor[j] : ds.backgroundColor;
+        ctx.fillStyle = luminance(bg) > 0.6 ? '#101827' : '#ffffff';
+        ctx.fillText(String(v), x, y);
+      });
+    });
+    ctx.restore();
+  },
+};
+
 function chartBox(title, hint, emptyText) {
   const canvas = h('canvas', { role: 'img', 'aria-label': title });
   const box = h('div', { class: 'chart-box' }, emptyText ? h('div', { class: 'chart-empty' }, emptyText) : canvas);
   return { canvas, empty: !!emptyText, el: h('div', { class: 'card' }, h('h2', {}, title), hint && h('p', { class: 'muted small' }, hint), box) };
 }
+
+const fmtScore = (n) => (n == null ? '—' : String(Math.round(n * 100) / 100));
 
 const shortcut = (href, iconName, title, text) =>
   h('a', { class: 'shortcut', href }, icon(iconName), h('b', {}, title), h('span', {}, text), h('div', { class: 'go' }, icon('arrow')));
@@ -54,7 +97,9 @@ export async function renderDashboard({ cls, state }) {
         h('div', { class: 'big' }, pct(t.avg_attendance_rate)),
         h('div', { class: 'hero-stats' },
           h('div', {}, h('b', {}, `${t.active}/${t.enrolled}`), h('span', {}, 'Đang học')),
-          h('div', {}, h('b', {}, pct(t.avg_hw_rate)), h('span', {}, 'Hoàn thành HW')),
+          t.avg_score != null
+            ? h('div', {}, h('b', {}, fmtScore(t.avg_score)), h('span', {}, 'Điểm TB'))
+            : h('div', {}, h('b', {}, pct(t.avg_hw_rate)), h('span', {}, 'Hoàn thành HW')),
           h('div', {}, h('b', {}, t.at_risk), h('span', {}, 'Cần chú ý'))),
         h('button', { class: 'primary', onclick: () => document.getElementById('at-risk')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
           'Xem học viên cần chú ý'))),
@@ -63,7 +108,9 @@ export async function renderDashboard({ cls, state }) {
       kpi('Bảo lưu / nghỉ', `${t.deferred} / ${t.dropped}`),
       kpi('Buổi đã diễn ra', `${t.held_sessions}/${t.total_sessions}`),
       kpi('Điểm danh TB', pct(t.avg_attendance_rate)),
-      kpi('Hoàn thành HW TB', pct(t.avg_hw_rate)),
+      t.avg_score != null
+        ? kpi('Điểm TB', fmtScore(t.avg_score))
+        : kpi('Hoàn thành HW TB', pct(t.avg_hw_rate)),
       kpi('Cần chú ý', t.at_risk, t.at_risk > 0)));
 
   if (!t.enrolled) {
@@ -94,24 +141,25 @@ export async function renderDashboard({ cls, state }) {
     Chart.defaults.font.family = getComputedStyle(document.body).fontFamily; Chart.defaults.font.size = 12;
     const opts = (stacked) => ({
       responsive: true, maintainAspectRatio: false,
-      scales: { x: { stacked, grid: { display: false } }, y: { stacked, beginAtZero: true, ticks: { precision: 0 } } },
+      layout: { padding: { top: 8 } },
+      scales: { x: { stacked, grid: { display: false } }, y: { display: false, stacked, beginAtZero: true } }, // bỏ giá trị trục Y, ghi số lên cột
       plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } } },
     });
     const ds = (label, data, color) => ({ label, data, backgroundColor: css(color), borderRadius: 5, borderSkipped: false, maxBarThickness: 38 });
     const held = d.by_session.filter((s) => s.held);
-    if (!a.empty) new Chart(a.canvas, { type: 'bar', options: opts(true), data: {
+    if (!a.empty) new Chart(a.canvas, { type: 'bar', options: opts(true), plugins: [valueLabels], data: {
       labels: held.map((s) => `B${s.session_no}`),
       datasets: [ds('Có mặt', held.map((s) => s.present), '--ok'), ds('Đi trễ', held.map((s) => s.late), '--warn'),
         ds('Có phép', held.map((s) => s.excused), '--info'), ds('Vắng', held.map((s) => s.absent), '--bad')],
     } });
     const coll = d.by_assignment.filter((x) => x.collected);
-    if (!b.empty) new Chart(b.canvas, { type: 'bar', options: opts(true), data: {
+    if (!b.empty) new Chart(b.canvas, { type: 'bar', options: opts(true), plugins: [valueLabels], data: {
       labels: coll.map((x) => (x.kind === 'capstone' ? 'CP' : `HW${x.seq}`)),
       datasets: [ds('Đã nộp', coll.map((x) => x.submitted), '--ok'), ds('Nộp lại', coll.map((x) => x.resubmit), '--warn'),
         ds('Thiếu', coll.map((x) => x.missing), '--bad')],
     } });
     const palette = ['--cat-1', '--cat-2', '--cat-3', '--cat-4'].map(css);
-    new Chart(c.canvas, { type: 'doughnut', options: { responsive: true, maintainAspectRatio: false, cutout: '68%', plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } } } },
+    new Chart(c.canvas, { type: 'doughnut', plugins: [valueLabels], options: { responsive: true, maintainAspectRatio: false, cutout: '68%', plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } } } },
       data: { labels: d.by_mode.map((m) => m.mode), datasets: [{ data: d.by_mode.map((m) => m.count), backgroundColor: palette, borderColor: css('--solid'), borderWidth: 3 }] } });
   }, 0);
 
