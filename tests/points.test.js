@@ -109,11 +109,26 @@ test('xem điểm: admin và giảng viên của lớp xem được (kèm điể
   assert.equal((await guest.get(`/api/classes/${classId}/scores`)).status, 403);
 });
 
-test('script Apps Script: tab Point chỉ gửi 5 cột, không có cột họ tên; khớp danh sách của máy chủ', () => {
-  const src = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'google-apps-script', 'sync-transactions.gs'), 'utf8');
+test('script Apps Script riêng cho Sheet điểm: chỉ 5 cột, không có cột họ tên, khớp máy chủ, không ghi sẵn mã bí mật', () => {
+  const src = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'google-apps-script', 'sync-points.gs'), 'utf8');
   const { POINT_COLUMNS } = require('../src/services/importPoints');
   const list = JSON.parse(/const ALLOWED_POINT = (\[.*?\]);/.exec(src)[1].replace(/'/g, '"'));
   assert.deepEqual(list, POINT_COLUMNS);
   assert.ok(!list.some((c) => /TÊN|NAME/i.test(c)));
-  assert.match(src, /url\.replace\(\/\\\/transactions\\\/\?\$\/, '\/points'\)/);
+  assert.match(src, /function syncNow\(forceArg\)/);
+  assert.match(src, /const force = forceArg === true;/);
+  assert.match(src, /createTextFinder\(keyHeader\)\.matchEntireCell\(true\)/);
+  assert.ok(!/SYNC_TOKEN\s*=\s*['"][^'"]+['"]/.test(src), 'không ghi sẵn mã bí mật');
+  // script đăng ký (PERSONAL) giữ nguyên, không đụng tới điểm
+  const tx = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'google-apps-script', 'sync-transactions.gs'), 'utf8');
+  assert.ok(!/Point|syncPoints_/.test(tx));
+});
+
+test('danh sách học viên có điểm TB (không cho khách)', async () => {
+  await t.db.run('delete from homework_scores');
+  await post([row('P.5001', 'HW1', 9), row('P.5001', 'HW2', 8)]);
+  const a = (await admin.get(`/api/classes/${classId}/students`)).body.find((s) => s.student_code === 'P.5001');
+  assert.equal(a.score_avg, 8.5);
+  const g = (await guest.get(`/api/classes/${classId}/students`)).body.find((s) => s.student_code === 'P.5001');
+  assert.equal('score_avg' in g, false);
 });

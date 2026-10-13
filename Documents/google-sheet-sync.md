@@ -57,10 +57,18 @@ Tạm dừng: chạy hàm `stop`. Bật lại: chạy `setup`.
 | Lớp thiếu giáo trình | Vẫn nhận đăng ký; lớp chưa có giáo trình cho đến khi nạp (`npm run import-tx` kèm `session-management.xlsx`) |
 | Điểm danh, bài tập | **Không** đồng bộ — web là nơi nhập chính |
 
-## Điểm bài tập (tab `Point`)
-Cùng script này tự gửi thêm tab **Point** (nếu có) tới `/api/sync/points` — không cần cấu hình thêm.
+## Điểm bài tập (Google Sheet riêng, script riêng)
+Bảng điểm là một **Google Sheet độc lập** (không chung file với PERSONAL), có script riêng:
+`scripts/google-apps-script/sync-points.gs` (script đăng ký `sync-transactions.gs` giữ nguyên, không phải dán lại).
 
-| Cột trong tab Point | Ý nghĩa |
+**Cài đặt (một lần):**
+1. Mở Google Sheet bảng điểm → Tiện ích mở rộng → Apps Script → dán toàn bộ `sync-points.gs`, Lưu.
+2. Project Settings → Script properties, thêm:
+   - `SYNC_URL` = `https://<tên-miền-web>/api/sync/points`
+   - `SYNC_TOKEN` = đúng mã `SYNC_TOKEN` đang dùng cho Sheet đăng ký (đặt ở Vercel).
+3. Chạy hàm `setup()` một lần, cấp quyền. Từ đó script kiểm tra mỗi 5 phút và chỉ gửi khi bảng đổi.
+
+| Cột | Ý nghĩa |
 |---|---|
 | `StudentID` | Mã học viên (P.12345) — ghép với ghi danh của lớp |
 | `Course` | Mã lớp (BIE101) |
@@ -68,11 +76,12 @@ Cùng script này tự gửi thêm tab **Point** (nếu có) tới `/api/sync/po
 | `Point` | Điểm thang 10 (cho phép dấu phẩy "8,8") |
 | `Module` | Tên module (chỉ để hiển thị) |
 
-- Cột `Họ và tên` **không được đọc/gửi**; tên lấy từ danh sách học viên của lớp.
-- Tab Point nằm ở **file Google Sheet khác**: thêm Script property `POINT_SPREADSHEET_ID` (mã file trong địa chỉ URL).
+- Tab điểm đặt tên gì cũng được: script tìm tab có ô tiêu đề `StudentID` (bảng "Table" của Google Sheets vẫn đọc bình thường).
+- Cột `Họ và tên` **không được đọc/gửi**; tên lấy từ danh sách học viên của lớp trong app.
 - Sheet là bản chuẩn: sửa điểm thì app cập nhật; xóa dòng điểm thì app xóa điểm đó. Nếu một lượt bỗng xóa quá nhiều (> max(50, 20%)) thì bỏ qua bước xóa.
-- Dòng không khớp (sai mã, nhãn HW lạ, điểm ngoài 0–10, lớp/ học viên/ bài tập chưa có trong app) bị bỏ qua và được đếm trong kết quả.
-- Xem điểm: trang **Bài tập** của lớp → mục "Điểm bài tập" (admin + giảng viên của lớp; khách không thấy).
+- Dòng không khớp (sai mã, nhãn HW lạ, điểm ngoài 0–10, lớp/học viên/bài tập chưa có trong app) bị bỏ qua và được đếm trong kết quả.
+- **Học viên phải có trong lớp** của app (qua đồng bộ đăng ký) và lớp phải có bài tập HW tương ứng thì điểm mới hiện.
+- Xem điểm: trang **Học viên** (cột Điểm TB) và trang **Bài tập** → "Điểm bài tập" (admin + giảng viên của lớp; khách không thấy).
 
 ## An toàn
 - **Không lấy tiền:** script chỉ đọc đúng các cột cho phép (`ALLOWED_TX`, `ALLOWED_COURSE`) theo tên tiêu đề, từng cột một; cột khác không bao giờ được đọc. Máy chủ lọc lại một lần nữa và bỏ mọi cột lạ. Test kiểm danh sách trong script khớp với máy chủ.

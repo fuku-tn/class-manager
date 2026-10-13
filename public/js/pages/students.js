@@ -134,8 +134,9 @@ export async function renderStudents({ cls, state }) {
       h('td', {}, h('span', { class: `badge ${upcoming && r.course_status === 'active' ? '' : COURSE_STATUS_BADGE[r.course_status] || ''}`, title: upcoming && r.course_status === 'active' ? 'Lớp chưa tới ngày khai giảng' : null }, shownStatus(r)),
         r.sheet_status ? h('div', { class: 'muted small', title: 'Trạng thái đăng ký trong Google Sheet' }, r.sheet_status) : null,
         r.missing_from_sheet ? h('span', { class: 'badge warn', title: 'Không còn thấy trong Google Sheet — hãy kiểm tra: học viên đã nghỉ, hay Sheet bị xóa nhầm?' }, 'Không còn trong Sheet') : null),
-      h('td', { class: 'num' }, pct(r.attendance_rate)), h('td', { class: 'num' }, pct(r.hw_rate)))));
-    if (!list.length) body.append(h('tr', {}, h('td', { colspan: 8, class: 'empty-state' }, rows.length ? 'Không có học viên khớp bộ lọc.' : (readOnly ? 'Chưa có học viên.' : 'Chưa có học viên. Bấm "Thêm học viên".'))));
+      h('td', { class: 'num' }, pct(r.attendance_rate)), h('td', { class: 'num' }, pct(r.hw_rate)),
+      readOnly ? null : h('td', { class: 'num', title: 'Điểm trung bình các bài có điểm (tab Point), thang 10' }, r.score_avg == null ? '—' : String(r.score_avg)))));
+    if (!list.length) body.append(h('tr', {}, h('td', { colspan: readOnly ? 8 : 9, class: 'empty-state' }, rows.length ? 'Không có học viên khớp bộ lọc.' : (readOnly ? 'Chưa có học viên.' : 'Chưa có học viên. Bấm "Thêm học viên".'))));
   }
 
   [search, status, mode].forEach((el) => el.addEventListener('input', paint));
@@ -143,12 +144,12 @@ export async function renderStudents({ cls, state }) {
   return h('div', {},
     h('div', { class: 'page-head' }, h('h1', {}, 'Học viên'), h('span', { class: 'muted', title: cls.code }, classDisplayName(cls)), h('span', { class: 'spacer' }),
       h('button', { onclick: () => downloadCsv(`${cls.code}-hoc-vien.csv`, [
-        ['Mã', 'Họ tên', 'Email', 'SĐT', 'Hình thức', 'Trạng thái', 'Điểm danh', 'HW'],
-        ...filtered().map((r) => [r.student_code, r.full_name, r.email, r.phone, r.mode, shownStatus(r), pct(r.attendance_rate), pct(r.hw_rate)])]) }, 'Xuất CSV'),
+        ['Mã', 'Họ tên', 'Email', 'SĐT', 'Hình thức', 'Trạng thái', 'Điểm danh', 'HW', ...(readOnly ? [] : ['Điểm TB'])],
+        ...filtered().map((r) => [r.student_code, r.full_name, r.email, r.phone, r.mode, shownStatus(r), pct(r.attendance_rate), pct(r.hw_rate), ...(readOnly ? [] : [r.score_avg ?? ''])])]) }, 'Xuất CSV'),
       !readOnly && h('button', { class: 'primary', onclick: add }, '+ Thêm học viên')),
     h('div', { class: 'toolbar' }, search, status, mode, count),
     h('div', { class: 'table-wrap' }, h('table', {},
-      h('thead', {}, h('tr', {}, ['Mã', 'Họ tên', 'Email', 'SĐT', 'Hình thức', 'Trạng thái', 'Điểm danh', 'HW'].map((x) => h('th', {}, x)))),
+      h('thead', {}, h('tr', {}, [...['Mã', 'Họ tên', 'Email', 'SĐT', 'Hình thức', 'Trạng thái', 'Điểm danh', 'HW'], ...(readOnly ? [] : ['Điểm TB'])].map((x) => h('th', {}, x)))),
       body)),
     historyBox);
 }

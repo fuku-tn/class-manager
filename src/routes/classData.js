@@ -30,7 +30,17 @@ module.exports = (db) => {
     const data = await loadClassData(db, req.cls.id);
     const stats = computeEnrollmentStats(data);
     const latest = await latestEvents(db, [req.cls.id]);
-    res.json(data.enrollments.map((e) => ({ ...e, ...stats.get(e.id), missing_from_sheet: latest.get(e.id) === 'missing_from_sheet' })));
+    // Điểm trung bình các bài có điểm (tab Point); khách không xem điểm.
+    const avg = new Map();
+    if (req.user.role !== 'guest') {
+      const sc = await db.all(`select hs.enrollment_id, hs.score::float8 as score from homework_scores hs
+                                 join enrollments e on e.id = hs.enrollment_id where e.class_id = $1`, [req.cls.id]);
+      const by = new Map();
+      for (const x of sc) (by.get(x.enrollment_id) ?? by.set(x.enrollment_id, []).get(x.enrollment_id)).push(x.score);
+      for (const [id, list] of by) avg.set(id, averageScore(list));
+    }
+    res.json(data.enrollments.map((e) => ({ ...e, ...stats.get(e.id), missing_from_sheet: latest.get(e.id) === 'missing_from_sheet',
+      ...(req.user.role !== 'guest' ? { score_avg: avg.get(e.id) ?? null } : {}) })));
   });
 
   router.post('/students', async (req, res) => {

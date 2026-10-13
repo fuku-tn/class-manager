@@ -16,7 +16,6 @@ const CONFIG = {
   SHEET_COURSE: ['COURSE', 'Course'],               // tên tab danh sách lớp (không có thì máy chủ dùng danh sách lớp sẵn có)
   SHEET_COMPANY: ['COMPANY'],                       // tên tab học viên B2B (không có thì chỉ đồng bộ B2C)
   SHEET_FORM: ['FORM'],                             // tên tab phiếu đăng ký (không có thì bỏ qua)
-  SHEET_POINT: ['Point'],                           // tên tab điểm bài tập (StudentID, Course, HW, Point, Module; không có thì bỏ qua)
   HEADER_ROW: 0,                      // 0 = tự tìm dòng tiêu đề (dòng 1 thường là dòng tổng); hoặc ghi cố định số dòng, vd 2
   MAX_HEADER_ROW: 10,                 // chỉ tìm tiêu đề trong 10 dòng đầu
   FALLBACK_HEADER_ROW: 2,             // dùng khi không tự tìm được
@@ -26,8 +25,6 @@ const CONFIG = {
 
 const ALLOWED_TX = ['STUDENT ID', 'CUSTOMER ID', 'FULL NAME', 'EMAIL', 'PHONE', 'COURSE', 'MODE', 'GENDER', 'STATUS', 'REGISTRATION SOURCE'];
 const ALLOWED_COURSE = ['COURSE', 'COURSE ID', 'STARTDATE', 'ENDDATE', 'NEXT COURSE', 'START DATE', 'EXPECTED END DATE'];
-// Tab Point (điểm bài tập): CHỈ 5 cột này; cột "Họ và tên" KHÔNG được đọc/gửi (máy chủ ghép theo StudentID).
-const ALLOWED_POINT = ['STUDENTID', 'COURSE', 'HW', 'POINT', 'MODULE'];
 // Tab COMPANY: cùng cột với PERSONAL + tên công ty (không lấy ngày sinh, không lấy cột tiền).
 const ALLOWED_COMPANY = ALLOWED_TX.concat(['COMPANY NAME']);
 
@@ -77,10 +74,6 @@ function stop() {
  */
 function syncNow(forceArg) {
   const force = forceArg === true;
-  try { syncTransactions_(force); } finally { syncPoints_(force); } // điểm bài tập: lỗi/không đổi ở đăng ký không chặn việc gửi điểm
-}
-
-function syncTransactions_(force) {
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(20000)) return; // lượt trước còn đang chạy
   try {
@@ -123,38 +116,6 @@ function syncTransactions_(force) {
     console.log('Đã đồng bộ: ' + res.getContentText().slice(0, 400));
   } finally {
     lock.releaseLock();
-  }
-}
-
-/**
- * Đồng bộ tab Point (điểm bài tập) tới {SYNC_URL với /transactions đổi thành /points}.
- * Tab nằm trong cùng Google Sheet; nếu ở file khác thì thêm Script property POINT_SPREADSHEET_ID (mã file).
- */
-function syncPoints_(force) {
-  try {
-    const props = PropertiesService.getScriptProperties();
-    const url = props.getProperty('SYNC_URL');
-    const token = props.getProperty('SYNC_TOKEN');
-    if (!url || !token) return;
-    const pointId = props.getProperty('POINT_SPREADSHEET_ID');
-    const ss = pointId ? SpreadsheetApp.openById(pointId) : SpreadsheetApp.getActiveSpreadsheet();
-    const points = readTable_(findSheet_(ss, CONFIG.SHEET_POINT), ALLOWED_POINT, [], 'StudentID');
-    if (!points) return; // chưa có tab Point
-    const body = JSON.stringify({ points: points });
-    const hash = toHex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, body, Utilities.Charset.UTF_8));
-    const lastSent = Number(props.getProperty('LAST_POINT_SENT') || 0);
-    const stale = Date.now() - lastSent > CONFIG.RESEND_AFTER_MINUTES * 60 * 1000;
-    if (!force && hash === props.getProperty('LAST_POINT_HASH') && !stale) return;
-    const res = UrlFetchApp.fetch(url.replace(/\/transactions\/?$/, '/points'), {
-      method: 'post', contentType: 'application/json', payload: body, headers: { 'X-Sync-Token': token }, muteHttpExceptions: true,
-    });
-    const code = res.getResponseCode();
-    if (code !== 200) throw new Error('Điểm: máy chủ trả về ' + code + ': ' + res.getContentText().slice(0, 300));
-    props.setProperty('LAST_POINT_HASH', hash);
-    props.setProperty('LAST_POINT_SENT', String(Date.now()));
-    console.log('Đã đồng bộ điểm: ' + res.getContentText().slice(0, 300));
-  } catch (e) {
-    console.error('Đồng bộ điểm lỗi: ' + e.message);
   }
 }
 
