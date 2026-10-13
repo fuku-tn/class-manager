@@ -13,7 +13,7 @@ module.exports = (db) => {
 
   // Nhật ký đồng bộ tự động từ Google Sheet (5 lần gần nhất).
   router.get('/sync-status', async (_req, res) => {
-    const runs = await db.all('select id, ok, summary, error, created_at from sync_runs order by id desc limit 5');
+    const runs = await db.all("select id, ok, summary, error, created_at from sync_runs where source = 'google-sheet' order by id desc limit 5");
     const missing = (await db.one(
       `select count(*)::int as n from (select distinct on (enrollment_id) enrollment_id, event from enrollment_events
          where enrollment_id is not null order by enrollment_id, id desc) l

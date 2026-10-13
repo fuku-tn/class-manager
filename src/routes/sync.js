@@ -6,6 +6,7 @@ const express = require('express');
 const realtime = require('../services/realtime');
 const { ALLOWED_TX, ALLOWED_COURSE } = require('../services/importTransactions');
 const { FORM_COLUMNS, applyForms } = require('../services/formProfile');
+const { importPoints, POINT_SYNC_COLUMNS } = require('../services/importPoints');
 
 // Tab COURSE của Google Sheet dùng tên cột "START DATE"/"EXPECTED END DATE" (Excel/Power Query đổi thành STARTDATE/ENDDATE).
 const COURSE_ALIASES = { 'START DATE': 'STARTDATE', 'EXPECTED END DATE': 'ENDDATE' };
@@ -126,7 +127,7 @@ module.exports = (db) => {
       wb.addWorksheet('Transactions').addRows([merged.headers, ...merged.rows]);
 
       // Sheet đột nhiên ít hơn hẳn lần trước (xóa nhầm/hỏng): vẫn nhận dòng có mặt nhưng KHÔNG dò "không còn trong Sheet".
-      const prevRun = await db.one("select (summary->>'transactions_rows')::int as n from sync_runs where ok order by id desc limit 1");
+      const prevRun = await db.one("select (summary->>'transactions_rows')::int as n from sync_runs where ok and source = 'google-sheet' order by id desc limit 1");
       const suspicious = !!(prevRun?.n && tx.rows.length < prevRun.n * 0.5);
       const { anomaly_details, class_ids = [], columns_read, ...brief } = await importTransactions(db, {
         transactionsFile: wb, curriculumFile: null, dryRun: false, preserveManual: true,
@@ -153,9 +154,31 @@ module.exports = (db) => {
     }
   });
 
-  async function log(ok, summary, error) {
+  // Điểm bài tập từ tab "Point". Chỉ nhận 5 cột cho phép (không có họ tên); ghi riêng ở homework_scores.
+  let busyPoints = false;
+  router.post('/points', async (req, res) => {
+    checkToken(req);
+    if (busyPoints) return res.status(409).json({ error: 'Đang xử lý một lượt đồng bộ điểm khác' });
+    busyPoints = true;
+    try {
+      const table = pickColumns(req.body?.points, POINT_SYNC_COLUMNS);
+      const { class_ids = [], ...brief } = await importPoints(db, table);
+      if (brief.inserted + brief.updated + brief.deleted > 0) {
+        await realtime.publishMany(class_ids.map((classId) => ({ classId, payload: { kind: 'scores' } })));
+      }
+      await log(true, brief, null, 'google-sheet-points');
+      res.json({ ok: true, ...brief, changed: brief.inserted + brief.updated + brief.deleted > 0 });
+    } catch (e) {
+      await log(false, null, e.message, 'google-sheet-points').catch(() => {});
+      throw e;
+    } finally {
+      busyPoints = false;
+    }
+  });
+
+  async function log(ok, summary, error, source = 'google-sheet') {
     await db.run('insert into sync_runs (source, ok, summary, error) values ($1, $2, $3::jsonb, $4)',
-      ['google-sheet', ok, summary ? JSON.stringify(summary) : null, error ? String(error).slice(0, 300) : null]);
+      [source, ok, summary ? JSON.stringify(summary) : null, error ? String(error).slice(0, 300) : null]);
     await db.run('delete from sync_runs where id not in (select id from sync_runs order by id desc limit 200)');
   }
 

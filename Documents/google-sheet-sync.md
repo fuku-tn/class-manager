@@ -57,6 +57,23 @@ Tạm dừng: chạy hàm `stop`. Bật lại: chạy `setup`.
 | Lớp thiếu giáo trình | Vẫn nhận đăng ký; lớp chưa có giáo trình cho đến khi nạp (`npm run import-tx` kèm `session-management.xlsx`) |
 | Điểm danh, bài tập | **Không** đồng bộ — web là nơi nhập chính |
 
+## Điểm bài tập (tab `Point`)
+Cùng script này tự gửi thêm tab **Point** (nếu có) tới `/api/sync/points` — không cần cấu hình thêm.
+
+| Cột trong tab Point | Ý nghĩa |
+|---|---|
+| `StudentID` | Mã học viên (P.12345) — ghép với ghi danh của lớp |
+| `Course` | Mã lớp (BIE101) |
+| `HW` | `HW1`, `HW2`… (hoặc `Capstone`) — ghép với bài tập cùng số của lớp |
+| `Point` | Điểm thang 10 (cho phép dấu phẩy "8,8") |
+| `Module` | Tên module (chỉ để hiển thị) |
+
+- Cột `Họ và tên` **không được đọc/gửi**; tên lấy từ danh sách học viên của lớp.
+- Tab Point nằm ở **file Google Sheet khác**: thêm Script property `POINT_SPREADSHEET_ID` (mã file trong địa chỉ URL).
+- Sheet là bản chuẩn: sửa điểm thì app cập nhật; xóa dòng điểm thì app xóa điểm đó. Nếu một lượt bỗng xóa quá nhiều (> max(50, 20%)) thì bỏ qua bước xóa.
+- Dòng không khớp (sai mã, nhãn HW lạ, điểm ngoài 0–10, lớp/ học viên/ bài tập chưa có trong app) bị bỏ qua và được đếm trong kết quả.
+- Xem điểm: trang **Bài tập** của lớp → mục "Điểm bài tập" (admin + giảng viên của lớp; khách không thấy).
+
 ## An toàn
 - **Không lấy tiền:** script chỉ đọc đúng các cột cho phép (`ALLOWED_TX`, `ALLOWED_COURSE`) theo tên tiêu đề, từng cột một; cột khác không bao giờ được đọc. Máy chủ lọc lại một lần nữa và bỏ mọi cột lạ. Test kiểm danh sách trong script khớp với máy chủ.
 - **Xác thực:** header `X-Sync-Token` so sánh bằng so sánh thời gian hằng; sai quá 20 lần/15 phút → khóa tạm. Chưa đặt `SYNC_TOKEN` thì địa chỉ này trả 503 (tắt).

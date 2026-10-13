@@ -30,6 +30,7 @@ Dùng **PGlite** (Postgres thật chạy trong bộ nhớ) với `src/schema.sql
 | `tests/student-sort.test.js` | Sắp xếp theo tên (từ cuối, collation tiếng Việt), họ tên, mã (số tự nhiên), tỉ lệ (trống xuống cuối), vắng nhiều, trạng thái; không đổi mảng gốc |
 | `tests/import-api.test.js` | Nhập Excel qua web: chỉ admin (401/403), từ chối file rỗng/không phải xlsx/thiếu sheet, chạy thử không đổi DB, nhập thật ghi dữ liệu và không trả về cột tiền, nhập lại không nhân đôi |
 | `tests/remind.test.js` | Nhắc bài: tin nhắn/tổng quan/cấu hình chỉ admin hoặc có quyền (người khác chỉ nhận tiến độ, không có chữ "em check HW"), khách 403, tổng quan không có tên học viên, gộp nhóm nhỏ, nhập bảng HW (chạy thử không ghi), bật/tắt quyền ở trang Người dùng, tên gọi/xưng hô |
+| `tests/points.test.js` | Điểm bài tập từ tab Point: đọc nhãn HW/điểm, ghép theo StudentID + Course + HW, không lưu họ tên, chạy lại không đổi, sửa/xóa điểm theo Sheet, dòng sai được đếm, chốt chặn xóa hàng loạt, quyền xem (khách 403), cột script khớp máy chủ |
 | `tests/view-upcoming.test.js` | Quyền xem lớp chưa diễn ra: chỉ thấy lớp upcoming, view_only, ghi bị 403, được phân công thì ghi được, bắt đầu lớp thì hết quyền, chỉ admin bật |
 | `tests/auth-security.test.js` | Khóa đăng nhập sai 8 lần (đếm trong DB, theo IP+email), đúng thì đếm lại; đổi mật khẩu (kiểm hiện tại, ≥ 10 ký tự, không chứa email, hủy phiên khác, khách bị chặn); nhật ký chỉ admin và không chứa mật khẩu |
 | `tests/guest.test.js` | Khách xem được lớp được phân công; mọi thao tác ghi (điểm danh, bài tập, học viên, buổi học, lớp, đổi mật khẩu) bị 403 và dữ liệu không đổi; đăng xuất được; schema có vai trò guest |
@@ -38,7 +39,7 @@ Dùng **PGlite** (Postgres thật chạy trong bộ nhớ) với `src/schema.sql
 | `tests/db-errors.test.js` | Phân loại lỗi cấu hình/kết nối DB; thiếu `DATABASE_URL` → đăng nhập trả 503 có lý do |
 | `tests/import.test.js` | Nhập điểm danh nhiều sheet (workbook dựng trong test): X/O/trống, có phép không tính mẫu số, bỏ sheet ẩn và cột tiền, giáo trình theo tên sheet, khớp mã lớp lệch P/B, không ghi đè ô sửa trên app, dry-run |
 
-## Đã được kiểm thử tự động (144 test)
+## Đã được kiểm thử tự động (150 test)
 - Chưa đăng nhập → 401; đăng nhập sai/đúng.
 - Giảng viên không truy cập được lớp chưa được phân (403), sau khi phân thì được; không tạo lớp / xem user được.
 - Tỉ lệ điểm danh: có phép không tính vào mẫu số (A=0.67, B=0.5).

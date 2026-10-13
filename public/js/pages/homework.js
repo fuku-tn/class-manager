@@ -13,6 +13,35 @@ const fmtTime = (iso) => {
 const sameCell = (a, b) => (a?.status ?? null) === (b?.status ?? null) && (a?.note ?? null) === (b?.note ?? null)
   && !!a?.challenge === !!b?.challenge && (a?.by ?? null) === (b?.by ?? null);
 
+// Điểm bài tập (đồng bộ từ tab Point của Google Sheet): bảng riêng, tải khi mở; khách không thấy.
+function scoreSection(base) {
+  const body = h('div', { class: 'muted' }, 'Đang tải…');
+  const box = h('details', { class: 'card' }, h('summary', {}, 'Điểm bài tập (thang 10)'), body);
+  const fmt = (n) => (n == null ? '—' : String(Math.round(n * 100) / 100));
+  async function load() {
+    try {
+      const d = await get(`${base}/scores`);
+      if (!d.has_scores) { body.replaceChildren(h('p', { class: 'muted' }, 'Lớp này chưa có điểm. Điểm được đồng bộ tự động từ tab "Point" của Google Sheet.')); return; }
+      const mods = new Map(); // assignment_id -> module (lấy theo giá trị xuất hiện đầu tiên)
+      for (const r of d.rows) for (const [aid, v] of Object.entries(r.scores)) if (v.module && !mods.has(aid)) mods.set(aid, v.module);
+      body.replaceChildren(
+        h('p', { class: 'muted small' }, `Điểm trung bình cả lớp: ${fmt(d.class_avg)} · ${d.rows.filter((r) => r.avg != null).length}/${d.rows.length} học viên có điểm`),
+        h('div', { class: 'table-wrap' }, h('table', {},
+          h('thead', {}, h('tr', {},
+            h('th', {}, 'Học viên'),
+            d.assignments.map((a) => h('th', { class: 'num', title: mods.get(String(a.id)) ?? '' }, a.title,
+              mods.get(String(a.id)) ? h('div', { class: 'muted small' }, mods.get(String(a.id))) : null)),
+            h('th', { class: 'num' }, 'Điểm TB'))),
+          h('tbody', {}, d.rows.map((r) => h('tr', { class: r.course_status === 'active' ? '' : 'inactive' },
+            h('td', { class: 'sticky' }, r.full_name, h('div', { class: 'muted small' }, r.student_code)),
+            d.assignments.map((a) => h('td', { class: 'num', title: r.scores[a.id]?.module ?? '' }, r.scores[a.id] ? fmt(r.scores[a.id].score) : '—')),
+            h('td', { class: 'num' }, h('b', {}, fmt(r.avg)))))))));
+    } catch (e) { body.replaceChildren(h('p', { class: 'error' }, e.message)); }
+  }
+  box.addEventListener('toggle', () => { if (box.open) load(); });
+  return box;
+}
+
 export async function renderHomework({ cls, state }) {
   const readOnly = state.user.role === 'guest'; // khách chỉ xem
   const base = `/api/classes/${cls.id}`;
@@ -122,7 +151,8 @@ export async function renderHomework({ cls, state }) {
       h('span', {}, readOnly ? 'Chú thích: ' : 'Bấm ô để cập nhật: '), ...Object.entries(LABEL).map(([k, v]) => h('span', {}, h('span', { class: `cell ${k}` }, SHORT[k]), ` ${v}`)),
       h('span', { class: 'muted' }, (readOnly ? '· Tài khoản khách chỉ xem ' : '') + '· ★ = có làm Challenge · "Nộp lại" chưa tính là hoàn thành · Rê chuột để xem ai đã cập nhật')),
     h('div', { class: 'toolbar' }, search),
-    h('div', { class: 'table-wrap' }, h('table', {}, head, body)));
+    h('div', { class: 'table-wrap' }, h('table', {}, head, body)),
+    readOnly ? null : scoreSection(base));
 
   startLive({
     base,

@@ -1,7 +1,7 @@
 // Học viên, điểm danh, bài tập của một lớp. Mount tại /api/classes/:classId
 const express = require('express');
 const { requireAdmin, requireClassAccess, canViewPotential } = require('../auth');
-const { loadClassData, computeEnrollmentStats, sessionSummaries } = require('../services/stats');
+const { loadClassData, computeEnrollmentStats, sessionSummaries, averageScore } = require('../services/stats');
 const realtime = require('../services/realtime');
 const { logEvents, latestEvents } = require('../services/history');
 const { tally } = require('../services/formProfile');
@@ -363,6 +363,34 @@ module.exports = (db) => {
     });
     await realtime.publish(req.cls.id, { kind: 'attendance' });
     res.json({ deleted });
+  });
+
+  // ---------- Điểm bài tập (đồng bộ từ tab Point) ----------
+  // Admin + giảng viên của lớp xem; khách không. Điểm trung bình tính ở stats.js (averageScore).
+  router.get('/scores', async (req, res) => {
+    if (req.user.role === 'guest') return res.status(403).json({ error: 'Tài khoản khách không xem được điểm' });
+    const [assignments, enrollments, scores] = await Promise.all([
+      db.all("select id, kind, seq, title from assignments where class_id = $1 order by (kind = 'capstone'), seq", [req.cls.id]),
+      db.all(`select e.id, e.course_status, s.student_code, s.full_name from enrollments e join students s on s.id = e.student_id
+               where e.class_id = $1 order by lower(s.full_name), s.id`, [req.cls.id]),
+      db.all(`select hs.enrollment_id, hs.assignment_id, hs.score::float8 as score, hs.module from homework_scores hs
+                join enrollments e on e.id = hs.enrollment_id where e.class_id = $1`, [req.cls.id]),
+    ]);
+    const byEnr = new Map();
+    for (const x of scores) {
+      if (!byEnr.has(x.enrollment_id)) byEnr.set(x.enrollment_id, {});
+      byEnr.get(x.enrollment_id)[x.assignment_id] = { score: x.score, module: x.module };
+    }
+    const rows = enrollments.map((e) => {
+      const mine = byEnr.get(e.id) ?? {};
+      return { enrollment_id: e.id, student_code: e.student_code, full_name: e.full_name, course_status: e.course_status,
+        scores: mine, avg: averageScore(Object.values(mine).map((v) => v.score)) };
+    });
+    const used = new Set(scores.map((x) => x.assignment_id));
+    res.json({
+      assignments: assignments.filter((a) => used.has(a.id)),
+      rows, class_avg: averageScore(scores.map((x) => x.score)), has_scores: scores.length > 0,
+    });
   });
 
   // ---------- Bài tập ----------
