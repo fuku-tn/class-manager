@@ -136,9 +136,14 @@ function stateFromStatus(raw) {
   return { course_status: 'active', carried_over: false };
 }
 
+// Chỉ nhận dòng có ĐỦ mã học viên hợp lệ (P.12345 / B.00312) và mã lớp có trong sheet Course.
+// Dòng thiếu mã học viên, mã học viên lạ (#N/A, "-", tên...) hoặc lớp không có trong Course thì bỏ qua và được đếm để báo.
+// Bảo lưu / chuyển lớp (STATUS, đổi mã lớp) vẫn đi qua bình thường vì dòng vẫn có đủ hai mã.
+const STUDENT_ID_RE = /^[A-Za-z][A-Za-z0-9]{0,5}\.\d{1,9}$/;
+
 function parseTransactions(ws, classByShort) {
   const { rows } = readAllowed(ws, [...ALLOWED_TX, 'COMPANY NAME', 'SEGMENT']);
-  const skipped = { no_course: 0, unknown_course: new Map() };
+  const skipped = { no_course: 0, unknown_course: new Map(), no_student_id: 0, invalid_student_id: 0, invalid_samples: [] };
   const students = new Map();   // STUDENT ID -> thông tin mới nhất
   const enrolls = new Map();    // `${short}|${student}` -> bản ghi
   const emailIds = new Map();
@@ -148,7 +153,12 @@ function parseTransactions(ws, classByShort) {
   for (const r of rows) {
     const sid = txt(r['STUDENT ID']);
     const short = txt(r.COURSE)?.toUpperCase();
-    if (!sid) continue;
+    if (!sid) { if (short || txt(r['FULL NAME'])) skipped.no_student_id++; continue; }
+    if (!STUDENT_ID_RE.test(sid)) {
+      skipped.invalid_student_id++;
+      if (skipped.invalid_samples.length < 5) skipped.invalid_samples.push(String(sid).slice(0, 20));
+      continue;
+    }
     if (!short) { skipped.no_course++; continue; }
     if (!classByShort.has(short)) { skipped.unknown_course.set(short, (skipped.unknown_course.get(short) ?? 0) + 1); continue; }
 
@@ -241,6 +251,8 @@ async function importTransactions(db, { transactionsFile, curriculumFile, dryRun
   const summary = {
     curricula: curricula.length, curricula_from_db: !curriculumFile, classes: classes.length, students: parsed.students.length, enrollments: parsed.enrolls.length,
     transactions_rows: parsed.total_rows, skipped_no_course: parsed.skipped.no_course,
+    skipped_no_student_id: parsed.skipped.no_student_id, skipped_invalid_student_id: parsed.skipped.invalid_student_id,
+    invalid_student_id_samples: parsed.skipped.invalid_samples,
     skipped_unknown_course: Object.fromEntries(parsed.skipped.unknown_course),
     classes_with_default_template: classes.filter((c) => c.template && !c.template_known).length,
     classes_without_template: classes.filter((c) => !c.template).length,

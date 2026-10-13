@@ -159,3 +159,26 @@ test('chốt chặn đồng bộ: một lượt thêm hoặc đánh dấu "khôn
   assert.equal(ok.status, 200, JSON.stringify(ok.body));
   assert.equal(ok.body.added.enrollments, 5);
 });
+
+test('đồng bộ chỉ nhận dòng có đủ mã học viên hợp lệ và mã lớp có trong sheet Course; bảo lưu/chuyển lớp vẫn đi bình thường', async () => {
+  const mkRow = (id, course, status = null) => [id, 'CX', `Người ${id}`, `${String(id).replace(/\W/g, '')}@x.com`, '0903333333', course, 'Online', 'Male', status, 'Form'];
+  const ok = mkRow('P.7001', 'BIE104');
+  const noId = mkRow('', 'BIE104');                  // có tên + lớp nhưng chưa có mã học viên
+  const bad1 = mkRow('#N/A', 'BIE104');
+  const bad2 = mkRow('Nguyễn Văn A', 'BIE104');
+  const noCourse = mkRow('P.7002', '');
+  const unknown = mkRow('P.7003', 'TƯ VẤN');
+  const r = await post({ transactions: tx(ok, noId, bad1, bad2, noCourse, unknown), course: COURSE });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(r.body.added.students, 1);
+  assert.equal(r.body.added.enrollments, 1);
+  assert.deepEqual([r.body.skipped_no_student_id, r.body.skipped_invalid_student_id, r.body.skipped_no_course], [1, 2, 1]);
+  assert.deepEqual(r.body.invalid_student_id_samples, ['#N/A', 'Nguyễn Văn A']);
+  assert.deepEqual(r.body.skipped_unknown_course, { 'TƯ VẤN': 1 });
+  assert.equal((await t.db.one("select count(*)::int n from students where student_code in ('P.7002','P.7003')")).n, 0);
+  // "Bảo lưu khóa trước" (học viên chuyển từ khóa trước sang) và "Không tham gia" vẫn đi qua bình thường khi dòng có đủ hai mã
+  const carry = await post({ transactions: tx(mkRow('P.7004', 'BIE104', 'Bảo lưu khóa trước'), mkRow('P.7005', 'BIE104', 'Không tham gia')), course: COURSE });
+  assert.equal(carry.status, 200, JSON.stringify(carry.body));
+  const rows = await t.db.all("select s.student_code, e.course_status, e.carried_over from enrollments e join students s on s.id = e.student_id where s.student_code in ('P.7004','P.7005') order by 1");
+  assert.deepEqual(rows, [{ student_code: 'P.7004', course_status: 'active', carried_over: true }, { student_code: 'P.7005', course_status: 'dropped', carried_over: false }]);
+});

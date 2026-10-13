@@ -48,6 +48,8 @@ function transactionsResult(r) {
       kv('Lớp mới', fmt(added.classes)), kv('Học viên mới', fmt(added.students)), kv('Ghi danh mới', fmt(added.enrollments)), kv('Buổi mới', fmt(added.sessions))),
     r.classes_without_template ? h('p', { class: 'muted small' }, `${fmt(r.classes_without_template)} lớp chưa có giáo trình (chạy "npm run import-tx" kèm file session-management.xlsx để nạp giáo trình mới).`) : null,
     r.skipped_no_course ? h('p', { class: 'muted small' }, `${fmt(r.skipped_no_course)} dòng bỏ qua vì thiếu khóa học.`) : null,
+    r.skipped_no_student_id ? h('p', { class: 'muted small' }, `${fmt(r.skipped_no_student_id)} dòng bỏ qua vì chưa có mã học viên.`) : null,
+    r.skipped_invalid_student_id ? h('p', { class: 'muted small' }, `${fmt(r.skipped_invalid_student_id)} dòng bỏ qua vì mã học viên không đúng dạng (ví dụ ${(r.invalid_student_id_samples ?? []).join(', ')}).`) : null,
     unknown.length ? h('p', { class: 'muted small' }, `Khóa học không có trong sheet Course (bỏ qua): ${unknown.slice(0, 8).map(([k, v]) => `${k} (${v})`).join(', ')}${unknown.length > 8 ? '…' : ''}`) : null,
     an && (an.emails_with_many_ids || an.ids_with_many_emails || an.phones_with_many_ids)
       ? h('p', { class: 'muted small' }, `Dữ liệu trùng lặp cần rà: ${fmt(an.emails_with_many_ids)} email nhiều mã · ${fmt(an.ids_with_many_emails)} mã nhiều email · ${fmt(an.phones_with_many_ids)} SĐT nhiều mã`) : null);
