@@ -207,6 +207,12 @@ async function curriculaFromDb(db) {
   });
 }
 
+const GUARD_MIN = 100;     // dưới ngưỡng này luôn cho phép (và chưa kiểm khi database còn ít hơn 200 ghi danh)
+const GUARD_RATIO = 0.05;  // hoặc tối đa 5% tổng số ghi danh hiện có
+const guardError = (what) => Object.assign(
+  new Error(`Đồng bộ bị chặn vì thay đổi bất thường: ${what}. Kiểm tra Google Sheet có bị sắp xếp/sửa dở không rồi thử lại sau ít phút; dữ liệu trong app chưa bị đổi.`),
+  { status: 409, expose: true });
+
 // opts: { transactionsFile, curriculumFile, dryRun }
 // Mã các lớp có ghi danh trong file (để báo realtime cho trình duyệt đang mở lớp đó).
 const en0 = (enrolls, classId) => enrolls.map((e) => classId.get(e.short_code)).filter(Boolean);
@@ -215,7 +221,7 @@ const en0 = (enrolls, classId) => enrolls.map((e) => classId.get(e.short_code)).
 // không đè tên/email/SĐT/hình thức và không đưa học viên đã nghỉ/bảo lưu về "đang học" (sửa tay trên web được giữ).
 // eventSource: 'sync' | 'import' | 'web' (ghi vào nhật ký sự kiện). detectMissing: phát hiện học viên không còn trong Sheet (chỉ đồng bộ tự động).
 async function importTransactions(db, { transactionsFile, curriculumFile, dryRun = false, preserveManual = false,
-  eventSource = 'import', actor = null, detectMissing = false, missingSegments = ['b2c', 'b2b'] }) {
+  eventSource = 'import', actor = null, detectMissing = false, missingSegments = ['b2c', 'b2b'], guard = false }) {
   const tw = await loadWorkbook(transactionsFile);
   const courseWs = tw.getWorksheet('Course');
   const txWs = tw.getWorksheet('Transactions');
@@ -357,6 +363,16 @@ async function importTransactions(db, { transactionsFile, curriculumFile, dryRun
           en.map((e) => e.course_status), en.map((e) => e.registration_source), en.map((e) => e.carried_over),
           en.map((e) => e.segment), en.map((e) => e.company_name)]);
 
+      // Chốt chặn (đồng bộ tự động): một lượt không được thêm/đánh dấu "không còn" quá nhiều ghi danh cùng lúc.
+      // Sheet đang bị sửa dở (lệch cột, sắp xếp...) từng tạo hơn 1.500 ghi danh sai trong một lượt (13/10/2026).
+      // Ném lỗi trong transaction = không ghi gì; muốn nhập khối lượng lớn thì dùng trang Nhập Excel.
+      const addedNow = upserted.filter((r) => r.inserted).length;
+      if (guard) {
+        const total = Number((await t.one('select count(*)::int as n from enrollments')).n) - addedNow;   // số ghi danh TRƯỚC lượt này
+        const limit = Math.max(GUARD_MIN, Math.ceil(total * GUARD_RATIO));
+        if (total >= GUARD_MIN * 2 && addedNow > limit) throw guardError(`định thêm ${addedNow} ghi danh mới cùng lúc (giới hạn ${limit})`);
+      }
+
       // Nhật ký sự kiện (cùng transaction): thêm mới, đổi trạng thái, không còn/lại xuất hiện trong Sheet
       const stuByCode = new Map(st.map((s) => [s.student_code, s]));
       const codeById = new Map(studentRows.map((r) => [r.id, r.student_code]));
@@ -381,8 +397,11 @@ async function importTransactions(db, { transactionsFile, curriculumFile, dryRun
            where e.class_id = any($1::bigint[]) and e.origin = 'sheet' and e.course_status = 'active'
              and e.segment = any($2::text[])`, [involved, missingSegments]);
         let missing = 0;
-        for (const e of cand) {
-          if (present.has(`${e.class_id}:${e.student_id}`) || latest.get(e.id) === 'missing_from_sheet') continue;
+        const gone = cand.filter((e) => !present.has(`${e.class_id}:${e.student_id}`) && latest.get(e.id) !== 'missing_from_sheet');
+        if (guard && cand.length >= GUARD_MIN * 2 && gone.length > Math.max(GUARD_MIN, Math.ceil(cand.length * GUARD_RATIO))) {
+          throw guardError(`định đánh dấu ${gone.length} học viên "không còn trong Sheet" cùng lúc`);
+        }
+        for (const e of gone) {
           missing++;
           events.push({ enrollment_id: e.id, class_id: e.class_id, class_code: e.class_code, student_id: e.student_id, student_code: e.student_code,
             full_name: e.full_name, event: 'missing_from_sheet', from_status: 'active', source: eventSource });

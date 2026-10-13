@@ -130,7 +130,7 @@ module.exports = (db) => {
       const suspicious = !!(prevRun?.n && tx.rows.length < prevRun.n * 0.5);
       const { anomaly_details, class_ids = [], columns_read, ...brief } = await importTransactions(db, {
         transactionsFile: wb, curriculumFile: null, dryRun: false, preserveManual: true,
-        eventSource: 'sync', detectMissing: !suspicious,
+        eventSource: 'sync', detectMissing: !suspicious, guard: true,
         missingSegments: company ? ['b2c', 'b2b'] : ['b2c'], // chưa gửi COMPANY thì không dò B2B
       });
       if (suspicious) brief.missing_detection_skipped = true;

@@ -138,3 +138,24 @@ test('script Apps Script: tham số sự kiện của trigger không bị coi l�
   assert.match(src, /const force = forceArg === true;/);
   assert.match(src, /syncNow\(true\)/);
 });
+
+test('chốt chặn đồng bộ: một lượt thêm hoặc đánh dấu "không còn" quá nhiều ghi danh thì bị từ chối, không ghi gì', async () => {
+  const mk = (n, course, from = 0) => Array.from({ length: n }, (_, i) =>
+    [`G.${from + i}`, `CG${from + i}`, `Học viên ${from + i}`, `g${from + i}@x.com`, `09${String(10000000 + from + i)}`, course, 'Online', 'Male', null, 'Form']);
+  const COURSES = { headers: ['COURSE', 'COURSE ID', 'STARTDATE', 'ENDDATE'], rows: [
+    ['GRD1', 'P2.BIE.P201.HY.AA.041026', '2026-10-04', '2026-12-20'], ['GRD2', 'P2.BIE.P202.HY.AA.041026', '2026-10-04', '2026-12-20']] };
+  // database đang trống/ít: lượt đầu nạp 300 ghi danh vẫn được (chưa kiểm khi < 200 ghi danh)
+  const first = await post({ transactions: tx(...mk(300, 'GRD1')), course: COURSES });
+  assert.equal(first.status, 200, JSON.stringify(first.body));
+  const countBefore = (await t.db.one('select count(*)::int n from enrollments')).n;
+  // Sheet bị lệch: 300 người cùng lúc "chuyển" sang lớp khác → thêm 300 mới + 300 "không còn" → bị chặn
+  const bad = await post({ transactions: tx(...mk(300, 'GRD2')), course: COURSES });
+  assert.equal(bad.status, 409);
+  assert.match(bad.body.error, /Đồng bộ bị chặn/);
+  assert.equal((await t.db.one('select count(*)::int n from enrollments')).n, countBefore);   // không ghi gì
+  assert.equal((await t.db.one("select count(*)::int n from enrollment_events where event = 'missing_from_sheet'")).n, 0);
+  // thay đổi nhỏ (5 người mới) vẫn qua bình thường
+  const ok = await post({ transactions: tx(...mk(300, 'GRD1'), ...mk(5, 'GRD1', 1000)), course: COURSES });
+  assert.equal(ok.status, 200, JSON.stringify(ok.body));
+  assert.equal(ok.body.added.enrollments, 5);
+});

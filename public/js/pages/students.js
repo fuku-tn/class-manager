@@ -19,12 +19,15 @@ const fmtWhen = (iso) => {
 
 export async function renderStudents({ cls, state }) {
   const readOnly = state.user.role === 'guest'; // khách chỉ xem
+  // Lớp chưa tới ngày khai giảng: học viên "đang học" hiển thị là "Lớp chưa diễn ra" (chỉ hiển thị, không đổi dữ liệu).
+  const upcoming = cls.timing === 'upcoming';
+  const shownStatus = (r) => (upcoming && r.course_status === 'active' ? 'Lớp chưa diễn ra' : COURSE_STATUS_LABEL[r.course_status]);
   const base = `/api/classes/${cls.id}`;
   let rows = await get(`${base}/students`);
   // Hồ sơ đăng ký (FORM): chỉ admin; lỗi/không có thì bỏ qua.
   const profiles = state.user.role === 'admin' ? await get(`${base}/profiles`).catch(() => null) : null;
   const search = h('input', { type: 'search', placeholder: 'Tìm theo tên, mã, email…', 'aria-label': 'Tìm học viên' });
-  const status = h('select', { 'aria-label': 'Lọc trạng thái' }, h('option', { value: '' }, 'Mọi trạng thái'), STATUS_OPTIONS.map(([v, l]) => h('option', { value: v }, l)));
+  const status = h('select', { 'aria-label': 'Lọc trạng thái' }, h('option', { value: '' }, 'Mọi trạng thái'), STATUS_OPTIONS.map(([v, l]) => h('option', { value: v }, upcoming && v === 'active' ? 'Lớp chưa diễn ra' : l)));
   const mode = h('select', { 'aria-label': 'Lọc hình thức' }, h('option', { value: '' }, 'Mọi hình thức'), MODE_OPTIONS.slice(1).map(([v, l]) => h('option', { value: v }, l)));
   const body = h('tbody');
   const count = h('span', { class: 'muted' });
@@ -127,7 +130,7 @@ export async function renderStudents({ cls, state }) {
       h('td', {}, r.full_name, r.segment === 'b2b' ? h('div', { class: 'muted small' }, ['B2B', r.company_name || r.customer_id].filter(Boolean).join(' · ')) : null),
       h('td', {}, r.email || '—'), h('td', {}, r.phone || '—'),
       h('td', {}, r.mode || '—'),
-      h('td', {}, h('span', { class: `badge ${COURSE_STATUS_BADGE[r.course_status] || ''}` }, COURSE_STATUS_LABEL[r.course_status]),
+      h('td', {}, h('span', { class: `badge ${upcoming && r.course_status === 'active' ? '' : COURSE_STATUS_BADGE[r.course_status] || ''}`, title: upcoming && r.course_status === 'active' ? 'Lớp chưa tới ngày khai giảng' : null }, shownStatus(r)),
         r.missing_from_sheet ? h('span', { class: 'badge warn', title: 'Không còn thấy trong Google Sheet — hãy kiểm tra: học viên đã nghỉ, hay Sheet bị xóa nhầm?' }, 'Không còn trong Sheet') : null),
       h('td', { class: 'num' }, pct(r.attendance_rate)), h('td', { class: 'num' }, pct(r.hw_rate)))));
     if (!list.length) body.append(h('tr', {}, h('td', { colspan: 8, class: 'empty-state' }, rows.length ? 'Không có học viên khớp bộ lọc.' : (readOnly ? 'Chưa có học viên.' : 'Chưa có học viên. Bấm "Thêm học viên".'))));
@@ -139,7 +142,7 @@ export async function renderStudents({ cls, state }) {
     h('div', { class: 'page-head' }, h('h1', {}, 'Học viên'), h('span', { class: 'muted', title: cls.code }, classDisplayName(cls)), h('span', { class: 'spacer' }),
       h('button', { onclick: () => downloadCsv(`${cls.code}-hoc-vien.csv`, [
         ['Mã', 'Họ tên', 'Email', 'SĐT', 'Hình thức', 'Trạng thái', 'Điểm danh', 'HW'],
-        ...filtered().map((r) => [r.student_code, r.full_name, r.email, r.phone, r.mode, COURSE_STATUS_LABEL[r.course_status], pct(r.attendance_rate), pct(r.hw_rate)])]) }, 'Xuất CSV'),
+        ...filtered().map((r) => [r.student_code, r.full_name, r.email, r.phone, r.mode, shownStatus(r), pct(r.attendance_rate), pct(r.hw_rate)])]) }, 'Xuất CSV'),
       !readOnly && h('button', { class: 'primary', onclick: add }, '+ Thêm học viên')),
     h('div', { class: 'toolbar' }, search, status, mode, count),
     h('div', { class: 'table-wrap' }, h('table', {},
