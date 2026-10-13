@@ -1,5 +1,5 @@
 import { get, post } from './api.js';
-import { h, toast, logo, icon, BRAND } from './ui.js';
+import { h, toast, logo, icon, BRAND, formModal } from './ui.js';
 import { renderLogin } from './pages/login.js';
 import { renderDashboard } from './pages/dashboard.js';
 import { renderStudents } from './pages/students.js';
@@ -80,10 +80,24 @@ function buildShell() {
         h('div', { class: 'chip-user', title: admin ? 'Quản trị viên' : 'Giảng viên' },
           h('div', { class: 'avatar' }, initials(state.user.name)),
           h('span', { class: 'chip-user-name' }, state.user.name),
+          state.user.role === 'guest' ? null : h('button', { class: 'icon-btn', title: 'Đổi mật khẩu', 'aria-label': 'Đổi mật khẩu', onclick: changePassword }, icon('key')),
           h('button', { class: 'icon-btn', title: 'Đăng xuất', 'aria-label': 'Đăng xuất',
             onclick: async () => { await post('/api/auth/logout'); state.user = null; shell = null; route(); } }, icon('logout'))))),
     h('main', { class: 'content' }, view));
   shell = { root, view, picker, homeLink, navLinks, adminLinks, progress, active: null };
+}
+
+// Tự đổi mật khẩu (các phiên khác của tài khoản này bị đăng xuất).
+async function changePassword() {
+  const v = await formModal({ title: 'Đổi mật khẩu', submitLabel: 'Đổi mật khẩu', fields: [
+    { name: 'current', label: 'Mật khẩu hiện tại', type: 'password', required: true },
+    { name: 'next', label: 'Mật khẩu mới (≥ 10 ký tự, không chứa email)', type: 'password', required: true },
+    { name: 'again', label: 'Nhập lại mật khẩu mới', type: 'password', required: true },
+  ] });
+  if (!v) return;
+  if (v.next !== v.again) { toast('Hai lần nhập mật khẩu mới không giống nhau', true); return; }
+  try { await post('/api/auth/password', { current: v.current, next: v.next }); toast('Đã đổi mật khẩu. Các thiết bị khác sẽ phải đăng nhập lại.'); }
+  catch (e) { toast(e.message, true); }
 }
 
 // Cập nhật thanh điều hướng/chọn lớp mà không dựng lại.

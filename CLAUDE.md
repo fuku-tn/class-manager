@@ -13,6 +13,7 @@ Giao diện và tài liệu bằng **tiếng Việt**; tên biến/hàm/bảng b
 | Triển khai lên Vercel | [Documents/deploy-vercel.md](Documents/deploy-vercel.md) |
 | Đồng bộ tự động từ Google Sheet | [Documents/google-sheet-sync.md](Documents/google-sheet-sync.md) |
 | Chiến lược & checklist kiểm thử | [Documents/testing.md](Documents/testing.md) |
+| Bảo mật: đã có gì, việc cần tự làm, khi nghi bị lộ | [Documents/security.md](Documents/security.md) |
 | Quyết định, giả định, việc đang dở | [memory.md](memory.md) |
 | Nội dung đã bỏ/thay thế (không xóa hẳn) | [Archive.md](Archive.md) |
 
@@ -57,6 +58,7 @@ Cần Node >= 22.13. Dữ liệu thật nằm trên **Supabase (Postgres)**.
 11. **Ghi một ô điểm danh/bài tập** phải đi qua route có `expected` + `updated_by` và gọi `realtime.publish` sau khi ghi thành công; frontend cập nhật ô tại chỗ (không dựng lại bảng). Đừng bỏ cơ chế này khi thêm loại ô mới.
 12. Không commit `.env`, `node_modules/`, `legacy/*.db`, file `.xlsx/.csv` (dữ liệu học viên thật). Không đưa dữ liệu học viên thật vào repo/test ngoài file mẫu.
 13. Xong một thay đổi: chạy `npm test`; cập nhật [memory.md](memory.md) nếu có quyết định/giả định mới; nội dung lỗi thời chuyển sang [Archive.md](Archive.md).
+14a. **Đăng nhập/mật khẩu** (`routes/auth.js`): giới hạn đăng nhập sai nằm trong DB (`auth_events`), không dùng bộ nhớ (serverless). Mật khẩu mới ≥ 10 ký tự; không ghi mật khẩu vào nhật ký; đổi mật khẩu phải hủy các phiên khác. Migration `auth_events` phải chạy trên Supabase **trước** khi đẩy code (đăng nhập truy vấn bảng này).
 14. **Nhắc bài** (`routes/remind.js`): tin nhắn mẫu, tổng quan, cấu hình, ảnh thẻ chỉ cho admin hoặc `users.can_remind` — kiểm ở máy chủ, người khác chỉ nhận tiến độ từng học viên; tổng quan lớp **không có tên học viên**; khách 403. `remind-homework-kit/` (tên thật) git-ignore.
 
 ## Skill của project (`.claude/skills/`)

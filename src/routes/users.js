@@ -16,7 +16,7 @@ module.exports = (db) => {
     const password = String(req.body.password || '');
     const role = ['admin', 'guest'].includes(req.body.role) ? req.body.role : 'instructor';
     if (!email.includes('@') || !name) return res.status(400).json({ error: 'Cần email hợp lệ và họ tên' });
-    if (password.length < 8) return res.status(400).json({ error: 'Mật khẩu tối thiểu 8 ký tự' });
+    if (password.length < 10) return res.status(400).json({ error: 'Mật khẩu tối thiểu 10 ký tự' });
     if (await db.one('select 1 as x from users where email = $1', [email])) return res.status(409).json({ error: 'Email đã tồn tại' });
     const r = await db.one('insert into users (email, name, password_hash, role) values ($1, $2, $3, $4) returning id',
       [email, name, hashPassword(password), role]);

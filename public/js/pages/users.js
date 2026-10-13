@@ -4,6 +4,9 @@ import { classDisplayName } from '../class-filter.mjs';
 
 export async function renderUsers({ state, navigate }) {
   const users = await get('/api/users');
+  const events = await get('/api/auth/events').catch(() => []);
+  const EVENT = { login_ok: 'Đăng nhập', login_fail: 'Đăng nhập sai', locked: 'Bị khóa tạm', password_changed: 'Đổi mật khẩu', password_fail: 'Nhập sai mật khẩu hiện tại' };
+  const when = (iso) => new Date(iso).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: '2-digit' });
   const classOf = (id) => { const c = state.classes.find((x) => x.id === id); return c ? classDisplayName(c) : id; };
 
   async function assign(u) {
@@ -20,12 +23,21 @@ export async function renderUsers({ state, navigate }) {
     catch (e) { toast(e.message, true); }
   }
 
+  const eventsCard = h('details', { class: 'card' },
+    h('summary', {}, `Nhật ký đăng nhập (${events.length} sự kiện gần nhất)`),
+    h('div', { class: 'table-wrap' }, h('table', {},
+      h('thead', {}, h('tr', {}, ['Thời gian', 'Sự kiện', 'Email', 'IP', 'Thiết bị'].map((x) => h('th', {}, x)))),
+      h('tbody', {}, events.map((e) => h('tr', { class: e.event === 'login_ok' || e.event === 'password_changed' ? '' : 'inactive' },
+        h('td', {}, when(e.at)), h('td', {}, EVENT[e.event] ?? e.event), h('td', {}, e.email ?? '—'), h('td', {}, e.ip ?? '—'),
+        h('td', { class: 'muted small', title: e.user_agent ?? '' }, (e.user_agent ?? '').slice(0, 50)))))),
+    h('p', { class: 'muted small' }, 'Giữ 90 ngày. Sai 8 lần trong 15 phút (cùng IP + email) thì bị khóa tạm 15 phút.')));
+
   return h('div', {},
     h('div', { class: 'page-head' }, h('h1', {}, 'Người dùng'), h('span', { class: 'spacer' }),
       h('button', { class: 'primary', onclick: async () => {
         const v = await formModal({ title: 'Thêm giảng viên / admin', fields: [
           { name: 'name', label: 'Họ tên', required: true }, { name: 'email', label: 'Email', type: 'email', required: true },
-          { name: 'password', label: 'Mật khẩu (≥ 8 ký tự)', type: 'password', required: true },
+          { name: 'password', label: 'Mật khẩu (≥ 10 ký tự)', type: 'password', required: true },
           { name: 'role', label: 'Vai trò', type: 'select', value: 'instructor', options: [['instructor', 'Giảng viên'], ['guest', 'Khách (chỉ xem)'], ['admin', 'Admin']] }] });
         if (!v) return;
         try { await post('/api/users', v); toast('Đã tạo'); location.reload(); } catch (e) { toast(e.message, true); }
@@ -44,5 +56,5 @@ export async function renderUsers({ state, navigate }) {
           u.role !== 'admin' && h('button', { onclick: () => assign(u) }, 'Phân lớp'), ' ',
           u.id !== state.user.id && h('button', { onclick: async () => {
             try { await put(`/api/users/${u.id}/active`, { active: !u.active }); location.reload(); } catch (e) { toast(e.message, true); }
-          } }, u.active ? 'Khóa' : 'Mở khóa'))))))));
+          } }, u.active ? 'Khóa' : 'Mở khóa'))))))), eventsCard);
 }
