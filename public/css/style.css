@@ -10,7 +10,7 @@
   --solid-2: #111d3b;
   --glass: rgba(255, 255, 255, .045);
   --glass-hover: rgba(255, 255, 255, .075);
-  --nav-bg: rgba(7, 13, 27, .72);
+  --nav-bg: rgba(7, 13, 27, .98);
   --text: #f1ede4; --muted: #9ba7c0; --border: rgba(255, 255, 255, .10);
 
   --gold: #c9a46a; --gold-2: #e3c48e; --gold-soft: rgba(201, 164, 106, .15); --on-gold: #1b1408;
@@ -30,7 +30,7 @@
 }
 :root[data-theme="light"] {
   --bg: #f4f1ea; --bg-glow-1: rgba(201, 164, 106, .25); --bg-glow-2: rgba(91, 134, 255, .13);
-  --solid: #ffffff; --solid-2: #f8f5ee; --glass: rgba(255, 255, 255, .78); --glass-hover: #ffffff; --nav-bg: rgba(244, 241, 234, .82);
+  --solid: #ffffff; --solid-2: #f8f5ee; --glass: rgba(255, 255, 255, .78); --glass-hover: #ffffff; --nav-bg: rgba(244, 241, 234, .98);
   --text: #15203a; --muted: #5d6a85; --border: rgba(21, 32, 58, .11);
   --gold: #a97d38; --gold-2: #8d6628; --gold-soft: rgba(169, 125, 56, .13); --on-gold: #ffffff;
   --btn-gold: linear-gradient(135deg, #c79a52 0%, #a97d38 100%);
@@ -45,11 +45,14 @@
 html { -webkit-text-size-adjust: 100%; background: var(--bg); }
 body {
   margin: 0; min-height: 100vh; color: var(--text); font: 400 14.5px/1.55 var(--font); -webkit-font-smoothing: antialiased;
+}
+/* Nền gradient nằm trong một lớp cố định riêng (không dùng background-attachment: fixed, vốn bắt trình duyệt vẽ lại mỗi khung hình khi cuộn) */
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; contain: strict;
   background:
     radial-gradient(900px 520px at 6% 105%, var(--bg-glow-1), transparent 62%),
     radial-gradient(1000px 640px at 102% 28%, var(--bg-glow-2), transparent 62%),
     var(--bg);
-  background-attachment: fixed;
 }
 h1 { font-size: 1.7rem; line-height: 1.2; font-weight: 650; letter-spacing: -.02em; margin: 0; }
 h2 { font-size: 1.02rem; font-weight: 600; letter-spacing: -.01em; margin: 0 0 .75rem; }
@@ -62,7 +65,7 @@ a:hover { color: var(--gold-2); }
 .accent { color: var(--gold); }
 
 /* ---------- Thanh điều hướng trên cùng ---------- */
-.topbar { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: .75rem 1.5rem; padding: .8rem clamp(1rem, 3vw, 2.25rem); background: var(--nav-bg); backdrop-filter: blur(18px) saturate(140%); -webkit-backdrop-filter: blur(18px) saturate(140%); border-bottom: 1px solid var(--border); }
+.topbar { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: .75rem 1.5rem; padding: .8rem clamp(1rem, 3vw, 2.25rem); background: var(--nav-bg); border-bottom: 1px solid var(--border); }
 .brand { display: flex; align-items: center; gap: .7rem; color: var(--text); text-decoration: none !important; }
 .brand svg { flex: none; }
 .brand-text { display: grid; line-height: 1.12; }
@@ -118,7 +121,7 @@ a:hover { color: var(--gold-2); }
 .hero > div { min-width: 0; }
 .hero h1 { overflow-wrap: anywhere; font-size: clamp(1.9rem, 3.6vw, 2.9rem); font-weight: 600; letter-spacing: -.03em; line-height: 1.1; margin: .55rem 0 .8rem; }
 .hero p { color: var(--muted); margin: 0; max-width: 46ch; }
-.hero-card { padding: 1.25rem 1.4rem; border-radius: 20px; border: 1px solid var(--border); background: var(--glass); backdrop-filter: blur(14px); }
+.hero-card { padding: 1.25rem 1.4rem; border-radius: 20px; border: 1px solid var(--border); background: var(--glass); }
 .hero-card .label { font-size: .72rem; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); }
 .hero-card .big { font-size: 2.3rem; font-weight: 650; letter-spacing: -.02em; margin: .2rem 0 .1rem; }
 .hero-stats { display: flex; gap: 1.4rem; padding: .8rem 0; margin: .6rem 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
@@ -128,9 +131,9 @@ a:hover { color: var(--gold-2); }
 
 /* ---------- Thẻ & KPI (kính mờ) ---------- */
 .card, .kpi, .table-wrap, .hero-card { box-shadow: var(--shadow); }
-.card { background: var(--glass); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.2rem 1.35rem; margin-bottom: 1.15rem; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+.card { background: var(--glass); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.2rem 1.35rem; margin-bottom: 1.15rem; }
 .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .9rem; margin-bottom: 1.15rem; }
-.kpi { background: var(--glass); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.15rem; position: relative; overflow: hidden; backdrop-filter: blur(14px); transition: border-color .2s, transform .2s; }
+.kpi { background: var(--glass); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.15rem; position: relative; overflow: hidden; transition: border-color .2s, transform .2s; }
 .kpi:hover { border-color: color-mix(in srgb, var(--gold) 45%, var(--border)); transform: translateY(-2px); }
 .kpi::after { content: ""; position: absolute; left: 1.15rem; top: 0; width: 28px; height: 2px; background: var(--gold); border-radius: 0 0 2px 2px; }
 .kpi.bad::after { background: var(--bad); }
@@ -176,7 +179,7 @@ button.small { padding: .12rem .55rem; font-size: .75rem; border-radius: 8px; }
 .toolbar select { border-radius: 999px; padding-left: 1rem; }
 
 /* ---------- Bảng ---------- */
-.table-wrap { overflow: auto; max-height: calc(100vh - 250px); border: 1px solid var(--border); border-radius: var(--radius); background: var(--glass); backdrop-filter: blur(14px); }
+.table-wrap { overflow: auto; max-height: calc(100vh - 250px); border: 1px solid var(--border); border-radius: var(--radius); background: var(--glass); }
 .card .table-wrap { box-shadow: none; max-height: 420px; background: transparent; }
 table { border-collapse: separate; border-spacing: 0; width: 100%; }
 th, td { padding: .65rem .9rem; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
@@ -444,7 +447,7 @@ span.cell[role="button"] { cursor: pointer; }
 .node { opacity: 0; animation: pop .4s ease-out both; transform-box: fill-box; transform-origin: center; }
 @keyframes pop { from { opacity: 0; transform: scale(0); } to { opacity: 1; transform: scale(1); } }
 .float-card { position: absolute; display: flex; align-items: center; gap: .6rem; padding: .55rem .9rem; border-radius: 16px; border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--solid) 78%, transparent); backdrop-filter: blur(14px); box-shadow: var(--shadow); animation: float 6s ease-in-out infinite; }
+  background: color-mix(in srgb, var(--solid) 78%, transparent); box-shadow: var(--shadow); animation: float 6s ease-in-out infinite; }
 .float-card b { font-weight: 650; font-size: .92rem; }
 .float-card svg { width: 18px; height: 18px; color: var(--gold); }
 .float-card.f1 { left: -2%; top: 10%; }
@@ -453,7 +456,7 @@ span.cell[role="button"] { cursor: pointer; }
 
 .home-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 1.1rem 0 0; }
 .glass-stat { display: flex; align-items: center; gap: 1rem; padding: 1.1rem 1.3rem; border-radius: 22px; border: 1px solid var(--border); background: var(--glass);
-  backdrop-filter: blur(14px); box-shadow: var(--shadow); transition: transform .25s, border-color .25s; }
+ box-shadow: var(--shadow); transition: transform .25s, border-color .25s; }
 .glass-stat:hover { transform: translateY(-4px); border-color: color-mix(in srgb, var(--gold) 50%, var(--border)); }
 .glass-stat > svg { width: 30px; height: 30px; color: var(--gold); flex: none; }
 .gs-value { font-size: 1.9rem; font-weight: 650; letter-spacing: -.02em; line-height: 1.15; font-variant-numeric: tabular-nums; }
@@ -468,7 +471,7 @@ span.cell[role="button"] { cursor: pointer; }
 .cr-view { overflow: hidden; border-radius: 4px; }
 .cr-track { display: flex; gap: 16px; transition: transform .65s cubic-bezier(.2, .7, .2, 1); will-change: transform; }
 .class-card { flex: 0 0 calc((100% - 16px * (var(--per) - 1)) / var(--per)); display: grid; gap: .45rem; padding: 1.1rem 1.2rem; border-radius: 22px; border: 1px solid var(--border);
-  background: var(--glass); color: var(--text) !important; text-decoration: none !important; backdrop-filter: blur(14px); box-shadow: var(--shadow);
+  background: var(--glass); color: var(--text) !important; text-decoration: none !important; box-shadow: var(--shadow);
   transition: transform .25s, border-color .25s, background .25s; }
 .class-card:hover { transform: translateY(-5px); border-color: color-mix(in srgb, var(--gold) 55%, var(--border)); background: var(--glass-hover); }
 .cc-top { display: flex; justify-content: space-between; align-items: center; }
