@@ -7,6 +7,7 @@ Giao diện và tài liệu bằng **tiếng Việt**; tên biến/hàm/bảng b
 | Cần gì | Đọc |
 |---|---|
 | Thiết kế tổng thể: kiến trúc, mô hình dữ liệu, quy tắc, luồng, phân quyền, quyết định | [DESIGN.md](DESIGN.md) |
+| Giao diện: sơ đồ trang, luồng thao tác, bố cục màn hình | [sitemap](Documents/sitemap.md) · [user-flow](Documents/user-flow.md) · [wireframe](Documents/wireframe.md) |
 | Bối cảnh, thuật ngữ, quy tắc nghiệp vụ, cấu trúc Excel | [Documents/context.md](Documents/context.md) |
 | Mục tiêu, phạm vi, tính năng, lộ trình | [Documents/project-overview.md](Documents/project-overview.md) |
 | Kiến trúc, API, code backend & frontend, chuyển Supabase | [Documents/code-guide.md](Documents/code-guide.md) |
