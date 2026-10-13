@@ -20,7 +20,14 @@ module.exports = (db) => {
       from classes c`;
     const rows = req.user.role === 'admin'
       ? await db.all(`${base} order by c.start_date desc nulls last, c.id desc`)
-      : await db.all(`${base} join class_instructors ci on ci.class_id = c.id and ci.user_id = $1 order by c.start_date desc nulls last, c.id desc`, [req.user.id]);
+      : await db.all(`${base} where c.id in (select class_id from class_instructors where user_id = $1)
+                      or ($2::boolean and (${TIMING_SQL}) = 'upcoming') order by c.start_date desc nulls last, c.id desc`,
+        [req.user.id, req.user.can_view_upcoming === true && req.user.role !== 'guest']);
+    if (req.user.role !== 'admin') {
+      // Lớp chưa diễn ra được xem nhờ quyền can_view_upcoming (không phân công) thì chỉ xem: view_only
+      const mine = new Set((await db.all('select class_id from class_instructors where user_id = $1', [req.user.id])).map((r) => r.class_id));
+      for (const r of rows) r.view_only = !mine.has(r.id);
+    }
     res.json(rows);
   });
 

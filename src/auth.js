@@ -1,4 +1,5 @@
 const crypto = require('node:crypto');
+const { TIMING_SQL } = require('./services/timing');
 
 const SESSION_DAYS = 7;
 const COOKIE = 'sid';
@@ -53,7 +54,7 @@ function attachUser(db) {
     try {
       if (token) {
         const row = await db.one(
-          `select u.id, u.email, u.name, u.role, u.can_remind from auth_sessions s
+          `select u.id, u.email, u.name, u.role, u.can_remind, u.can_view_upcoming from auth_sessions s
            join users u on u.id = s.user_id
            where s.token_hash = $1 and s.expires_at > now() and u.active`, [sha256(token)]);
         if (row) req.user = { ...row };
@@ -94,11 +95,16 @@ function requireClassAccess(db) {
   return async (req, res, next) => {
     const classId = Number(req.params.classId);
     if (!Number.isSafeInteger(classId)) return res.status(404).json({ error: 'Không tìm thấy lớp' });
-    const cls = await db.one('select * from classes where id = $1', [classId]);
+    const cls = await db.one(`select c.*, ${TIMING_SQL} as timing from classes c where c.id = $1`, [classId]);
     if (!cls) return res.status(404).json({ error: 'Không tìm thấy lớp' });
     if (req.user.role !== 'admin') {
       const ok = await db.one('select 1 as x from class_instructors where class_id = $1 and user_id = $2', [classId, req.user.id]);
-      if (!ok) return res.status(403).json({ error: 'Bạn không được phân công lớp này' });
+      if (!ok) {
+        // Tài khoản được bật can_view_upcoming: được XEM (không sửa) mọi lớp chưa diễn ra, kể cả chưa được phân công.
+        if (req.user.can_view_upcoming === true && req.user.role !== 'guest' && cls.timing === 'upcoming') {
+          if (req.method !== 'GET') return res.status(403).json({ error: 'Bạn chỉ được xem lớp chưa diễn ra, không được chỉnh sửa' });
+        } else return res.status(403).json({ error: 'Bạn không được phân công lớp này' });
+      }
     }
     req.cls = { ...cls };
     next();

@@ -198,7 +198,9 @@ async function route() {
       const cls = state.classes.find((c) => String(c.id) === String(classId));
       const render = TABS.find((t) => t[0] === tabKey)[2];
       updateShell(tabKey, classId);
-      result = await transitionTo(() => render({ ...ctx, cls }));
+      // Lớp chưa diễn ra được xem nhờ quyền "xem lớp chưa diễn ra": giao diện chỉ xem (ẩn nút ghi) như tài khoản khách
+      const viewCtx = cls?.view_only ? { ...ctx, state: { ...ctx.state, user: { ...ctx.state.user, role: 'guest' } } } : ctx;
+      result = await transitionTo(() => render({ ...viewCtx, cls }));
     }
   }
   if (result === 'unauth') { state.user = null; shell = null; route(); }

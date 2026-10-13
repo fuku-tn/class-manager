@@ -21,8 +21,9 @@ module.exports = (db) => {
               (select count(*)::int from sessions s where s.class_id = c.id) as sessions_total,
               (select count(*)::int from sessions s where s.class_id = c.id and s.held) as sessions_held
        from classes c
-       ${admin ? '' : 'where c.id in (select class_id from class_instructors where user_id = $1)'}`,
-      admin ? [] : [req.user.id]);
+       ${admin ? '' : `where c.id in (select class_id from class_instructors where user_id = $1)
+                       or ($2::boolean and (${TIMING_SQL}) = 'upcoming')`}`,
+      admin ? [] : [req.user.id, req.user.can_view_upcoming === true && req.user.role !== 'guest']);
 
     const running = classes.filter((c) => c.timing === 'running');
     const active = classes.filter((c) => ACTIVE_TIMINGS.includes(c.timing)); // đang học + nộp/chấm bài + công bố tốt nghiệp
