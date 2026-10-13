@@ -60,6 +60,7 @@ Cần Node >= 22.13. Dữ liệu thật nằm trên **Supabase (Postgres)**.
 14. **Nhắc bài** (`routes/remind.js`): tin nhắn mẫu, tổng quan, cấu hình, ảnh thẻ chỉ cho admin hoặc `users.can_remind` — kiểm ở máy chủ, người khác chỉ nhận tiến độ từng học viên; tổng quan lớp **không có tên học viên**; khách 403. `remind-homework-kit/` (tên thật) git-ignore.
 
 ## Skill của project (`.claude/skills/`)
+Mỗi skill gồm `SKILL.md` + 3 thư mục bắt buộc `references/` (tài liệu tra cứu), `assets/` (mẫu, tài nguyên), `scripts/` (script hỗ trợ); thư mục còn trống giữ bằng `.gitkeep`. Skill mới cũng phải tạo đủ ba thư mục này.
 - `student-webapp-dev` — thêm/sửa tính năng đúng kiến trúc của project
 - `import-excel` — nhập/đối soát dữ liệu từ file Excel của lớp
 - `run-tests` — chạy và đọc kết quả kiểm thử, thêm test cho thay đổi
