@@ -27,10 +27,14 @@ const SHIFT = { MM: 'morning', AA: 'afternoon', EE: 'evening', MA: 'full_day' };
 // Mẫu giáo trình theo lớp (đã chủ dự án xác nhận từ số người đăng ký của từng lớp).
 const KNOWN_TEMPLATES = {
   BIE097: 'BIE-8', BIE099: 'BIE-8', BIE101: 'BIE-8', BIE102: 'BIE-12', BIE104: 'BIE-8', BIE105: 'BIE-12',
+  // 7 lớp cũ thực tế 12 buổi (có điểm danh buổi 9–12), chủ dự án xác nhận 13/10/2026
+  BIE068: 'BIE-12', BIE075: 'BIE-12', BIE078: 'BIE-12', BIE081: 'BIE-12', BIE085: 'BIE-12', BIE090: 'BIE-12', BIE092: 'BIE-12',
   BIH098: 'BIH-20', BIH100: 'BIH-20', BIH103: 'BIH-11', BIH106: 'BIH-20',
 };
 // Lớp BI cũ chưa có mẫu: theo lớp mới gần nhất cùng chương trình.
-const DEFAULT_TEMPLATE = { BIE: 'BIE-8', BIH: 'BIH-20' };
+// EBA mặc định 6 buổi, PBM 10 buổi (chủ dự án chốt 13/10/2026; EBA069/070/072/073 trước đây 8 buổi vẫn giữ buổi đã có).
+const OPTIONAL_TEMPLATES = new Set(['EBA-6', 'PBM-10']); // thiếu trong file giáo trình thì bỏ qua (không dừng nhập)
+const DEFAULT_TEMPLATE = { BIE: 'BIE-8', BIH: 'BIH-20', EBA: 'EBA-6', PBM: 'PBM-10' };
 
 const txt = (v) => {
   if (v == null) return null;
@@ -244,7 +248,8 @@ async function importTransactions(db, { transactionsFile, curriculumFile, dryRun
   const missingTemplates = [...new Set(classes.map((c) => c.template).filter((t) => t && !byCode.has(t)))];
   if (missingTemplates.length) {
     // Nhập tay: dừng để người dùng nạp giáo trình. Đồng bộ tự động: vẫn nhận đăng ký, lớp tạm thời chưa có giáo trình.
-    if (!preserveManual) throw new Error(`Thiếu giáo trình cho mẫu: ${missingTemplates.join(', ')}`);
+    const required = missingTemplates.filter((x) => !OPTIONAL_TEMPLATES.has(x));
+    if (!preserveManual && required.length) throw new Error(`Thiếu giáo trình cho mẫu: ${required.join(', ')}`);
     for (const c of classes) if (missingTemplates.includes(c.template)) c.template = null;
   }
 

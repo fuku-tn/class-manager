@@ -182,3 +182,19 @@ test('đồng bộ chỉ nhận dòng có đủ mã học viên hợp lệ và m
   const rows = await t.db.all("select s.student_code, e.course_status, e.carried_over from enrollments e join students s on s.id = e.student_id where s.student_code in ('P.7004','P.7005') order by 1");
   assert.deepEqual(rows, [{ student_code: 'P.7004', course_status: 'active', carried_over: true }, { student_code: 'P.7005', course_status: 'dropped', carried_over: false }]);
 });
+
+test('giáo trình mặc định: EBA 6 buổi, PBM 10 buổi tự tạo danh sách buổi; 7 lớp BIE cũ dùng BIE-12', async () => {
+  await t.db.run("insert into curricula (code, program, name, session_count, total_hours) values ('EBA-6','EBA','EBA 6 buổi',6,0), ('PBM-10','PBM','PBM 10 buổi',10,0), ('BIE-12','BIE','BIE 12 buổi',12,0) on conflict (code) do nothing");
+  await t.db.run("insert into curriculum_items (curriculum_id, session_no, seq) select c.id, n, 1 from curricula c cross join generate_series(1, c.session_count) n where c.code in ('EBA-6','PBM-10','BIE-12') on conflict do nothing");
+  const course = { headers: ['COURSE', 'COURSE ID', 'STARTDATE', 'ENDDATE'], rows: [
+    ['EBA131', 'P1.EBA.P131.ON.EE.150126', '2026-12-01', '2026-12-30'],
+    ['PBM030', 'P5.PBM.P030.HY.MM.150126', '2026-12-01', '2027-01-30'],
+    ['BIE068', 'P2.BIE.P068.HY.EE.050525', '2025-05-05', '2025-06-13']] };
+  const mk = (id, c) => [id, 'CT', `Người ${id}`, `${id.replace(/\W/g, '')}@x.com`, '0904444444', c, 'Online', 'Male', null, 'Form'];
+  const r = await post({ transactions: tx(mk('P.8001', 'EBA131'), mk('P.8002', 'PBM030'), mk('P.8003', 'BIE068')), course });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  const n = async (short) => (await t.db.one('select count(*)::int n, max(cu.code) cur from sessions s join classes c on c.id = s.class_id left join curricula cu on cu.id = c.curriculum_id where c.short_code = $1', [short]));
+  assert.deepEqual(await n('EBA131'), { n: 6, cur: 'EBA-6' });
+  assert.deepEqual(await n('PBM030'), { n: 10, cur: 'PBM-10' });
+  assert.deepEqual(await n('BIE068'), { n: 12, cur: 'BIE-12' });
+});
