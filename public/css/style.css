@@ -215,7 +215,8 @@ span.cell { position: relative; display: inline-flex; align-items: center; justi
 span.cell.empty { background: transparent; }
 .cell-sel { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: 0; padding: 0; margin: 0;
   font-size: 16px; border-radius: 9px; }
-span.cell:focus-within { outline: 2px solid var(--gold); outline-offset: 2px; }
+span.cell:focus-within, span.cell:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+span.cell[role="button"] { cursor: pointer; }
 .legend .cell { cursor: default; }
 .legend .cell:hover { filter: none; }
 .badge.seg-b2b { background: var(--warn-bg); color: var(--warn); font-size: .7rem; padding: .02rem .5rem; }

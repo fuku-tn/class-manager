@@ -156,19 +156,44 @@ export async function renderAttendance({ cls, state }) {
   }
 
   // Ô điểm danh: danh sách thả xuống (select thật, dùng được bàn phím/điện thoại) nhưng khi đóng chỉ hiện ký hiệu.
+  // Để bảng 60 học viên × 22 buổi không lag: <select> (kèm 7 <option>) chỉ được tạo khi người dùng chạm/Enter vào ô.
+  const cellCtx = new WeakMap(); // <span.cell> -> { row, s }
+  function ensureSelect(el) {
+    let sel = el.querySelector('select');
+    if (sel) return sel;
+    const { row, s } = cellCtx.get(el);
+    sel = h('select', { class: 'cell-sel', 'aria-label': `${row.full_name} buổi ${s.session_no}` },
+      h('option', { value: '' }, '·  Chưa điểm danh'),
+      STATUSES.map((st) => h('option', { value: st }, `${SHORT[st]}  ${LABEL[st]}`)),
+      h('option', { value: NOTE }, '✎  Ghi chú…'));
+    sel.value = row.cells[s.id]?.status ?? '';
+    sel.addEventListener('change', async () => {
+      const v = sel.value;
+      if (v === NOTE) { sel.value = row.cells[s.id]?.status ?? ''; await editNote(row, s, el); return; }
+      await save(row, s, el, v || null);
+    });
+    el.append(sel);
+    return sel;
+  }
+  const openCell = (el) => {
+    const sel = ensureSelect(el);
+    sel.focus();
+    try { sel.showPicker?.(); } catch { /* trình duyệt cũ: bấm lần nữa để mở */ }
+  };
+  body.addEventListener('click', (e) => {
+    const el = e.target.closest?.('span.cell');
+    if (el && cellCtx.has(el) && e.target.tagName !== 'SELECT') openCell(el);
+  });
+  body.addEventListener('keydown', (e) => {
+    if ((e.key === 'Enter' || e.key === ' ') && cellCtx.has(e.target)) { e.preventDefault(); openCell(e.target); }
+  });
+
   function makeCell(row, s) {
-    const el = h('span', { class: 'cell empty' }, h('span', { class: 'cell-sym', 'aria-hidden': 'true' }, '·'));
+    const el = h('span', readOnly ? { class: 'cell empty' } : { class: 'cell empty', tabindex: '0', role: 'button' },
+      h('span', { class: 'cell-sym', 'aria-hidden': 'true' }, '·'));
     if (!readOnly) {
-      const sel = h('select', { class: 'cell-sel', 'aria-label': `${row.full_name} buổi ${s.session_no}` },
-        h('option', { value: '' }, '·  Chưa điểm danh'),
-        STATUSES.map((st) => h('option', { value: st }, `${SHORT[st]}  ${LABEL[st]}`)),
-        h('option', { value: NOTE }, '✎  Ghi chú…'));
-      sel.addEventListener('change', async () => {
-        const v = sel.value;
-        if (v === NOTE) { sel.value = row.cells[s.id]?.status ?? ''; await editNote(row, s, el); return; }
-        await save(row, s, el, v || null);
-      });
-      el.append(sel);
+      cellCtx.set(el, { row, s });
+      el.setAttribute('aria-label', `${row.full_name} buổi ${s.session_no}`);
     } else {
       el.setAttribute('aria-label', `${row.full_name} buổi ${s.session_no}`);
     }
