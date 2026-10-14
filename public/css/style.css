@@ -180,8 +180,9 @@ button.small { padding: .12rem .55rem; font-size: .75rem; border-radius: 8px; }
 .toolbar select { border-radius: 999px; padding-left: 1rem; }
 
 /* ---------- Bảng ---------- */
-.table-wrap { overflow: auto; max-height: calc(100vh - 250px); border: 1px solid var(--border); border-radius: var(--radius); background: var(--glass); }
-.card .table-wrap { box-shadow: none; max-height: 420px; background: transparent; }
+/* Chỉ cuộn NGANG trong bảng; cuộn dọc dùng thanh cuộn của trang (một lần cuộn là tới hàng cuối, góc bo không bị thanh cuộn che) */
+.table-wrap { overflow-x: auto; overflow-y: hidden; border: 1px solid var(--border); border-radius: var(--radius); background: var(--glass); }
+.card .table-wrap { box-shadow: none; background: transparent; }
 table { border-collapse: separate; border-spacing: 0; width: 100%; }
 th, td { padding: .65rem .9rem; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
 tbody tr:last-child td { border-bottom: 0; }
@@ -353,7 +354,6 @@ span.cell[role="button"] { cursor: pointer; }
   .auth-hero { gap: 1.25rem; }
   .auth-hero h2 { font-size: 1.7rem; max-width: none; }
   .auth-points, .auth-foot { display: none; }
-  .table-wrap { max-height: calc(100vh - 270px); }
 }
 @media (max-width: 640px) {
   .chip-user { padding: 0; border: 0; background: none; }
