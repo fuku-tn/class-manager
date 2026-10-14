@@ -18,3 +18,6 @@ remind-homework-kit/
 
 # Văn bản nội bộ (bản scan có dấu/mã số thuế công ty)
 Quy-dinh-cap-cong-nhan.pdf
+
+# Dữ liệu riêng tư CHỈ để trên máy (file Excel có dữ liệu học viên thật, văn bản nội bộ, bộ kit nhắc bài)
+private-data/

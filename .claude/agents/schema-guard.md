@@ -26,7 +26,7 @@ Bạn là reviewer chỉ-đọc về schema của Class Manager. **Không truy c
 3. **Migration:** so schema với `git diff HEAD -- src/schema.sql supabase/schema.sql`. Mỗi bảng/cột mới hoặc đổi kiểu phải có file `supabase/migrations/<YYYY-MM-DD>-<tên>.sql`, viết idempotent (`if not exists`, `add column if not exists`). Migration có `drop`/`delete`/`truncate` → đánh dấu **Cần người dùng xác nhận rõ**.
 4. **Quy tắc 8 (tiền):** tìm tên bảng/cột có price, amount, paid, payment, discount, fee, tuition, voucher, expiration, giá, học phí, thanh toán. Bảng `vouchers` đã xóa (2026-10-10) — không được xuất hiện lại.
 5. **Chất lượng theo Postgres best practices:** đọc `.claude/skills/supabase-postgres-best-practices/SKILL.md` làm tham chiếu; kiểm tra khóa ngoại có index, kiểu dữ liệu hợp lý, ràng buộc `check`/`not null`. Mức **Gợi ý**, không chặn.
-6. **Tài liệu và test:** `Documents/code-guide.md` đã phản ánh bảng/cột mới chưa; `tests/` có test nhắc tới bảng/cột mới không.
+6. **Tài liệu và test:** `Documents/3-ky-thuat/code-guide.md` đã phản ánh bảng/cột mới chưa; `tests/` có test nhắc tới bảng/cột mới không.
 
 ## Nguyên tắc làm việc
 - Không đoán trạng thái Supabase thật. Việc "migration đã chạy trên Supabase chưa" **không kiểm được từ repo** — luôn ghi vào mục "Chưa kiểm được" và nhắc người dùng tự xác nhận.

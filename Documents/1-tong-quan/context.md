@@ -33,7 +33,7 @@ Chủ dự án (giảng viên/quản lý đào tạo) hiện lưu danh sách h�
 5. "Cần chú ý": điểm danh < 80% hoặc thiếu ≥ 2 HW (cấu hình bằng biến môi trường).
 6. Mã học viên (`P.13027`) là duy nhất toàn hệ thống; số điện thoại có thể trùng (người thân đăng ký chung).
 
-Các quy tắc trên là **giả định đã đối chiếu với file mẫu** nhưng cần chủ dự án xác nhận — xem bảng trong [memory.md](../memory.md).
+Các quy tắc trên là **giả định đã đối chiếu với file mẫu** nhưng cần chủ dự án xác nhận — xem bảng trong [memory.md](../../memory.md).
 
 ## File Excel điểm danh `danh-sach-hoc-vien-mau.xlsx`
 Từ 2026-10-10 là **workbook nhiều sheet theo chương trình** (trước đó chỉ 1 sheet).
@@ -95,7 +95,7 @@ Sale chốt + học viên đóng tiền → học viên điền form → Google 
 `session-management.xlsx` có 4 mẫu giáo trình BI (BIE-8, BIE-12, BIH-20 = 22 buổi, BIH-11): cùng nội dung, khác nhịp theo buổi. Mẫu của từng lớp: lớp 097–106 đã xác nhận theo số người đăng ký; lớp BI cũ hơn theo **lớp mới** (BIE → BIE-8, BIH → BIH-20). Chương trình khác chưa có giáo trình.
 
 ## Vì sao không giữ cấu trúc Excel khi lưu trữ
-Excel là bảng "rộng" (mỗi buổi = 2 cột). Cơ sở dữ liệu nên là bảng "dài": mỗi lượt điểm danh = 1 dòng `(học viên, buổi, trạng thái, ghi chú)`. Lợi ích: thêm buổi/bài không đổi cấu trúc, tính tỉ lệ bằng truy vấn, phân quyền theo lớp, lịch sử cập nhật, chuyển Supabase thẳng. Chi tiết: [code-guide.md](code-guide.md#mô-hình-dữ-liệu).
+Excel là bảng "rộng" (mỗi buổi = 2 cột). Cơ sở dữ liệu nên là bảng "dài": mỗi lượt điểm danh = 1 dòng `(học viên, buổi, trạng thái, ghi chú)`. Lợi ích: thêm buổi/bài không đổi cấu trúc, tính tỉ lệ bằng truy vấn, phân quyền theo lớp, lịch sử cập nhật, chuyển Supabase thẳng. Chi tiết: [code-guide.md](../3-ky-thuat/code-guide.md#mô-hình-dữ-liệu).
 
 ## Ràng buộc
 - Dữ liệu cá nhân học viên (email, SĐT) — chỉ người đăng nhập mới xem được; không đưa dữ liệu thật vào repo công khai.

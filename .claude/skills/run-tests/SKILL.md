@@ -6,7 +6,7 @@ description: Chạy, đọc kết quả và viết thêm test cho webapp Class M
 # Kiểm thử
 
 ## Chạy
-`npm test` — dùng PGlite (Postgres trong bộ nhớ), không đụng Supabase, ~15 giây. Chi tiết chiến lược: `Documents/testing.md`.
+`npm test` — dùng PGlite (Postgres trong bộ nhớ), không đụng Supabase, ~15 giây. Chi tiết chiến lược: `Documents/3-ky-thuat/testing.md`.
 
 ## Đọc kết quả
 - Báo đúng số liệu `pass/fail` từ output; nếu fail, dán tên test + thông điệp assert, rồi tìm nguyên nhân gốc (đừng sửa test cho khớp code trừ khi test sai thật).
@@ -19,4 +19,4 @@ description: Chạy, đọc kết quả và viết thêm test cho webapp Class M
 4. Import: dùng `await openDb({ memory: true })` + `importExcel`.
 
 ## Phần test tự động không phủ
-Giao diện trình duyệt (chưa có E2E). Luôn nói rõ điều này khi báo cáo; đưa người dùng checklist thử tay trong `Documents/testing.md` hoặc tự mở app (`npm run dev`) nếu có công cụ trình duyệt.
+Giao diện trình duyệt (chưa có E2E). Luôn nói rõ điều này khi báo cáo; đưa người dùng checklist thử tay trong `Documents/3-ky-thuat/testing.md` hoặc tự mở app (`npm run dev`) nếu có công cụ trình duyệt.

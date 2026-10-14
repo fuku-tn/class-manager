@@ -27,9 +27,9 @@ Node.js ≥ 22.13 · Express · Supabase Postgres (`pg`) · HTML/CSS/JS thuần 
 
 ## Lộ trình
 1. ✅ Nền tảng: schema, auth, API, import, 4 màn hình lớp, test API.
-2. ⏳ Chủ dự án chạy thử, xác nhận giả định ([memory.md](../memory.md)), chỉnh quy tắc tính.
+2. ⏳ Chủ dự án chạy thử, xác nhận giả định ([memory.md](../../memory.md)), chỉnh quy tắc tính.
 3. Upload Excel trên web, trang chi tiết học viên.
-4. ✅ Chuyển Supabase (Postgres, RLS bật). Còn lại: Supabase Auth — xem [code-guide.md](code-guide.md#supabase-đã-chuyển--2026-10-09).
+4. ✅ Chuyển Supabase (Postgres, RLS bật). Còn lại: Supabase Auth — xem [code-guide.md](../3-ky-thuat/code-guide.md#supabase-đã-chuyển--2026-10-09).
 5. Triển khai (VPS/Render/Railway), sao lưu tự động.
 
 ## Tiêu chí hoàn thành giai đoạn 1

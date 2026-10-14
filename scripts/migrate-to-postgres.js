@@ -7,7 +7,7 @@ const { DatabaseSync } = require('node:sqlite');
 const SQLITE_FILE = process.env.SQLITE_PATH || require('node:path').join(__dirname, '..', 'legacy', 'app.sqlite.db');
 
 const url = process.env.DATABASE_URL;
-if (!url) { console.error('Thiếu DATABASE_URL (xem Documents/supabase-guide.md)'); process.exit(1); }
+if (!url) { console.error('Thiếu DATABASE_URL (xem Documents/3-ky-thuat/supabase-guide.md)'); process.exit(1); }
 
 // Thứ tự cha → con. `bool` = cột 0/1 trong SQLite cần đổi sang boolean.
 const TABLES = [

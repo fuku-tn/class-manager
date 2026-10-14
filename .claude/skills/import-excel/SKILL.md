@@ -5,7 +5,7 @@ description: Nhập hoặc đối soát điểm danh, bài tập, danh sách h�
 
 # Nhập & đối soát điểm danh từ Excel
 
-## Cấu trúc & quy tắc (đầy đủ ở `Documents/context.md`, mục "File Excel điểm danh")
+## Cấu trúc & quy tắc (đầy đủ ở `Documents/1-tong-quan/context.md`, mục "File Excel điểm danh")
 - Workbook nhiều sheet theo chương trình (`BIE-8`, `BIE-12`, `BIH`, `EBA`, `PBM`, `SCA`, `DDM`, `BIF`). **Chỉ sheet đang hiện** được nhập; sheet ẩn là bản cũ.
 - Ô điểm danh: **X = đi học, O = vắng có phép, trống = vắng**. Buổi không ai có X/O = chưa diễn ra.
 - Tỉ lệ = (có mặt + trễ) ÷ (buổi đã diễn ra − buổi có phép). Cột `ATTENDANCE RATE` của Excel tính khác (÷ tổng số buổi, coi O như vắng) nên **không** dùng để đối soát.

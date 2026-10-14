@@ -9,7 +9,7 @@ Hướng dẫn này đã được thực hiện (2026-10-09): **webapp chạy tr
 
 ## Bước 2 — Tạo bảng
 1. Menu trái → **SQL Editor** → **New query**.
-2. Mở file [supabase/schema.sql](../supabase/schema.sql), copy toàn bộ, dán vào, bấm **Run**. Kết quả "Success. No rows returned".
+2. Mở file [supabase/schema.sql](../../supabase/schema.sql), copy toàn bộ, dán vào, bấm **Run**. Kết quả "Success. No rows returned".
 3. Vào **Table Editor**: thấy 11 bảng. Mỗi bảng có nhãn RLS đã bật (đúng ý — xem mục Bảo mật).
 
 ## Bước 3 — Lấy chuỗi kết nối
@@ -19,7 +19,7 @@ Hướng dẫn này đã được thực hiện (2026-10-09): **webapp chạy tr
    Mật khẩu có ký tự đặc biệt (`@`, `#`, `/`…) phải mã hóa URL (`@` → `%40`), hoặc đặt lại mật khẩu chỉ gồm chữ và số.
 
 ## Bước 4 — Nạp dữ liệu
-Cách hiện hành: `npm run import -- danh-sach-hoc-vien-mau.xlsx` (nạp thẳng từ Excel, chạy lại an toàn) và `npm run create-admin -- email "Tên" matkhau`.
+Cách hiện hành: `npm run import -- private-data/excel/danh-sach-hoc-vien-mau.xlsx` (nạp thẳng từ Excel, chạy lại an toàn) và `npm run create-admin -- email "Tên" matkhau`.
 
 Cách cũ (chỉ khi có bản SQLite trong `legacy/app.sqlite.db`):
 Tạo file `.env` ở thư mục gốc dự án (file này đã nằm trong `.gitignore`, **không bao giờ gửi cho ai hay commit**):

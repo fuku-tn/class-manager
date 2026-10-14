@@ -2,7 +2,7 @@
 
 Bản đồ các màn hình, địa chỉ (hash route) và ai được vào. Ứng dụng là trang đơn (SPA): mọi địa chỉ dạng `#/...` nằm sau `https://<tên-miền>/`.
 
-Xem thêm: [user-flow.md](user-flow.md) (luồng thao tác) · [wireframe.md](wireframe.md) (bố cục từng màn hình) · [../DESIGN.md](../DESIGN.md) (thiết kế tổng thể).
+Xem thêm: [user-flow.md](user-flow.md) (luồng thao tác) · [wireframe.md](wireframe.md) (bố cục từng màn hình) · [../DESIGN.md](../../DESIGN.md) (thiết kế tổng thể).
 
 ## 1. Sơ đồ
 

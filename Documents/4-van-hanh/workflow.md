@@ -5,15 +5,15 @@
 npm install
 # tạo .env có DATABASE_URL của Supabase (xem supabase-guide.md)
 npm run create-admin -- ban@vidu.com "Tên Bạn" matkhau-it-nhat-8-ky-tu
-npm run import -- danh-sach-hoc-vien-mau.xlsx
+npm run import -- private-data/excel/danh-sach-hoc-vien-mau.xlsx
 npm start            # mở http://localhost:3000 và đăng nhập (PORT=3100 npm start nếu cổng bận)
 ```
 
 ## 2. Vòng lặp phát triển một tính năng
-1. **Làm rõ yêu cầu** — ghi 2-3 dòng "Người dùng làm gì → thấy gì". Nếu đụng quy tắc tính toán, ghi giả định vào [memory.md](../memory.md) và hỏi chủ dự án.
+1. **Làm rõ yêu cầu** — ghi 2-3 dòng "Người dùng làm gì → thấy gì". Nếu đụng quy tắc tính toán, ghi giả định vào [memory.md](../../memory.md) và hỏi chủ dự án.
 2. **Dữ liệu** — cần bảng/cột mới? Sửa `src/schema.sql` **và** `supabase/schema.sql`, rồi chạy `create table`/`alter table` tương ứng trong Supabase SQL Editor (test dùng schema trong repo nên tự cập nhật; Supabase thì không). Bảng mới nhớ `enable row level security`.
 3. **Backend** — route trong `src/routes/`, công thức trong `src/services/stats.js`.
-4. **Test trước/cùng lúc** — thêm test vào `tests/` (xem [testing.md](testing.md)). `npm test` phải xanh.
+4. **Test trước/cùng lúc** — thêm test vào `tests/` (xem [testing.md](../3-ky-thuat/testing.md)). `npm test` phải xanh.
 5. **Frontend** — trang trong `public/js/pages/`, dùng `h()` và `formModal`. Chạy `npm run dev`, thử trên trình duyệt.
 6. **Tài liệu** — cập nhật bảng API trong code-guide, `memory.md`; chuyển nội dung cũ vào `Archive.md`.
 7. **Rà soát** — checklist bên dưới.

@@ -7,26 +7,26 @@ Giao diện và tài liệu bằng **tiếng Việt**; tên biến/hàm/bảng b
 | Cần gì | Đọc |
 |---|---|
 | Thiết kế tổng thể: kiến trúc, mô hình dữ liệu, quy tắc, luồng, phân quyền, quyết định | [DESIGN.md](DESIGN.md) |
-| Giao diện: sơ đồ trang, luồng thao tác, bố cục màn hình | [sitemap](Documents/sitemap.md) · [user-flow](Documents/user-flow.md) · [wireframe](Documents/wireframe.md) |
-| Bối cảnh, thuật ngữ, quy tắc nghiệp vụ, cấu trúc Excel | [Documents/context.md](Documents/context.md) |
-| Mục tiêu, phạm vi, tính năng, lộ trình | [Documents/project-overview.md](Documents/project-overview.md) |
-| Kiến trúc, API, code backend & frontend, chuyển Supabase | [Documents/code-guide.md](Documents/code-guide.md) |
-| Quy trình làm việc / thêm tính năng / phát hành | [Documents/workflow.md](Documents/workflow.md) |
-| Triển khai lên Vercel | [Documents/deploy-vercel.md](Documents/deploy-vercel.md) |
-| Đồng bộ tự động từ Google Sheet | [Documents/google-sheet-sync.md](Documents/google-sheet-sync.md) |
-| Chiến lược & checklist kiểm thử | [Documents/testing.md](Documents/testing.md) |
-| Bảo mật: đã có gì, việc cần tự làm, khi nghi bị lộ | [Documents/security.md](Documents/security.md) |
+| Giao diện: sơ đồ trang, luồng thao tác, bố cục màn hình | [sitemap](Documents/2-giao-dien/sitemap.md) · [user-flow](Documents/2-giao-dien/user-flow.md) · [wireframe](Documents/2-giao-dien/wireframe.md) |
+| Bối cảnh, thuật ngữ, quy tắc nghiệp vụ, cấu trúc Excel | [Documents/1-tong-quan/context.md](Documents/1-tong-quan/context.md) |
+| Mục tiêu, phạm vi, tính năng, lộ trình | [Documents/1-tong-quan/project-overview.md](Documents/1-tong-quan/project-overview.md) |
+| Kiến trúc, API, code backend & frontend, chuyển Supabase | [Documents/3-ky-thuat/code-guide.md](Documents/3-ky-thuat/code-guide.md) |
+| Quy trình làm việc / thêm tính năng / phát hành | [Documents/4-van-hanh/workflow.md](Documents/4-van-hanh/workflow.md) |
+| Triển khai lên Vercel | [Documents/4-van-hanh/deploy-vercel.md](Documents/4-van-hanh/deploy-vercel.md) |
+| Đồng bộ tự động từ Google Sheet | [Documents/3-ky-thuat/google-sheet-sync.md](Documents/3-ky-thuat/google-sheet-sync.md) |
+| Chiến lược & checklist kiểm thử | [Documents/3-ky-thuat/testing.md](Documents/3-ky-thuat/testing.md) |
+| Bảo mật: đã có gì, việc cần tự làm, khi nghi bị lộ | [Documents/4-van-hanh/security.md](Documents/4-van-hanh/security.md) |
 | Quyết định, giả định, việc đang dở | [memory.md](memory.md) |
 | Nội dung đã bỏ/thay thế (không xóa hẳn) | [Archive.md](Archive.md) |
 
 ## Lệnh
 ```
 npm install
-# .env cần DATABASE_URL (Supabase > Connect > Session pooler, cổng 5432) — xem Documents/supabase-guide.md
+# .env cần DATABASE_URL (Supabase > Connect > Session pooler, cổng 5432) — xem Documents/3-ky-thuat/supabase-guide.md
 npm run create-admin -- email "Họ tên" matkhau   # tạo/đặt lại admin
 npm run create-guest -- email "Họ tên" matkhau   # tạo/đặt lại tài khoản KHÁCH (chỉ xem)
-npm run import -- danh-sach-hoc-vien-mau.xlsx [--dry-run]   # điểm danh + bài tập từ workbook nhiều sheet (chỉ sheet đang HIỆN); X=đi học, O=vắng có phép, trống=vắng
-npm run import-tx -- Transacitons.xlsx session-management.xlsx [--dry-run]   # lớp, giáo trình, học viên, ghi danh (KHÔNG đọc cột tiền)
+npm run import -- private-data/excel/danh-sach-hoc-vien-mau.xlsx [--dry-run]   # điểm danh + bài tập từ workbook nhiều sheet (chỉ sheet đang HIỆN); X=đi học, O=vắng có phép, trống=vắng
+npm run import-tx -- private-data/excel/Transacitons.xlsx private-data/excel/session-management.xlsx [--dry-run]   # lớp, giáo trình, học viên, ghi danh (KHÔNG đọc cột tiền)
 npm run import-feedback -- file.xlsx [--dry-run]   # khảo sát sau khóa (sheet FEEDBACK FORM): bỏ họ tên/email/SĐT, chữ tự do, câu hỏi học phí
 # Hoặc nhập qua web: đăng nhập admin → mục "Nhập Excel" (#/import): Chạy thử → Nhập thật; xong thì màn hình đang mở tự cập nhật
 npm start        # http://localhost:3000   (PORT=3100 npm start nếu cổng bận; npm run dev: tự reload)
@@ -35,16 +35,29 @@ npm test         # node:test, Postgres trong bộ nhớ (PGlite) — KHÔNG đ�
 Cần Node >= 22.13. Dữ liệu thật nằm trên **Supabase (Postgres)**.
 
 ## Cấu trúc
-- `src/` backend: `create-app.js` (Express), `dev-server.js` (chạy máy nhà), `index.js` (điểm vào Vercel — **đừng thêm file tên app/index/server khác trong `src/`**), `routes/` (auth, users, classes, classData, overview, import), `services/` (stats, importExcel), `schema.sql` (Postgres), `db.js` (pg Pool / PGlite), `auth.js`
-- `public/` frontend ES modules thuần: `js/main.js` (router hash), `js/pages/*` (có `home.js` + `home-lake.js`), `js/lake-sim.mjs` (mô phỏng sóng hồ, thuần số học), `js/class-picker.js` + `js/class-filter.mjs` (chọn/lọc lớp), `js/ui.js` (helper DOM), `css/style.css`
-- `scripts/` CLI · `supabase/schema.sql` (bản dán vào SQL Editor, giữ giống `src/schema.sql`) · `legacy/` (SQLite cũ, chỉ để tham khảo) · `tests/` · `Documents/` · `.claude/skills/`
+```
+Course/
+├─ README.md · CLAUDE.md · DESIGN.md · memory.md · Archive.md   (giới thiệu · hướng dẫn cho Claude · thiết kế · nhật ký quyết định · nội dung cũ)
+├─ package.json · vercel.json · .env.example · .vercelignore · skills-lock.json
+├─ src/            backend Express: create-app.js, index.js (điểm vào Vercel — đừng thêm file tên app/index/server khác), dev-server.js,
+│                  db.js, auth.js, security-headers.js, schema.sql, routes/, services/
+├─ public/         frontend ES modules thuần: index.html, css/, js/ (main.js router, ui.js, pages/*), assets/ (logo), vendor/ (Chart.js…)
+├─ scripts/        CLI (create-admin, import*, run-migration…) + google-apps-script/ (sync-transactions.gs, sync-points.gs)
+├─ supabase/       schema.sql (giữ giống src/schema.sql) + migrations/ (chạy trên Supabase TRƯỚC khi đẩy code)
+├─ tests/          node:test + PGlite (không chạm Supabase)
+├─ Documents/      tài liệu: 1-tong-quan/ · 2-giao-dien/ · 3-ky-thuat/ · 4-van-hanh/ (mục lục: Documents/README.md)
+├─ legacy/         SQLite cũ, chỉ để tham khảo
+├─ .claude/        skills/ + agents/ của project
+├─ data/           (git-ignore) báo cáo sinh ra khi nhập, CSDL SQLite cũ
+└─ private-data/   (git-ignore) excel/ dữ liệu học viên thật · van-ban/ văn bản nội bộ · remind-homework-kit/
+```
 
 ## Quy tắc bắt buộc
 1. **Mọi công thức tỉ lệ** (điểm danh, HW) chỉ nằm ở `src/services/stats.js` (dùng `attendanceRate()` kể cả khi tổng hợp bằng SQL như `routes/overview.js`). Không tính lại ở frontend/route.
 2. **Frontend không dùng `innerHTML` với dữ liệu** — dựng DOM bằng `h()` trong `ui.js` (chống XSS).
 3. **SQL luôn dùng tham số `$1, $2…`** qua `db.all/one/run/tx`, không nối chuỗi. Mọi truy cập DB là `async`; nhiều lệnh ghi liên quan → `db.tx(async (t) => …)`. Nạp nhiều dòng → `unnest` (mỗi vòng tới Supabase ~50-100ms).
 4. Vai trò `guest` **chỉ xem**: middleware `blockGuestWrites` (`src/auth.js`, gắn ở `create-app.js` cho `/api`) chặn mọi POST/PUT/DELETE trừ đăng xuất. Route ghi mới tự được bảo vệ; frontend phải ẩn nút ghi khi `state.user.role === 'guest'`. Mọi route theo lớp phải qua `requireClassAccess` (giảng viên chỉ thấy lớp được phân công); thao tác xóa/tạo lớp/quản lý user chỉ admin.
-5. Đổi schema → sửa `src/schema.sql` **và** `supabase/schema.sql`, rồi **chạy SQL tương ứng (ALTER) trên Supabase** (schema chỉ dùng `if not exists`, không tự thêm cột); cập nhật `Documents/code-guide.md`, thêm test. Bảng mới phải `enable row level security`.
+5. Đổi schema → sửa `src/schema.sql` **và** `supabase/schema.sql`, rồi **chạy SQL tương ứng (ALTER) trên Supabase** (schema chỉ dùng `if not exists`, không tự thêm cột); cập nhật `Documents/3-ky-thuat/code-guide.md`, thêm test. Bảng mới phải `enable row level security`.
 6. Thông báo lỗi trả về cho người dùng bằng tiếng Việt.
 7. **Header bảo mật/CSP** khai báo ở `src/security-headers.js` **và** `vercel.json` (file tĩnh không đi qua Express); test kiểm hai nơi khớp. Không thêm script inline hay `onclick=` vào HTML (CSP `script-src 'self'`); nguồn ngoài mới (CDN, API) phải được thêm vào CSP.
 8. Vercel **bỏ qua `express.static()`**: file tĩnh phải nằm trong `public/` (kể cả thư viện — Chart.js ở `public/vendor/`, cập nhật bằng `npm run vendor`).
@@ -58,13 +71,13 @@ Cần Node >= 22.13. Dữ liệu thật nằm trên **Supabase (Postgres)**.
 10a-2. **B2B/B2C:** tab COMPANY → `enrollments.segment = 'b2b'` + `company_name`; không lấy cột DOB/tiền. Cờ `is_b2b/is_b2c` của lớp do `/api/classes` tính (chữ B trong mã lớp hoặc có học viên B2B).
 10b. **Nhập Excel qua web** (`routes/import.js`, admin): file chỉ ở bộ nhớ, ≤4MB (giới hạn Vercel), importer dùng `exceljs` (nằm ở `dependencies`, nạp lười khi dùng) và vẫn chỉ đọc cột trong danh sách cho phép; sau khi nhập thật phải `realtime.publishMany`. Mỗi lớp một transaction chạy song song (≤3) nên **sắp học viên theo mã trước khi upsert** (tránh deadlock).
 11. **Ghi một ô điểm danh/bài tập** phải đi qua route có `expected` + `updated_by` và gọi `realtime.publish` sau khi ghi thành công; frontend cập nhật ô tại chỗ (không dựng lại bảng). Đừng bỏ cơ chế này khi thêm loại ô mới.
-12. Không commit `.env`, `node_modules/`, `legacy/*.db`, file `.xlsx/.csv` (dữ liệu học viên thật). Không đưa dữ liệu học viên thật vào repo/test ngoài file mẫu.
+12. Không commit `.env`, `node_modules/`, `legacy/*.db`, file `.xlsx/.csv` (dữ liệu học viên thật). File dữ liệu/văn bản riêng tư đặt trong `private-data/` (git-ignore, chỉ trên máy). Không đưa dữ liệu học viên thật vào repo/test ngoài file mẫu.
 13. Xong một thay đổi: chạy `npm test`; cập nhật [memory.md](memory.md) nếu có quyết định/giả định mới; nội dung lỗi thời chuyển sang [Archive.md](Archive.md).
 14d. **Điểm bài tập** (bảng `homework_scores`, Google Sheet bảng điểm RIÊNG + script `sync-points.gs` → `/api/sync/points`, `services/importPoints.js`): chỉ 5 cột `StudentID, Course, HW, Point, Module` (KHÔNG đọc cột họ tên); điểm thang 10 lưu riêng, không đổi trạng thái nộp bài; xem ở `GET /classes/:id/scores` (admin + giảng viên của lớp, khách 403); trung bình chỉ tính ở `stats.js` (`averageScore`). Quy tắc xếp loại/điểm tối thiểu của Quy định 003/2026 CHƯA áp dụng (chủ dự án sẽ đưa quy trình).
 14c. **Potential** (`/api/classes/:id/potential`, tab `Potential`, sự kiện `moved_to_potential` trong lịch sử) chỉ cho admin và tài khoản có `users.can_view_potential` (hiện: Đoàn Ly; admin bật ở trang Người dùng). Giảng viên khác/khách bị 403 và không thấy sự kiện đó. Cột mới phải chạy migration trước khi đẩy code.
 14b. **Xem lớp chưa diễn ra** (`users.can_view_upcoming`, admin bật ở trang Người dùng): tài khoản không phải khách được XEM (GET) mọi lớp có `timing = 'upcoming'` dù chưa phân công; ghi bị 403 (`requireClassAccess`); `/api/classes` trả `view_only`, frontend ẩn nút ghi như khách. Lớp bắt đầu thì quyền tự hết. Cột mới phải chạy migration trên Supabase **trước** khi đẩy code (`attachUser` truy vấn cột này).
 14a. **Đăng nhập/mật khẩu** (`routes/auth.js`): giới hạn đăng nhập sai nằm trong DB (`auth_events`), không dùng bộ nhớ (serverless). Mật khẩu mới ≥ 10 ký tự; không ghi mật khẩu vào nhật ký; đổi mật khẩu phải hủy các phiên khác. Migration `auth_events` phải chạy trên Supabase **trước** khi đẩy code (đăng nhập truy vấn bảng này).
-14. **Nhắc bài** (`routes/remind.js`): tin nhắn mẫu, tổng quan, cấu hình, ảnh thẻ chỉ cho admin hoặc `users.can_remind` — kiểm ở máy chủ, người khác chỉ nhận tiến độ từng học viên; tổng quan lớp **không có tên học viên**; khách 403. `remind-homework-kit/` (tên thật) git-ignore.
+14. **Nhắc bài** (`routes/remind.js`): tin nhắn mẫu, tổng quan, cấu hình, ảnh thẻ chỉ cho admin hoặc `users.can_remind` — kiểm ở máy chủ, người khác chỉ nhận tiến độ từng học viên; tổng quan lớp **không có tên học viên**; khách 403. `private-data/remind-homework-kit/` (tên thật) git-ignore.
 
 ## Skill của project (`.claude/skills/`)
 Mỗi skill gồm `SKILL.md` + 3 thư mục bắt buộc `references/` (tài liệu tra cứu), `assets/` (mẫu, tài nguyên), `scripts/` (script hỗ trợ); thư mục còn trống giữ bằng `.gitkeep`. Skill mới cũng phải tạo đủ ba thư mục này.

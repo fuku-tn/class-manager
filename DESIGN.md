@@ -1,7 +1,7 @@
 # DESIGN — Class Manager (Starttrain)
 
 Tài liệu thiết kế của webapp quản lý lớp học: **vì sao** hệ thống được dựng như vậy, dữ liệu chảy thế nào, quy tắc nào là bất biến.
-Cập nhật theo trạng thái ngày **14/10/2026** (152 test). Chi tiết cài đặt từng phần xem [Documents/code-guide.md](Documents/code-guide.md); nhật ký quyết định theo ngày xem [memory.md](memory.md).
+Cập nhật theo trạng thái ngày **14/10/2026** (152 test). Chi tiết cài đặt từng phần xem [Documents/3-ky-thuat/code-guide.md](Documents/3-ky-thuat/code-guide.md); nhật ký quyết định theo ngày xem [memory.md](memory.md).
 
 ---
 
@@ -260,7 +260,7 @@ Cơ chế: `attachUser` nạp người dùng + cờ năng lực từ phiên; `re
 | Dữ liệu nhạy cảm | Không tiền; FORM chỉ băm email/SĐT; khảo sát bỏ họ tên/chữ tự do; không commit `.env`, file Excel/CSV có dữ liệu thật |
 | Nhật ký | `auth_events` (đăng nhập, sai, khóa, đổi mật khẩu; giữ 90 ngày, không mật khẩu), `enrollment_events` |
 
-Việc ngoài code (bật 2FA GitHub/Vercel/Supabase, sao lưu): xem [Documents/security.md](Documents/security.md).
+Việc ngoài code (bật 2FA GitHub/Vercel/Supabase, sao lưu): xem [Documents/4-van-hanh/security.md](Documents/4-van-hanh/security.md).
 
 ---
 

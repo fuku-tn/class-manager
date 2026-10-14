@@ -40,7 +40,7 @@ Từ bản này, màn hình đăng nhập tự báo lý do nếu là lỗi datab
 Sau khi sửa biến môi trường **phải Redeploy** thì mới có hiệu lực. Endpoint này chỉ trả về loại lỗi, không lộ chuỗi kết nối. Code cũng tự bỏ qua dấu nháy/khoảng trắng dán thừa và tham số `?pgbouncer=true`.
 
 ## Biến môi trường đồng bộ Google Sheet
-Thêm `SYNC_TOKEN` (chuỗi ngẫu nhiên dài) rồi Redeploy; cùng giá trị này đặt trong Script properties của Apps Script. Chi tiết: [google-sheet-sync.md](google-sheet-sync.md). Không đặt thì địa chỉ `/api/sync/transactions` trả 503 (tắt).
+Thêm `SYNC_TOKEN` (chuỗi ngẫu nhiên dài) rồi Redeploy; cùng giá trị này đặt trong Script properties của Apps Script. Chi tiết: [google-sheet-sync.md](../3-ky-thuat/google-sheet-sync.md). Không đặt thì địa chỉ `/api/sync/transactions` trả 503 (tắt).
 
 ## Nhập Excel trên web
 Mục "Nhập Excel" (admin) tải file lên hàm serverless: thân yêu cầu tối đa ~4,5MB trên Vercel (file điểm danh hiện ~1,3MB). File lớn hơn → dùng `npm run import` trên máy. Lượt nhập điểm danh mất ~20 giây cho 54 lớp; nếu gặp timeout, kiểm tra thời gian chạy tối đa của hàm (Settings → Functions → Max Duration) hoặc dùng lệnh trên máy. `exceljs` đã chuyển sang `dependencies` để có mặt khi chạy.

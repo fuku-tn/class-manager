@@ -1,5 +1,5 @@
 -- Schema chuẩn hóa. Viết theo kiểu SQLite nhưng giữ cấu trúc để chuyển sang Postgres/Supabase
--- gần như 1-1 (xem Documents/code-guide.md, mục "Chuyển sang Supabase").
+-- gần như 1-1 (xem Documents/3-ky-thuat/code-guide.md, mục "Chuyển sang Supabase").
 
 CREATE TABLE IF NOT EXISTS users (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -2,7 +2,7 @@
  * Đồng bộ BẢNG ĐIỂM (Google Sheet riêng) → Class Manager (webapp lớp học).
  * Dùng cho Google Sheet CHỈ chứa điểm, độc lập với Sheet PERSONAL/COMPANY (script đó giữ nguyên).
  *
- * Cách dùng (xem Documents/google-sheet-sync.md):
+ * Cách dùng (xem Documents/3-ky-thuat/google-sheet-sync.md):
  *  1. Mở Google Sheet chứa bảng điểm → Tiện ích mở rộng (Extensions) → Apps Script → dán toàn bộ file này.
  *  2. Project Settings → Script properties: thêm
  *       SYNC_URL   = https://<tên-miền-web>/api/sync/points

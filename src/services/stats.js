@@ -1,4 +1,4 @@
-// Tính tỉ lệ điểm danh / hoàn thành bài tập. Mọi quy tắc tính nằm ở đây (xem Documents/context.md).
+// Tính tỉ lệ điểm danh / hoàn thành bài tập. Mọi quy tắc tính nằm ở đây (xem Documents/1-tong-quan/context.md).
 const ATTENDANCE_THRESHOLD = Number(process.env.ATTENDANCE_THRESHOLD || 0.8);
 const MISSING_HW_ALERT = Number(process.env.MISSING_HW_ALERT || 2);
 

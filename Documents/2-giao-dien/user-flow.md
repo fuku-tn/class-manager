@@ -1,7 +1,7 @@
 # User flow — Class Manager
 
 Các luồng thao tác chính theo từng người dùng. Mỗi luồng gồm: **ai**, **mục tiêu**, **các bước**, **ngoại lệ**.
-Xem thêm: [sitemap.md](sitemap.md) · [wireframe.md](wireframe.md) · [../DESIGN.md](../DESIGN.md).
+Xem thêm: [sitemap.md](sitemap.md) · [wireframe.md](wireframe.md) · [../DESIGN.md](../../DESIGN.md).
 
 ## Mục lục
 1. [Người dùng và mục tiêu](#1-người-dùng-và-mục-tiêu)

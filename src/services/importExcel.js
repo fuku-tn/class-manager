@@ -1,5 +1,5 @@
 // Nhập file điểm danh (workbook nhiều sheet theo chương trình: BIE-8, BIE-12, BIH, EBA...) vào database.
-// Cấu trúc & quy tắc: xem Documents/context.md.
+// Cấu trúc & quy tắc: xem Documents/1-tong-quan/context.md.
 //
 // QUY TẮC Ô ĐIỂM DANH (chủ dự án xác nhận 2026-10-10):
 //   X (hoặc x) = đi học · O = vắng có phép · ô trống = vắng.

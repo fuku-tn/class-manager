@@ -1,7 +1,7 @@
 /**
  * Đồng bộ Google Sheet → Class Manager (webapp lớp học).
  *
- * Cách dùng: xem Documents/google-sheet-sync.md. Tóm tắt:
+ * Cách dùng: xem Documents/3-ky-thuat/google-sheet-sync.md. Tóm tắt:
  *  1. Mở Google Sheet → Tiện ích mở rộng (Extensions) → Apps Script → dán toàn bộ file này.
  *  2. Project Settings → Script properties: thêm SYNC_URL và SYNC_TOKEN (giá trị do chủ dự án cấp).
  *  3. Chạy hàm setup() một lần, cấp quyền khi được hỏi.

@@ -9,3 +9,5 @@ scripts/
 *.xlsx
 *.xls
 *.csv
+private-data/
+data/

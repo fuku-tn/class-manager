@@ -94,15 +94,15 @@ function importCard({ title, intro, endpoint, render, onDone }) {
     h('div', { class: 'toolbar' }, input, dryBtn, goBtn), out);
 }
 
-// Thẻ trạng thái đồng bộ tự động từ Google Sheet (Apps Script đẩy sang; xem Documents/google-sheet-sync.md).
+// Thẻ trạng thái đồng bộ tự động từ Google Sheet (Apps Script đẩy sang; xem Documents/3-ky-thuat/google-sheet-sync.md).
 const STALE_MS = 2 * 60 * 60 * 1000; // script gửi ít nhất mỗi giờ một lần: quá 2 giờ im lặng là có vấn đề
 function syncCard(s) {
   const last = s.runs[0];
   const fmtT = (iso) => new Date(iso).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
   let line;
   let cls = 'muted';
-  if (!s.enabled) line = 'Chưa bật: máy chủ chưa có biến SYNC_TOKEN. Xem hướng dẫn trong Documents/google-sheet-sync.md.';
-  else if (!last) line = 'Chưa nhận dữ liệu nào từ Google Sheet. Hãy chạy hàm setup trong Apps Script (xem Documents/google-sheet-sync.md).';
+  if (!s.enabled) line = 'Chưa bật: máy chủ chưa có biến SYNC_TOKEN. Xem hướng dẫn trong Documents/3-ky-thuat/google-sheet-sync.md.';
+  else if (!last) line = 'Chưa nhận dữ liệu nào từ Google Sheet. Hãy chạy hàm setup trong Apps Script (xem Documents/3-ky-thuat/google-sheet-sync.md).';
   else if (!last.ok) { line = `Lần gần nhất (${fmtT(last.created_at)}) bị lỗi: ${last.error ?? 'không rõ'}`; cls = 'error'; }
   else if (Date.now() - new Date(last.created_at).getTime() > STALE_MS) {
     line = `Lần nhận gần nhất: ${fmtT(last.created_at)} — đã lâu không có dữ liệu, hãy kiểm tra trigger trong Apps Script.`; cls = 'error';
