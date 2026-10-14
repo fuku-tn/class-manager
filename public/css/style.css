@@ -180,9 +180,9 @@ button.small { padding: .12rem .55rem; font-size: .75rem; border-radius: 8px; }
 .toolbar select { border-radius: 999px; padding-left: 1rem; }
 
 /* ---------- Bảng ---------- */
-/* Chỉ cuộn NGANG trong bảng; cuộn dọc dùng thanh cuộn của trang (một lần cuộn là tới hàng cuối, góc bo không bị thanh cuộn che) */
-.table-wrap { overflow-x: auto; overflow-y: hidden; border: 1px solid var(--border); border-radius: var(--radius); background: var(--glass); }
-.card .table-wrap { box-shadow: none; background: transparent; }
+/* Bảng cuộn TRONG khung (tiêu đề cột luôn hiện); chiều cao vừa khít màn hình do fitTables() trong main.js đặt. clip-path để góc bo không bị thanh cuộn che */
+.table-wrap { overflow: auto; clip-path: inset(0 round var(--radius)); border: 1px solid var(--border); border-radius: var(--radius); background: var(--glass); }
+.card .table-wrap { box-shadow: none; max-height: 420px; background: transparent; }
 table { border-collapse: separate; border-spacing: 0; width: 100%; }
 th, td { padding: .65rem .9rem; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
 tbody tr:last-child td { border-bottom: 0; }

@@ -206,7 +206,23 @@ async function route() {
     }
   }
   if (result === 'unauth') { state.user = null; shell = null; route(); }
+  requestAnimationFrame(fitTables);
 }
+
+// Bảng ở trang chính (không nằm trong thẻ) cao vừa khít phần màn hình còn lại: cuộn trong bảng, tiêu đề cột luôn hiện.
+function fitTables() {
+  for (const el of document.querySelectorAll('.view .table-wrap')) {
+    if (el.closest('.card')) continue;
+    const top = el.getBoundingClientRect().top + window.scrollY;
+    el.style.maxHeight = `${Math.max(240, Math.floor(window.innerHeight - top - 12))}px`;
+    // Bảng là phần cuối của trang: bù phần đệm bên dưới để trang không phải cuộn thêm
+    if (el.parentElement?.lastElementChild === el) {
+      const extra = document.documentElement.scrollHeight - window.innerHeight;
+      if (extra > 0) el.style.maxHeight = `${Math.max(240, el.getBoundingClientRect().height - extra)}px`;
+    }
+  }
+}
+window.addEventListener('resize', fitTables);
 
 window.addEventListener('hashchange', route);
 route();
