@@ -102,6 +102,7 @@ create table if not exists classes (
   shift           text check (shift in ('morning','afternoon','evening','full_day')),
   end_date        date,
   next_short_code text,
+  days_of_week    text,
   curriculum_id   bigint references curricula(id) on delete set null,
   graduation_published_at timestamptz,
   graduation_published_by bigint references users(id) on delete set null,

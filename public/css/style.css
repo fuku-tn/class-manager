@@ -81,6 +81,9 @@ a:hover { color: var(--gold-2); }
 .nav-link.active { color: var(--gold); background: var(--gold-soft); }
 .top-right { display: flex; align-items: center; gap: .55rem; }
 .admin-links { display: flex; gap: .1rem; }
+.sched-filters { display: flex; flex-direction: column; align-items: stretch; gap: .5rem; }
+.sched-filters .chips { justify-content: flex-start; margin: 0; }
+.sched-month h3 { margin: 1rem 0 .5rem; font-size: 1rem; }
 /* Thanh trên không đủ chỗ (tùy độ rộng màn hình/cỡ chữ): chỉ hiện biểu tượng — do fitView() trong main.js bật */
 .topbar.compact .nav-link span, .topbar.compact .chip-user-name { display: none; }
 .topbar.compact .nav-link { padding: .5rem .7rem; }

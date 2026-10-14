@@ -232,3 +232,16 @@ test('STATUS: "Chưa thanh toán" (PERSONAL) không có trong danh sách/điểm
   assert.equal(res.status, 200, JSON.stringify(res.body));
   assert.equal((await t.db.one("select sheet_status from enrollments e join students s on s.id = e.student_id where s.student_code = 'P.9003'")).sheet_status, null);
 });
+
+test('tab COURSE: đọc cột DAYS OF WEEK (thứ học), không đọc cột tiền; định dạng thứ học', async () => {
+  const course = { headers: ['COURSE', 'COURSE ID', 'START DATE', 'EXPECTED END DATE', 'DAYS OF WEEK', 'FULL PAYMENT', 'TOTAL REVENUE'],
+    rows: [['DOW101', 'P1.EBA.P101.ON.EE.150126', '2026-12-01', '2026-12-30', '78', MONEY, MONEY]] };
+  const r = await post({ transactions: tx(['P.6101', 'CD', 'Người D', 'd@x.com', '0906666666', 'DOW101', 'Online', 'Male', null, 'Form']), course });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  const c = await t.db.one("select days_of_week from classes where short_code = 'DOW101'");
+  assert.equal(c.days_of_week, '78');
+  const hit = await t.db.one('select count(*)::int n from classes x where to_jsonb(x)::text like $1', [`%${MONEY}%`]);
+  assert.equal(hit.n, 0);
+  const { formatDays } = await import('../public/js/class-filter.mjs');
+  assert.deepEqual(['24', '78', '35', '8', 'S78', '', null].map(formatDays), ['T2, T4', 'T7, CN', 'T3, T5', 'CN', 'T7, CN (S)', '', '']);
+});

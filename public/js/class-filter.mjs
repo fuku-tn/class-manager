@@ -15,6 +15,16 @@ export const PROGRAM_NAMES = {
   DDM: 'Data-Driven Marketing', SQL: 'SQL', WKS: 'Workshop', BSM: 'BSM', DBC: 'DBC',
 };
 
+// Thứ học từ cột DAYS OF WEEK: "24" → "T2, T4"; "78" → "T7, CN" (8 = Chủ nhật); chữ cái đứng trước (vd "S78") giữ nguyên ở cuối.
+export function formatDays(raw) {
+  const s = String(raw ?? '').trim().toUpperCase();
+  if (!s) return '';
+  const digits = [...s.replace(/[^2-8]/g, '')];
+  const prefix = s.replace(/[0-9\s,;.-]/g, '');
+  const days = [...new Set(digits)].sort().map((d) => (d === '8' ? 'CN' : `T${d}`));
+  return days.length ? days.join(', ') + (prefix ? ` (${prefix})` : '') : s;
+}
+
 // Bỏ dấu + chữ thường để tìm "bie101", "thang 10" không cần gõ dấu.
 export function norm(s) {
   return String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/gi, 'd').toLowerCase();

@@ -9,7 +9,7 @@ const ExcelJS = require('exceljs');
 const fs = require('node:fs');
 const { logEvents, latestEvents } = require('./history');
 
-const ALLOWED_COURSE = ['COURSE', 'COURSE ID', 'STARTDATE', 'ENDDATE', 'NEXT COURSE'];
+const ALLOWED_COURSE = ['COURSE', 'COURSE ID', 'STARTDATE', 'ENDDATE', 'NEXT COURSE', 'DAYS OF WEEK'];
 const ALLOWED_TX = ['STUDENT ID', 'CUSTOMER ID', 'FULL NAME', 'EMAIL', 'PHONE', 'COURSE', 'MODE', 'GENDER', 'STATUS', 'REGISTRATION SOURCE'];
 const ALLOWED_CURRICULUM = ['PHASE', 'MODULE', 'TOOLS', 'SESSION', 'HOURS', 'CONTENT'];
 
@@ -126,6 +126,7 @@ function parseCourse(ws) {
       shift: SHIFT[parts[4]] ?? null,
       start_date: isoDate(r.STARTDATE), end_date: isoDate(r.ENDDATE),
       next_short_code: txt(r['NEXT COURSE'])?.toUpperCase() ?? null,
+      days_of_week: txt(r['DAYS OF WEEK'])?.toUpperCase().slice(0, 20) ?? null,
       template: KNOWN_TEMPLATES[short] ?? DEFAULT_TEMPLATE[program] ?? null,
       template_known: short in KNOWN_TEMPLATES,
     };
@@ -305,20 +306,21 @@ async function importTransactions(db, { transactionsFile, curriculumFile, dryRun
 
       // 2) Lớp
       const classRows = await t.all(
-        `insert into classes (code, name, short_code, program, delivery_mode, shift, start_date, end_date, next_short_code, curriculum_id)
-         select u.code, u.name, u.short_code, u.program, u.delivery_mode, u.shift, u.start_date::date, u.end_date::date, u.next_short_code, cu.id
-         from unnest($1::text[], $2::text[], $3::text[], $4::text[], $5::text[], $6::text[], $7::text[], $8::text[], $9::text[], $10::text[])
-           as u(code, name, short_code, program, delivery_mode, shift, start_date, end_date, next_short_code, template)
+        `insert into classes (code, name, short_code, program, delivery_mode, shift, start_date, end_date, next_short_code, curriculum_id, days_of_week)
+         select u.code, u.name, u.short_code, u.program, u.delivery_mode, u.shift, u.start_date::date, u.end_date::date, u.next_short_code, cu.id, u.days_of_week
+         from unnest($1::text[], $2::text[], $3::text[], $4::text[], $5::text[], $6::text[], $7::text[], $8::text[], $9::text[], $10::text[], $11::text[])
+           as u(code, name, short_code, program, delivery_mode, shift, start_date, end_date, next_short_code, template, days_of_week)
          left join curricula cu on cu.code = u.template
          on conflict (code) do update set
            name = case when classes.name = classes.code then excluded.name else classes.name end,
            short_code = excluded.short_code, program = excluded.program, delivery_mode = excluded.delivery_mode, shift = excluded.shift,
            start_date = coalesce(excluded.start_date, classes.start_date), end_date = excluded.end_date,
-           next_short_code = excluded.next_short_code, curriculum_id = coalesce(excluded.curriculum_id, classes.curriculum_id)
+           next_short_code = excluded.next_short_code, curriculum_id = coalesce(excluded.curriculum_id, classes.curriculum_id),
+           days_of_week = coalesce(excluded.days_of_week, classes.days_of_week)
          returning id, code, short_code, curriculum_id`,
         [classes.map((c) => c.code), classes.map((c) => c.name), classes.map((c) => c.short_code), classes.map((c) => c.program),
           classes.map((c) => c.delivery_mode), classes.map((c) => c.shift), classes.map((c) => c.start_date), classes.map((c) => c.end_date),
-          classes.map((c) => c.next_short_code), classes.map((c) => c.template)]);
+          classes.map((c) => c.next_short_code), classes.map((c) => c.template), classes.map((c) => c.days_of_week ?? null)]);
       const classId = new Map(classRows.map((r) => [r.short_code, r.id]));
       summary.class_ids = [...new Set(en0(parsed.enrolls, classId))];
 
@@ -547,7 +549,8 @@ async function importTransactions(db, { transactionsFile, curriculumFile, dryRun
         summary.reappeared = backCount;
       }
       if (toPotential.length) await movePotential(toPotential);
-      summary.moved_to_potential = toPotential.length;
+      summary.moved_to_potential = toPotential.filter((i) => i.enrollment_id).length;   // chỉ người vừa rời danh sách lớp
+      summary.potential_rows = toPotential.length;
       summary.events_logged = await logEvents(t, events);
 
       const after = { classes: await count('classes'), students: await count('students'), enrollments: await count('enrollments'), sessions: await count('sessions') };

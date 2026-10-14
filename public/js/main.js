@@ -8,6 +8,7 @@ import { renderHomework } from './pages/homework.js';
 import { renderGraduation } from './pages/graduation.js';
 import { renderRemind } from './pages/remind.js';
 import { renderPotential } from './pages/potential.js';
+import { renderSchedule } from './pages/schedule.js';
 import { renderClasses } from './pages/classes.js';
 import { renderUsers } from './pages/users.js';
 import { renderImport } from './pages/import.js';
@@ -54,6 +55,7 @@ function buildShell() {
     onSelect: (c) => { location.hash = `#/c/${c.id}/${shell.active && TABS.some((t) => t[0] === shell.active) ? shell.active : 'dashboard'}`; },
   });
   const homeLink = h('a', { class: 'nav-link', 'data-key': 'home', href: '#/' }, icon('home'), h('span', {}, 'Trang chủ'));
+  const scheduleLink = h('a', { class: 'nav-link', 'data-key': 'schedule', href: '#/schedule', title: 'Lịch khai giảng, bế giảng, giảng dạy' }, icon('attendance'), h('span', {}, 'Lịch'));
   // Khách không dùng phần nhắc bài (máy chủ cũng chặn)
   const navLinks = TABS.filter(([key]) => !((key === 'remind' && state.user.role === 'guest') || (key === 'potential' && !(state.user.role === 'admin' || state.user.can_view_potential === true)))).map(([key, label]) => h('a', { class: 'nav-link', 'data-key': key }, icon(key), h('span', {}, label)));
   const adminLinks = admin ? [
@@ -74,7 +76,7 @@ function buildShell() {
     h('header', { class: 'topbar' },
       h('a', { class: 'brand', href: '#/' }, logo(44), h('div', { class: 'brand-text' },
         h('span', { class: 'brand-name' }, BRAND.name), h('span', { class: 'brand-tag' }, BRAND.tagline))),
-      h('nav', { class: 'top-nav', 'aria-label': 'Điều hướng' }, homeLink, navLinks),
+      h('nav', { class: 'top-nav', 'aria-label': 'Điều hướng' }, homeLink, scheduleLink, navLinks),
       h('div', { class: 'top-right' },
         picker.el,
         h('nav', { class: 'admin-links', 'aria-label': 'Quản trị' }, adminLinks),
@@ -86,7 +88,7 @@ function buildShell() {
           h('button', { class: 'icon-btn', title: 'Đăng xuất', 'aria-label': 'Đăng xuất',
             onclick: async () => { await post('/api/auth/logout'); state.user = null; shell = null; route(); } }, icon('logout'))))),
     h('main', { class: 'content' }, view));
-  shell = { root, view, picker, homeLink, navLinks, adminLinks, progress, active: null };
+  shell = { root, view, picker, homeLink, scheduleLink, navLinks, adminLinks, progress, active: null };
 }
 
 // Tự đổi mật khẩu (các phiên khác của tài khoản này bị đăng xuất).
@@ -106,6 +108,7 @@ async function changePassword() {
 function updateShell(active, classId) {
   shell.active = active;
   shell.homeLink.classList.toggle('active', active === 'home');
+  shell.scheduleLink.classList.toggle('active', active === 'schedule');
   for (const a of shell.navLinks) {
     a.href = classId ? `#/c/${classId}/${a.dataset.key}` : '#/';
     a.classList.toggle('active', a.dataset.key === active);
@@ -174,6 +177,9 @@ async function route() {
   if (parts.length === 0 || parts[0] === 'home') {
     updateShell('home', store.get('classId'));
     result = await transitionTo(() => renderHome(ctx));
+  } else if (parts[0] === 'schedule') {
+    updateShell('schedule', store.get('classId'));
+    result = await transitionTo(() => renderSchedule(ctx));
   } else if (parts[0] === 'classes' && admin) {
     updateShell('classes', store.get('classId'));
     result = await transitionTo(() => renderClasses(ctx));

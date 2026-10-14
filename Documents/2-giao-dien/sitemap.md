@@ -41,6 +41,7 @@ flowchart TD
 |---|---|---|---|---|
 | 0 | Đăng nhập | (tự hiện khi chưa đăng nhập) | Mọi người | Vào hệ thống bằng email + mật khẩu |
 | 1 | Trang chủ | `#/` | Mọi tài khoản | Lớp đang hoạt động, lớp sắp khai giảng, số liệu tổng quan |
+| 1b | Lịch | `#/schedule` | Mọi tài khoản (lớp mình có quyền) | Lịch khai giảng/bế giảng theo tháng; lịch giảng dạy (ca, thứ học, B2C/B2B, hình thức) |
 | 2 | Dashboard lớp | `#/c/:id/dashboard` | Người có quyền vào lớp | Chuyên cần/điểm TB, biểu đồ, học viên cần chú ý |
 | 3 | Học viên | `#/c/:id/students` | Như trên | Danh sách, sửa, thêm, xuất CSV, lịch sử thay đổi |
 | 4 | Điểm danh | `#/c/:id/attendance` | Như trên (khách chỉ xem) | Điểm danh từng buổi, "cả lớp ✓" |
