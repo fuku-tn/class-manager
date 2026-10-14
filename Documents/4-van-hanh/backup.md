@@ -14,7 +14,7 @@
 | Mục | Giá trị |
 |---|---|
 | Tên tác vụ | `ClassManager - Sao luu du lieu` |
-| Lịch | Thứ Hai hằng tuần, 8:00 sáng; **máy tắt lúc đó thì chạy bù** khi mở máy (cần đăng nhập Windows và có mạng) |
+| Lịch | Thứ Hai hằng tuần, 12:00 trưa; **máy tắt lúc đó thì chạy bù** khi mở máy (cần đăng nhập Windows và có mạng) |
 | Chạy | `scripts/backup-scheduled.cmd` → `scripts/backup.js --keep 8` |
 | Giữ | 8 bản mới nhất (bản cũ hơn tự xóa; chỉ xóa thư mục dạng `yyyy-mm-dd_hhmm`) |
 | Nhật ký | `private-data/backups/backup-log.txt` (mỗi lần chạy: thời điểm, số dòng từng bảng, lỗi nếu có) |
@@ -30,7 +30,7 @@
 ```powershell
 $repo = 'D:\Phuc Documents\Claude Code Training (DLLT)\Course'
 $action = New-ScheduledTaskAction -Execute "`"$repo\scriptsackup-scheduled.cmd`"" -WorkingDirectory $repo
-$trigger = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Monday -At 8:00am
+$trigger = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Monday -At 12:00pm
 $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -RunOnlyIfNetworkAvailable -ExecutionTimeLimit (New-TimeSpan -Minutes 30) -MultipleInstances IgnoreNew
 Register-ScheduledTask -TaskName 'ClassManager - Sao luu du lieu' -Action $action -Trigger $trigger -Settings $settings -Force
 ```
