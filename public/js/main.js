@@ -1,5 +1,5 @@
 import { get, post } from './api.js';
-import { h, toast, logo, icon, BRAND, formModal } from './ui.js';
+import { h, toast, logo, icon, BRAND, formModal, tooltips } from './ui.js';
 import { renderLogin } from './pages/login.js';
 import { renderDashboard } from './pages/dashboard.js';
 import { renderStudents } from './pages/students.js';
@@ -55,7 +55,7 @@ function buildShell() {
     onSelect: (c) => { location.hash = `#/c/${c.id}/${shell.active && TABS.some((t) => t[0] === shell.active) ? shell.active : 'dashboard'}`; },
   });
   const homeLink = h('a', { class: 'nav-link', 'data-key': 'home', href: '#/' }, icon('home'), h('span', {}, 'Trang chủ'));
-  const scheduleLink = h('a', { class: 'nav-link', 'data-key': 'schedule', href: '#/schedule', title: 'Lịch khai giảng, bế giảng, giảng dạy' }, icon('attendance'), h('span', {}, 'Lịch'));
+  const scheduleLink = h('a', { class: 'nav-link', 'data-key': 'schedule', href: '#/schedule', title: 'Lịch khai giảng, bế giảng, giảng dạy' }, icon('calendar'), h('span', {}, 'Lịch'));
   // Khách không dùng phần nhắc bài (máy chủ cũng chặn)
   const navLinks = TABS.filter(([key]) => !((key === 'remind' && state.user.role === 'guest') || (key === 'potential' && !(state.user.role === 'admin' || state.user.can_view_potential === true)))).map(([key, label]) => h('a', { class: 'nav-link', 'data-key': key }, icon(key), h('span', {}, label)));
   const adminLinks = admin ? [
@@ -88,6 +88,7 @@ function buildShell() {
           h('button', { class: 'icon-btn', title: 'Đăng xuất', 'aria-label': 'Đăng xuất',
             onclick: async () => { await post('/api/auth/logout'); state.user = null; shell = null; route(); } }, icon('logout'))))),
     h('main', { class: 'content' }, view));
+  tooltips(root.querySelector('.topbar'));
   shell = { root, view, picker, homeLink, scheduleLink, navLinks, adminLinks, progress, active: null };
 }
 

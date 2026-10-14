@@ -81,6 +81,18 @@ a:hover { color: var(--gold-2); }
 .nav-link.active { color: var(--gold); background: var(--gold-soft); }
 .top-right { display: flex; align-items: center; gap: .55rem; }
 .admin-links { display: flex; gap: .1rem; }
+/* Chú thích nổi (tooltips() trong ui.js): thẻ kính tối/sáng theo theme, mũi tên vàng chỉ vào biểu tượng */
+.tip { position: fixed; z-index: 100; pointer-events: none; display: grid; gap: .1rem; max-width: 16rem; padding: .45rem .75rem;
+  background: var(--solid); color: var(--text); border: 1px solid var(--border); border-top: 2px solid var(--gold); border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg); font-size: .8rem; line-height: 1.35; opacity: 0; transform: translateY(-4px); transition: opacity .14s ease, transform .14s ease; }
+.tip.on { opacity: 1; transform: none; }
+.tip[hidden] { display: none; }
+.tip::before { content: ""; position: absolute; top: -6px; left: var(--arrow, 50%); width: 9px; height: 9px; transform: translateX(-50%) rotate(45deg);
+  background: var(--gold); border-radius: 2px 0 0 0; z-index: -1; }
+.tip b { font-weight: 650; color: var(--gold); letter-spacing: .01em; }
+.tip span { color: var(--muted); font-size: .74rem; }
+.tip b:only-child, .tip span:only-child { color: var(--text); font-size: .8rem; }
+
 /* ---------- Trang Lịch (dạng tuần) ---------- */
 .cal { background: var(--glass); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.1rem clamp(.8rem, 2vw, 1.4rem) 1.2rem; box-shadow: var(--shadow); }
 .cal-top { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: .75rem; }

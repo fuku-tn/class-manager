@@ -123,6 +123,7 @@ const ICONS = {
   dashboard: [['rect', { x: 3, y: 3, width: 7, height: 7, rx: 1 }], ['rect', { x: 14, y: 3, width: 7, height: 7, rx: 1 }], ['rect', { x: 14, y: 14, width: 7, height: 7, rx: 1 }], ['rect', { x: 3, y: 14, width: 7, height: 7, rx: 1 }]],
   students: [['path', { d: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2' }], ['circle', { cx: 9, cy: 7, r: 4 }], ['path', { d: 'M22 21v-2a4 4 0 0 0-3-3.87' }], ['path', { d: 'M16 3.13a4 4 0 0 1 0 7.75' }]],
   attendance: [['rect', { x: 3, y: 4, width: 18, height: 18, rx: 2 }], ['path', { d: 'M16 2v4M8 2v4M3 10h18' }], ['path', { d: 'm9 16 2 2 4-4' }]],
+  calendar: [['rect', { x: 3, y: 4, width: 18, height: 18, rx: 2 }], ['path', { d: 'M16 2v4M8 2v4M3 10h18' }], ['path', { d: 'M7.5 14h.01M12 14h.01M16.5 14h.01M7.5 18h.01M12 18h.01', 'stroke-width': 2.8 }]],
   homework: [['path', { d: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z' }], ['path', { d: 'M14 2v6h6M16 13H8M16 17H8' }]],
   feedback: [['path', { d: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z' }], ['path', { d: 'M8 9h8M8 13h5' }]],
   key: [['circle', { cx: 7.5, cy: 15.5, r: 4.5 }], ['path', { d: 'm10.7 12.3 9.8-9.8M16 7l3 3M13.5 9.5l2 2' }]],
@@ -142,6 +143,43 @@ const ICONS = {
   moon: [['path', { d: 'M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z' }]],
   logout: [['path', { d: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4' }], ['path', { d: 'm16 17 5-5-5-5M21 12H9' }]],
 };
+
+// Chú thích nổi khi rê chuột/focus (thay cho title mặc định nền trắng của trình duyệt).
+// Áp cho .nav-link / .icon-btn / [data-tip] trong `container`: tên mục (chữ trong <span>, hoặc title) + mô tả (title) nếu khác.
+// Nếu tên mục đang hiện sẵn trên màn hình và không có mô tả thì không hiện chú thích.
+let tipEl = null;
+export function tooltips(container) {
+  if (!tipEl) { tipEl = h('div', { class: 'tip', role: 'tooltip', hidden: true }); document.body.append(tipEl); }
+  for (const el of container.querySelectorAll('.nav-link, .icon-btn, [data-tip]')) {
+    const label = el.querySelector(':scope > span')?.textContent || el.dataset.tip || el.getAttribute('title') || '';
+    const desc = el.getAttribute('title');
+    el.dataset.tipLabel = label;
+    if (desc && desc !== label) el.dataset.tipDesc = desc;
+    if (!el.getAttribute('aria-label')) el.setAttribute('aria-label', desc || label);
+    el.removeAttribute('title');
+  }
+  const show = (el) => {
+    const span = el.querySelector(':scope > span');
+    const labelShown = span && span.offsetWidth > 0;
+    const { tipLabel: label, tipDesc: desc } = el.dataset;
+    if (!label || (labelShown && !desc)) return hide();
+    tipEl.replaceChildren(...[labelShown ? null : h('b', {}, label), desc ? h('span', {}, desc) : null].filter(Boolean));
+    tipEl.hidden = false; tipEl.classList.remove('on');
+    const r = el.getBoundingClientRect(); const w = tipEl.offsetWidth;
+    const left = Math.min(Math.max(8, r.left + r.width / 2 - w / 2), innerWidth - w - 8);
+    tipEl.style.left = `${left}px`; tipEl.style.top = `${r.bottom + 10}px`;
+    tipEl.style.setProperty('--arrow', `${r.left + r.width / 2 - left}px`);
+    requestAnimationFrame(() => tipEl.classList.add('on'));
+  };
+  const hide = () => { tipEl.hidden = true; tipEl.classList.remove('on'); };
+  const target = (e) => e.target.closest?.('[data-tip-label]');
+  container.addEventListener('mouseover', (e) => { const el = target(e); if (el && !el.contains(e.relatedTarget)) show(el); });
+  container.addEventListener('mouseout', (e) => { const el = target(e); if (el && !el.contains(e.relatedTarget)) hide(); });
+  container.addEventListener('focusin', (e) => { const el = target(e); if (el) show(el); });
+  container.addEventListener('focusout', hide);
+  container.addEventListener('click', hide);
+  addEventListener('scroll', hide, { passive: true });
+}
 
 export function icon(name) {
   return svg('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.9, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' },
