@@ -17,6 +17,12 @@ const vnToday = () => {
   return `${String(d.getUTCDate()).padStart(2, '0')}/${String(d.getUTCMonth() + 1).padStart(2, '0')}/${d.getUTCFullYear()}`;
 };
 
+// Giờ:phút hiện tại theo giờ Việt Nam (hiển thị trên thẻ: "Cập nhật ngày … lúc …").
+const vnTime = () => {
+  const d = new Date(Date.now() + 7 * 3600 * 1000);
+  return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
+};
+
 module.exports = (db) => {
   const router = express.Router({ mergeParams: true });
   router.use(requireClassAccess(db));
@@ -60,7 +66,7 @@ module.exports = (db) => {
     res.json({
       privileged: priv, hdr, students, warnings, no_homework: cols.length === 0,
       class: { id: req.cls.id, code: req.cls.code, short_code: req.cls.short_code, program: req.cls.program },
-      snap_date: vnToday(), theme: cfg.theme,
+      snap_date: vnToday(), snap_time: vnTime(), theme: cfg.theme,
       ...(priv ? { config: cfg, themes: R.THEME_KEYS } : {}),
     });
   });

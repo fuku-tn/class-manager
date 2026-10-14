@@ -110,6 +110,7 @@ test('GET: bài đã thu thành cột; nộp lại không tính; tài khoản c�
   assert.equal(r.body.config.cls_label, 'EBA');
   assert.equal(r.body.config.theme, 'excel-green');
   assert.match(r.body.snap_date, /^\d{2}\/\d{2}\/\d{4}$/);
+  assert.match(r.body.snap_time, /^\d{2}:\d{2}$/);   // giờ:phút (giờ Việt Nam) in trên thẻ
 });
 
 test('phân quyền: giảng viên không có quyền chỉ xem tiến độ — không có tin nhắn, xưng hô, cấu hình, tổng quan', async () => {

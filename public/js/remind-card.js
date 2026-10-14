@@ -8,8 +8,8 @@ function rr(c, x, y, w, h, r) {
   c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath();
 }
 
-// s: { name, d:[0|1], done, total, pct }; theme: token màu; snapDate: "dd/MM/yyyy"; hdr: nhãn các bài.
-export function drawCard(s, { hdr, theme: t, snapDate, scale }) {
+// s: { name, d:[0|1], done, total, pct }; theme: token màu; snapDate: "dd/MM/yyyy"; snapTime: "HH:mm" (tùy chọn); hdr: nhãn các bài.
+export function drawCard(s, { hdr, theme: t, snapDate, snapTime, scale }) {
   const T = hdr.length;
   const { done, pct } = s;
   const W = 520; const PAD = 20; const HEAD = 128; const SUM = 132; const ROW = 54; const BOT = 14; const H = HEAD + SUM + ROW * T + BOT;
@@ -33,7 +33,7 @@ export function drawCard(s, { hdr, theme: t, snapDate, scale }) {
   let fs = 25; c.font = `${nw} ${fs}px ${FONT}`;
   while (c.measureText(s.name).width > W - 48 && fs > 16) { fs--; c.font = `${nw} ${fs}px ${FONT}`; }
   c.fillText(s.name, 24, 78); c.fillStyle = t.subColor || t.headerText;
-  c.font = `400 12.5px ${FONT}`; c.fillText(`Cập nhật ngày ${snapDate}`, 24, 102);
+  c.font = `400 12.5px ${FONT}`; c.fillText(`Cập nhật ngày ${snapDate}${snapTime ? ` lúc ${snapTime}` : ''}`, 24, 102);
   // vòng tròn %
   const cx = 76; const cy = HEAD + SUM / 2;
   c.lineWidth = 12; c.strokeStyle = t.donutTrack; c.beginPath(); c.arc(cx, cy, 46, 0, Math.PI * 2); c.stroke();

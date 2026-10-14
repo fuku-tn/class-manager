@@ -51,7 +51,7 @@ export async function renderRemind({ cls, state }) {
   function paintPlain() {
     const s = student();
     if (!s || d.no_homework) { cardImg.removeAttribute('src'); setChildren(plainBox, h('p', { class: 'empty-state' }, d.no_homework ? 'Lớp chưa có bài tập nào được thu.' : 'Lớp chưa có học viên đang học.')); return; }
-    cardImg.src = drawCard({ name: s.name, d: s.d, done: s.done, total: s.total, pct: s.pct }, { hdr: d.hdr, theme: theme(), snapDate: d.snap_date }).toDataURL('image/png');
+    cardImg.src = drawCard({ name: s.name, d: s.d, done: s.done, total: s.total, pct: s.pct }, { hdr: d.hdr, theme: theme(), snapDate: d.snap_date, snapTime: d.snap_time }).toDataURL('image/png');
     setChildren(plainBox, cardImg);
   }
 
@@ -59,6 +59,7 @@ export async function renderRemind({ cls, state }) {
   const cfg = () => d.config;
   const theme = () => themeOf(cfg()?.theme ?? d.theme);
   const snap = h('input', { class: 'remind-in', 'aria-label': 'Ngày cập nhật', placeholder: 'dd/mm/yyyy' });
+  const snapTime = h('input', { class: 'remind-in', 'aria-label': 'Giờ cập nhật', placeholder: 'hh:mm', style: 'width:5.5rem' });
   const inCls = h('input', { class: 'remind-in', 'aria-label': 'Tên lớp trong tin nhắn' });
   const inScope = h('input', { class: 'remind-in', 'aria-label': 'Phạm vi bài đã học' });
   const inCall = h('input', { class: 'remind-in', 'aria-label': 'Tên gọi của học viên' });
@@ -96,7 +97,7 @@ export async function renderRemind({ cls, state }) {
       msgBox.textContent = d.no_homework ? 'Lớp chưa có bài tập nào được thu — thêm bài ở tab Bài tập hoặc nạp bảng homework bên dưới.' : 'Lớp chưa có học viên đang học.';
       return;
     }
-    canvas = drawCard({ name: s.name, d: s.d, done: s.done, total: s.total, pct: s.pct }, { hdr: d.hdr, theme: theme(), snapDate: snap.value.trim() || d.snap_date });
+    canvas = drawCard({ name: s.name, d: s.d, done: s.done, total: s.total, pct: s.pct }, { hdr: d.hdr, theme: theme(), snapDate: snap.value.trim() || d.snap_date, snapTime: snapTime.value.trim() });
     cardImg.src = canvas.toDataURL('image/png');
     msgBox.textContent = s.message;
     prBtn.textContent = `Đang xưng: ${s.honorific} — đổi`;
@@ -223,7 +224,9 @@ export async function renderRemind({ cls, state }) {
   // ---------------- nối sự kiện (chỉ tài khoản có quyền)
   if (priv) {
     snap.value = d.snap_date;
+    snapTime.value = d.snap_time ?? '';
     snap.addEventListener('input', paintStudent);
+    snapTime.addEventListener('input', paintStudent);
     inCls.addEventListener('input', saveConfig);
     inScope.addEventListener('input', saveConfig);
     inTitle.addEventListener('input', () => { saveConfig(); refreshOverview(); });
@@ -279,7 +282,7 @@ export async function renderRemind({ cls, state }) {
 
   studentPane.append(
     h('div', { class: 'toolbar' }, sel, prevBtn, nextBtn, copyImgBtn, copyMsgBtn, prBtn, capBtn),
-    h('div', { class: 'toolbar' }, field('Lớp', inCls), field('Phạm vi', inScope), field('Ngày cập nhật', snap), field('Tên gọi', inCall), field('Màu', themeSel), savedEl),
+    h('div', { class: 'toolbar' }, field('Lớp', inCls), field('Phạm vi', inScope), field('Ngày cập nhật', snap), field('Lúc', snapTime), field('Tên gọi', inCall), field('Màu', themeSel), savedEl),
     warnEl,
     h('div', { class: 'remind-grid' },
       h('div', { class: 'remind-cardwrap' }, cardImg),
