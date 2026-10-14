@@ -40,7 +40,10 @@ async function exportAll(db) {
     await t.run('set transaction isolation level repeatable read, read only');
     const order = await tableOrder(t);
     const tables = {};
+    const columns = {};
     for (const name of order) {
+      columns[name] = (await t.all(
+        "select column_name as c from information_schema.columns where table_schema = 'public' and table_name = $1 order by ordinal_position", [name])).map((r) => r.c);
       const hasId = await t.one("select 1 as x from information_schema.columns where table_schema = 'public' and table_name = $1 and column_name = 'id'", [name]);
       tables[name] = await t.all(`select * from ${ident(name)}${hasId ? ' order by id' : ''}`);
     }
@@ -50,6 +53,7 @@ async function exportAll(db) {
         format: FORMAT, app: 'class-manager', created_at: meta.at, server_version: meta.server_version,
         order, counts: Object.fromEntries(order.map((n) => [n, tables[n].length])), skipped: [...SKIP],
       },
+      columns,
       tables,
     };
   });
@@ -73,7 +77,15 @@ async function importAll(db, backup, { dryRun = false, allowNonEmpty = false } =
         if (busy.length) throw new Error(`Database đích đã có dữ liệu (${busy.join(', ')}). Chỉ khôi phục vào database trống.`);
       }
       for (const n of manifest.order) {
-        const rows = tables[n] ?? [];
+        let rows = tables[n] ?? [];
+        // Từ CSV mọi giá trị là chuỗi: cột json/jsonb phải phân tích lại; kiểu khác Postgres tự đổi khi nạp
+        const jsonCols = (await t.all(
+          "select column_name as c from information_schema.columns where table_schema = 'public' and table_name = $1 and data_type in ('json', 'jsonb')", [n])).map((r) => r.c);
+        if (jsonCols.length) rows = rows.map((r) => {
+          const o = { ...r };
+          for (const c of jsonCols) if (typeof o[c] === 'string') o[c] = JSON.parse(o[c]);
+          return o;
+        });
         for (let i = 0; i < rows.length; i += CHUNK) {
           await t.run(`insert into ${ident(n)} select * from json_populate_recordset(null::${ident(n)}, $1::json)`, [JSON.stringify(rows.slice(i, i + CHUNK))]);
         }
@@ -96,4 +108,63 @@ async function importAll(db, backup, { dryRun = false, allowNonEmpty = false } =
   return report;
 }
 
-module.exports = { exportAll, importAll, tableOrder, SKIP };
+// ---------- CSV ----------
+// Quy ước (giống COPY ... CSV của Postgres): ô trống KHÔNG có ngoặc = NULL; chuỗi luôn đặt trong ngoặc kép (kể cả chuỗi rỗng "");
+// số/true/false để trần; jsonb ghi dạng chuỗi JSON. Có BOM UTF-8 để Excel mở đúng tiếng Việt.
+const BOM = '\ufeff';
+function cell(v) {
+  if (v === null || v === undefined) return '';
+  if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+  const s = typeof v === 'object' ? JSON.stringify(v) : String(v);
+  return `"${s.replace(/"/g, '""')}"`;
+}
+function toCsv(columns, rows) {
+  const head = columns.map((c) => `"${c}"`).join(',');
+  return BOM + [head, ...rows.map((r) => columns.map((c) => cell(r[c])).join(','))].join('\r\n') + '\r\n';
+}
+// Trả về { columns, rows } — rows là object, giá trị chuỗi hoặc null.
+function parseCsv(text) {
+  if (text.startsWith(BOM)) text = text.slice(1);
+  const records = [];
+  let row = []; let val = ''; let quoted = false; let inQ = false; let i = 0;
+  const pushCell = () => { row.push(quoted ? val : (val === '' ? null : val)); val = ''; quoted = false; };
+  while (i < text.length) {
+    const ch = text[i];
+    if (inQ) {
+      if (ch === '"') { if (text[i + 1] === '"') { val += '"'; i += 2; continue; } inQ = false; i++; continue; }
+      val += ch; i++; continue;
+    }
+    if (ch === '"') { inQ = true; quoted = true; i++; continue; }
+    if (ch === ',') { pushCell(); i++; continue; }
+    if (ch === '\r' || ch === '\n') {
+      pushCell(); records.push(row); row = [];
+      if (ch === '\r' && text[i + 1] === '\n') i++;
+      i++;
+      if (i >= text.length) break;
+      continue;
+    }
+    val += ch; i++;
+  }
+  if (val !== '' || quoted || row.length) { pushCell(); records.push(row); }
+  const [columns = [], ...data] = records;
+  return { columns, rows: data.map((r) => Object.fromEntries(columns.map((c, k) => [c, r[k] ?? null]))) };
+}
+
+// Bản sao lưu dạng CSV: _manifest.csv (khóa, giá trị) + <bảng>.csv
+function manifestToCsv(m) {
+  const rows = [['app', m.app], ['format', m.format], ['created_at', m.created_at], ['server_version', m.server_version],
+    ['skipped', (m.skipped ?? []).join(' ')], ...m.order.map((n) => [`table:${n}`, m.counts[n]])];
+  return toCsv(['key', 'value'], rows.map(([key, value]) => ({ key, value })));
+}
+function manifestFromCsv(text) {
+  const { rows } = parseCsv(text);
+  const get = (k) => rows.find((r) => r.key === k)?.value ?? null;
+  const tables = rows.filter((r) => r.key.startsWith('table:'));
+  return {
+    app: get('app'), format: Number(get('format')), created_at: get('created_at'), server_version: get('server_version'),
+    skipped: (get('skipped') ?? '').split(' ').filter(Boolean),
+    order: tables.map((r) => r.key.slice(6)), counts: Object.fromEntries(tables.map((r) => [r.key.slice(6), Number(r.value)])),
+  };
+}
+
+module.exports = { exportAll, importAll, tableOrder, SKIP, toCsv, parseCsv, manifestToCsv, manifestFromCsv };

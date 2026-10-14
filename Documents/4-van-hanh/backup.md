@@ -36,18 +36,24 @@ Register-ScheduledTask -TaskName 'ClassManager - Sao luu du lieu' -Action $actio
 ```
 
 ## Bản sao lưu gồm gì
+**Toàn bộ là file CSV** (UTF-8 có BOM — mở thẳng bằng Excel vẫn đúng tiếng Việt):
 ```
-private-data/backups/2026-10-14_1925/
-├─ manifest.json        thời điểm sao lưu, số dòng từng bảng, thứ tự khôi phục
-├─ tables/<bảng>.json   dữ liệu đầy đủ của 19 bảng (dùng để khôi phục)
-└─ xem-nhanh.xlsx       mở bằng Excel để xem: mỗi bảng một sheet (đã bỏ cột mã băm mật khẩu)
+private-data/backups/2026-10-14_1951/
+├─ _manifest.csv      thời điểm sao lưu, số dòng từng bảng, thứ tự khôi phục (cột key, value)
+├─ students.csv       mỗi bảng một file, dòng đầu là tên cột
+├─ enrollments.csv
+├─ attendance.csv
+└─ … (19 bảng)
 ```
+- Quy ước CSV: ô trống **không** có ngoặc kép = NULL; chữ luôn nằm trong ngoặc kép (`""` = chuỗi rỗng); cột jsonb ghi dạng chuỗi JSON. Nhờ vậy khôi phục lại đúng tuyệt đối (đã có test).
+- **Lưu ý khi mở bằng Excel:** chỉ xem, đừng bấm Lưu đè — Excel có thể tự đổi định dạng ngày/số và làm hỏng bản dùng để khôi phục. Muốn chỉnh thì "Lưu thành" bản khác.
 - Đọc trong **một giao dịch chỉ-đọc** (ảnh chụp nhất quán tại một thời điểm), không khóa ai, không ghi gì.
 - **Không** có bảng phiên đăng nhập (`auth_sessions`): sau khi khôi phục, mọi người đăng nhập lại bằng mật khẩu cũ.
 - Thứ tự bảng tự tính theo khóa ngoại nên bảng mới thêm sau này cũng tự được sao lưu.
+- Lệnh khôi phục vẫn đọc được bản JSON cũ (định dạng trước 14/10/2026 19:50); các bản đó đã được chuyển sang CSV.
 
 ## An toàn
-- Bản sao lưu chứa **dữ liệu cá nhân học viên và mã băm mật khẩu** → chỉ để trong `private-data/` (không lên Git/Vercel). Nếu cất ra ngoài (ổ cứng ngoài, Google Drive cá nhân), nên nén có mật khẩu.
+- Bản sao lưu chứa **dữ liệu cá nhân học viên và mã băm mật khẩu** (`users.csv`) → chỉ để trong `private-data/` (không lên Git/Vercel). Nếu cất ra ngoài (ổ cứng ngoài, Google Drive cá nhân), nên nén có mật khẩu.
 - **Không gửi bản sao lưu qua chat/email.**
 - Lệnh khôi phục **từ chối** database đã có dữ liệu → không thể vô tình đè lên dữ liệu thật đang chạy.
 - Sau khi khôi phục, số dòng từng bảng được đối chiếu với `manifest.json`; lệch thì hoàn tác toàn bộ.

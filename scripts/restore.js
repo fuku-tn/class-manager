@@ -4,7 +4,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { openDb } = require('../src/db');
-const { importAll } = require('../src/services/backup');
+const { importAll, parseCsv, manifestFromCsv } = require('../src/services/backup');
 
 const args = process.argv.slice(2);
 const dir = args.find((a) => !a.startsWith('--'));

@@ -8,7 +8,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { openDb } = require('../src/db');
-const { exportAll } = require('../src/services/backup');
+const { exportAll, toCsv, manifestToCsv } = require('../src/services/backup');
 
 const HIDE_IN_EXCEL = { users: ['password_hash'] };
 
@@ -22,23 +22,10 @@ const HIDE_IN_EXCEL = { users: ['password_hash'] };
   const dir = path.resolve(positional[0] || path.join(root, stamp));
   const db = await openDb();
   const t0 = Date.now();
-  const { manifest, tables } = await exportAll(db);
-  fs.mkdirSync(path.join(dir, 'tables'), { recursive: true });
-  for (const [name, rows] of Object.entries(tables)) fs.writeFileSync(path.join(dir, 'tables', `${name}.json`), JSON.stringify(rows));
-  fs.writeFileSync(path.join(dir, 'manifest.json'), JSON.stringify(manifest, null, 2));
-
-  const ExcelJS = require('exceljs');
-  const wb = new ExcelJS.Workbook();
-  for (const name of manifest.order) {
-    const rows = tables[name];
-    const hide = HIDE_IN_EXCEL[name] ?? [];
-    const cols = rows.length ? Object.keys(rows[0]).filter((c) => !hide.includes(c)) : [];
-    const ws = wb.addWorksheet(name.slice(0, 31));
-    ws.addRow(cols);
-    for (const r of rows) ws.addRow(cols.map((c) => (r[c] !== null && typeof r[c] === 'object' ? JSON.stringify(r[c]) : r[c])));
-    ws.getRow(1).font = { bold: true };
-  }
-  await wb.xlsx.writeFile(path.join(dir, 'xem-nhanh.xlsx'));
+  const { manifest, columns, tables } = await exportAll(db);
+  fs.mkdirSync(dir, { recursive: true });
+  for (const name of manifest.order) fs.writeFileSync(path.join(dir, `${name}.csv`), toCsv(columns[name], tables[name]));
+  fs.writeFileSync(path.join(dir, '_manifest.csv'), manifestToCsv(manifest));
 
   const total = Object.values(manifest.counts).reduce((a, b) => a + b, 0);
   console.log(`Đã sao lưu ${manifest.order.length} bảng, ${total} dòng trong ${((Date.now() - t0) / 1000).toFixed(1)} giây.`);
@@ -48,7 +35,7 @@ const HIDE_IN_EXCEL = { users: ['password_hash'] };
   // Giữ N bản mới nhất (chỉ xóa thư mục đúng dạng <yyyy-mm-dd_hhmm> có manifest.json, trong private-data/backups)
   if (Number.isInteger(keep) && keep >= 1) {
     const olds = fs.readdirSync(root, { withFileTypes: true })
-      .filter((d) => d.isDirectory() && /^\d{4}-\d{2}-\d{2}_\d{4}$/.test(d.name) && fs.existsSync(path.join(root, d.name, 'manifest.json')))
+      .filter((d) => d.isDirectory() && /^\d{4}-\d{2}-\d{2}_\d{4}$/.test(d.name) && (fs.existsSync(path.join(root, d.name, '_manifest.csv')) || fs.existsSync(path.join(root, d.name, 'manifest.json'))))
       .map((d) => d.name).sort().reverse().slice(keep);
     for (const name of olds) fs.rmSync(path.join(root, name), { recursive: true, force: true });
     if (olds.length) console.log(`Đã xóa ${olds.length} bản cũ (giữ ${keep} bản mới nhất): ${olds.join(', ')}`);

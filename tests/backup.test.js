@@ -62,3 +62,31 @@ test('an toàn: từ chối khôi phục vào database đã có dữ liệu; ch�
     await assert.rejects(importAll(db3, { manifest: { app: 'khac' }, tables: {} }), /không phải bản sao lưu/i);
   } finally { await db3.close(); }
 });
+
+test('CSV: ghi rồi đọc lại khớp hoàn toàn (NULL khác chuỗi rỗng, dấu phẩy/ngoặc kép/xuống dòng, jsonb, số, true/false) và khôi phục được', async () => {
+  const { toCsv, parseCsv, manifestToCsv, manifestFromCsv } = require('../src/services/backup');
+  const rows = [{ a: null, b: '', c: 'Nguyễn "Tý", lớp\nB', d: 12, e: true, f: { x: [1, 'y'] }, g: '8.75' }];
+  const back = parseCsv(toCsv(['a', 'b', 'c', 'd', 'e', 'f', 'g'], rows)).rows[0];
+  assert.deepEqual(back, { a: null, b: '', c: 'Nguyễn "Tý", lớp\nB', d: '12', e: 'true', f: '{"x":[1,"y"]}', g: '8.75' });
+  assert.ok(toCsv(['a'], []).startsWith('\ufeff'));                       // BOM để Excel đọc đúng tiếng Việt
+  const m2 = manifestFromCsv(manifestToCsv(backup.manifest));
+  assert.deepEqual([m2.app, m2.format, m2.order, m2.counts], [backup.manifest.app, backup.manifest.format, backup.manifest.order, backup.manifest.counts]);
+
+  // vòng đầy đủ: sao lưu → CSV → đọc → khôi phục vào DB trống
+  await t.db.run("update students set email = '', phone = null where student_code = 'P.2'");
+  await t.db.run("update students set full_name = $1 where student_code = 'P.1'", ['An "Út", B\nC']);
+  const bk = await exportAll(t.db);
+  const fromCsv = Object.fromEntries(bk.manifest.order.map((n) => [n, parseCsv(toCsv(bk.columns[n], bk.tables[n])).rows]));
+  const db4 = await openDb({ memory: true });
+  try {
+    await importAll(db4, { manifest: manifestFromCsv(manifestToCsv(bk.manifest)), tables: fromCsv });
+    for (const n of bk.manifest.order) assert.equal((await db4.one(`select count(*)::int as n from "${n}"`)).n, bk.manifest.counts[n], n);
+    const p2 = await db4.one("select email, phone from students where student_code = 'P.2'");
+    assert.deepEqual(p2, { email: '', phone: null });
+    assert.equal((await db4.one("select full_name from students where student_code = 'P.1'")).full_name, 'An "Út", B\nC');
+    assert.deepEqual((await db4.one('select summary from sync_runs')).summary, { a: 1, nested: { b: [1, 2] } });
+    assert.equal(Number((await db4.one('select score from homework_scores')).score), 8.75);
+    const a = await db4.one('select status, updated_at from attendance');
+    assert.equal(a.updated_at, bk.tables.attendance[0].updated_at);
+  } finally { await db4.close(); }
+});
