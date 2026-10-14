@@ -12,8 +12,14 @@ const dryRun = args.includes('--dry-run');
 if (!dir) { console.error('Dùng: npm run restore -- <thư-mục-sao-lưu> [--dry-run]'); process.exit(1); }
 
 (async () => {
-  const manifest = JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8'));
-  const tables = Object.fromEntries(manifest.order.map((n) => [n, JSON.parse(fs.readFileSync(path.join(dir, 'tables', `${n}.json`), 'utf8'))]));
+  let manifest; let tables;
+  if (fs.existsSync(path.join(dir, '_manifest.csv'))) {           // bản CSV (hiện hành)
+    manifest = manifestFromCsv(fs.readFileSync(path.join(dir, '_manifest.csv'), 'utf8'));
+    tables = Object.fromEntries(manifest.order.map((n) => [n, parseCsv(fs.readFileSync(path.join(dir, `${n}.csv`), 'utf8')).rows]));
+  } else {                                                          // bản JSON cũ (trước 14/10/2026 tối)
+    manifest = JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8'));
+    tables = Object.fromEntries(manifest.order.map((n) => [n, JSON.parse(fs.readFileSync(path.join(dir, 'tables', `${n}.json`), 'utf8'))]));
+  }
   const url = process.env.RESTORE_DATABASE_URL || process.env.DATABASE_URL;
   let host = '?';
   try { host = new URL(url.trim().replace(/^["']+|["']+$/g, '')).host; } catch { /* để openDb báo lỗi */ }

@@ -59,6 +59,29 @@ async function exportAll(db) {
   });
 }
 
+// Nạp các bảng (theo thứ tự khóa ngoại) vào transaction t; chỉnh bộ đếm id. Dùng chung cho restore và mirror.
+async function loadRows(t, manifest, tables, report) {
+  for (const n of manifest.order) {
+    let rows = tables[n] ?? [];
+    // Từ CSV mọi giá trị là chuỗi: cột json/jsonb phải phân tích lại; kiểu khác Postgres tự đổi khi nạp
+    const jsonCols = (await t.all(
+      "select column_name as c from information_schema.columns where table_schema = 'public' and table_name = $1 and data_type in ('json', 'jsonb')", [n])).map((r) => r.c);
+    if (jsonCols.length) rows = rows.map((r) => {
+      const o = { ...r };
+      for (const c of jsonCols) if (typeof o[c] === 'string') o[c] = JSON.parse(o[c]);
+      return o;
+    });
+    for (let i = 0; i < rows.length; i += CHUNK) {
+      await t.run(`insert into ${ident(n)} select * from json_populate_recordset(null::${ident(n)}, $1::json)`, [JSON.stringify(rows.slice(i, i + CHUNK))]);
+    }
+    report.restored[n] = rows.length;
+    // bộ đếm id (identity) tiếp tục sau id lớn nhất, để bản ghi mới không trùng
+    const hasId = await t.one("select 1 as x from information_schema.columns where table_schema = 'public' and table_name = $1 and column_name = 'id'", [n]);
+    const seq = hasId ? await t.one("select pg_get_serial_sequence($1, 'id') as s", [`public.${n}`]) : null;
+    if (seq?.s && rows.length) await t.run(`select setval($1::regclass, (select max(id) from ${ident(n)}))`, [seq.s]);
+  }
+}
+
 // Khôi phục vào database đã có schema. Từ chối nếu bất kỳ bảng nào đã có dữ liệu (trừ khi allowNonEmpty).
 async function importAll(db, backup, { dryRun = false, allowNonEmpty = false } = {}) {
   const { manifest, tables } = backup;
@@ -76,25 +99,7 @@ async function importAll(db, backup, { dryRun = false, allowNonEmpty = false } =
         for (const n of manifest.order) if ((await t.one(`select count(*)::int as n from ${ident(n)}`)).n > 0) busy.push(n);
         if (busy.length) throw new Error(`Database đích đã có dữ liệu (${busy.join(', ')}). Chỉ khôi phục vào database trống.`);
       }
-      for (const n of manifest.order) {
-        let rows = tables[n] ?? [];
-        // Từ CSV mọi giá trị là chuỗi: cột json/jsonb phải phân tích lại; kiểu khác Postgres tự đổi khi nạp
-        const jsonCols = (await t.all(
-          "select column_name as c from information_schema.columns where table_schema = 'public' and table_name = $1 and data_type in ('json', 'jsonb')", [n])).map((r) => r.c);
-        if (jsonCols.length) rows = rows.map((r) => {
-          const o = { ...r };
-          for (const c of jsonCols) if (typeof o[c] === 'string') o[c] = JSON.parse(o[c]);
-          return o;
-        });
-        for (let i = 0; i < rows.length; i += CHUNK) {
-          await t.run(`insert into ${ident(n)} select * from json_populate_recordset(null::${ident(n)}, $1::json)`, [JSON.stringify(rows.slice(i, i + CHUNK))]);
-        }
-        report.restored[n] = rows.length;
-        // bộ đếm id (identity) tiếp tục sau id lớn nhất, để bản ghi mới không trùng
-        const hasId = await t.one("select 1 as x from information_schema.columns where table_schema = 'public' and table_name = $1 and column_name = 'id'", [n]);
-        const seq = hasId ? await t.one("select pg_get_serial_sequence($1, 'id') as s", [`public.${n}`]) : null;
-        if (seq?.s && rows.length) await t.run(`select setval($1::regclass, (select max(id) from ${ident(n)}))`, [seq.s]);
-      }
+      await loadRows(t, manifest, tables, report);
       // đối chiếu số dòng với bản sao lưu
       for (const n of manifest.order) {
         const got = (await t.one(`select count(*)::int as n from ${ident(n)}`)).n;
@@ -167,4 +172,35 @@ function manifestFromCsv(text) {
   };
 }
 
-module.exports = { exportAll, importAll, tableOrder, SKIP, toCsv, parseCsv, manifestToCsv, manifestFromCsv };
+// Chép toàn bộ sang database DỰ PHÒNG (project Supabase riêng): trong MỘT transaction xóa sạch rồi nạp lại, đối chiếu số dòng;
+// lỗi giữa chừng → hoàn tác, bản dự phòng cũ giữ nguyên. Chốt chặn: không bao giờ chạy nếu đích trùng database chính.
+const projectKey = (url) => {
+  const u = new URL(String(url).trim().replace(/^["']+|["']+$/g, ''));
+  const ref = /^postgres\.([a-z0-9]+)$/.exec(decodeURIComponent(u.username))?.[1] ?? /^db\.([a-z0-9]+)\.supabase\.co$/.exec(u.hostname)?.[1];
+  return ref ? `supabase:${ref}` : `${u.hostname}:${u.port || 5432}${u.pathname}`;
+};
+function assertDifferentTarget(mainUrl, backupUrl) {
+  if (!backupUrl) throw new Error('Thiếu BACKUP_DATABASE_URL');
+  if (!mainUrl) throw new Error('Thiếu DATABASE_URL');
+  if (projectKey(mainUrl) === projectKey(backupUrl)) throw new Error('BACKUP_DATABASE_URL trỏ vào CHÍNH database đang chạy — từ chối để không ghi đè dữ liệu thật');
+}
+async function mirrorAll(target, backup) {
+  const { manifest, tables } = backup;
+  const report = { restored: {} };
+  await target.tx(async (t) => {
+    const existing = new Set((await t.all(
+      "select table_name as t from information_schema.tables where table_schema = 'public' and table_type = 'BASE TABLE'")).map((r) => r.t));
+    const missing = manifest.order.filter((n) => !existing.has(n));
+    if (missing.length) throw new Error(`Database dự phòng thiếu bảng: ${missing.join(', ')} — tạo schema trước`);
+    const all = [...new Set([...manifest.order, ...(existing.has('auth_sessions') ? ['auth_sessions'] : [])])];
+    await t.run(`truncate ${all.map(ident).join(', ')} restart identity cascade`);
+    await loadRows(t, manifest, tables, report);
+    for (const n of manifest.order) {
+      const got = (await t.one(`select count(*)::int as n from ${ident(n)}`)).n;
+      if (got !== manifest.counts[n]) throw new Error(`Dự phòng bảng ${n}: ${got} dòng, bản chính ${manifest.counts[n]}`);
+    }
+  });
+  return report;
+}
+
+module.exports = { exportAll, importAll, mirrorAll, assertDifferentTarget, projectKey, tableOrder, SKIP, toCsv, parseCsv, manifestToCsv, manifestFromCsv };

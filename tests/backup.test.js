@@ -90,3 +90,28 @@ test('CSV: ghi rồi đọc lại khớp hoàn toàn (NULL khác chuỗi rỗng,
     assert.equal(a.updated_at, bk.tables.attendance[0].updated_at);
   } finally { await db4.close(); }
 });
+
+test('database dự phòng: chép đè trọn gói (chạy lại vẫn khớp, không nhân đôi); chốt chặn không cho trỏ vào database chính', async () => {
+  const { mirrorAll, assertDifferentTarget } = require('../src/services/backup');
+  const target = await openDb({ memory: true });
+  try {
+    await mirrorAll(target, backup);
+    await mirrorAll(target, backup);                      // lần 2: xóa sạch rồi nạp lại, không trùng
+    for (const n of backup.manifest.order) assert.equal((await target.one(`select count(*)::int as n from "${n}"`)).n, backup.manifest.counts[n], n);
+    // dữ liệu thay đổi ở bản chính → lần chép sau phản ánh đúng
+    await t.db.run("insert into students (student_code, full_name) values ('P.77', 'Mới thêm')");
+    const bk2 = await exportAll(t.db);
+    await mirrorAll(target, bk2);
+    assert.equal((await target.one("select count(*)::int as n from students where student_code = 'P.77'")).n, 1);
+    // lỗi giữa chừng → hoàn tác, bản dự phòng cũ giữ nguyên
+    const broken = { manifest: { ...bk2.manifest, counts: { ...bk2.manifest.counts, students: 999 } }, tables: bk2.tables };
+    await assert.rejects(mirrorAll(target, broken), /Dự phòng bảng students/);
+    assert.equal((await target.one('select count(*)::int as n from students')).n, bk2.manifest.counts.students);
+  } finally { await target.close(); }
+
+  const main = 'postgresql://postgres.abcref123:pw@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres';
+  assert.throws(() => assertDifferentTarget(main, 'postgresql://postgres.abcref123:khac@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres'), /CHÍNH database/);
+  assert.throws(() => assertDifferentTarget(main, 'postgresql://postgres:pw@db.abcref123.supabase.co:5432/postgres'), /CHÍNH database/);
+  assert.throws(() => assertDifferentTarget(main, ''), /Thiếu BACKUP_DATABASE_URL/);
+  assert.doesNotThrow(() => assertDifferentTarget(main, 'postgresql://postgres.zzzref999:pw@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres'));
+});

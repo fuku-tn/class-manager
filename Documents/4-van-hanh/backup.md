@@ -4,9 +4,16 @@
 | Việc | Lệnh | Ghi chú |
 |---|---|---|
 | Sao lưu toàn bộ | `npm run backup` | Chỉ đọc database; ~6 giây; ra thư mục `private-data/backups/<ngày_giờ>/` |
-| Sao lưu + giữ N bản mới nhất | `npm run backup -- --keep 28` | Lịch tự động dùng lệnh này |
+| Sao lưu + giữ N bản mới nhất | `npm run backup -- --keep 28` | |
+| Sao lưu + chép sang database dự phòng | `npm run backup -- --keep 28 --mirror` | Lịch tự động dùng lệnh này; cần `BACKUP_DATABASE_URL` trong `.env` |
 | Thử khôi phục | `npm run restore -- <thư-mục> --dry-run` | Chạy hết rồi hoàn tác |
 | Khôi phục thật | `RESTORE_DATABASE_URL=… npm run restore -- <thư-mục>` | **Chỉ** vào database trống |
+
+## Database dự phòng (project Supabase riêng)
+- `BACKUP_DATABASE_URL` (trong `.env`, không lên Git) trỏ tới project Supabase **khác** project chính (hiện: project vùng Singapore). Mỗi lần sao lưu có `--mirror`, toàn bộ dữ liệu được **xóa sạch rồi nạp lại trong một giao dịch** ở project dự phòng và đối chiếu số dòng; lỗi giữa chừng → hoàn tác, bản dự phòng cũ giữ nguyên.
+- **Chốt chặn:** lệnh từ chối nếu `BACKUP_DATABASE_URL` cùng mã project với `DATABASE_URL` (kể cả khác cổng/dạng chuỗi) — không bao giờ ghi đè database chính.
+- Project dự phòng chỉ giữ **bản mới nhất**; các bản cũ vẫn là CSV trên máy (28 bản).
+- **Chuyển web sang dự phòng khi project chính hỏng:** đổi `DATABASE_URL` trên Vercel sang chuỗi kết nối của project dự phòng → Redeploy. Sau đó đặt project dự phòng thành chính và tạo/chọn project khác làm dự phòng.
 
 ## Sao lưu tự động (Windows Task Scheduler)
 Đã cài trên máy chủ dự án (14/10/2026):
@@ -15,7 +22,7 @@
 |---|---|
 | Tên tác vụ | `ClassManager - Sao luu du lieu` |
 | Lịch | **Mỗi ngày 2 lần: 12:00 trưa và 18:00**; **máy tắt lúc đó thì chạy bù** khi mở máy (cần đăng nhập Windows và có mạng) |
-| Chạy | `scripts/backup-scheduled.cmd` → `scripts/backup.js --keep 28` |
+| Chạy | `scripts/backup-scheduled.cmd` → `scripts/backup.js --keep 28 --mirror` |
 | Giữ | 28 bản mới nhất ≈ 14 ngày (bản cũ hơn tự xóa; chỉ xóa thư mục dạng `yyyy-mm-dd_hhmm`) |
 | Nhật ký | `private-data/backups/backup-log.txt` (mỗi lần chạy: thời điểm, số dòng từng bảng, lỗi nếu có) |
 
