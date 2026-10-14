@@ -42,9 +42,11 @@
 }
 
 * { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; background: var(--bg); }
+/* Cỡ chữ gốc co giãn theo kích thước màn hình (rộng + cao): mọi kích thước dùng rem tự vừa với từng máy.
+   1280×720 ≈ 13px · 1366×768 ≈ 13.5px · 1536×864 ≈ 14px · 1920×1080 ≈ 15.5px · màn lớn tối đa 16px */
+html { -webkit-text-size-adjust: 100%; background: var(--bg); font-size: clamp(12.5px, calc(0.2vw + 0.3vh + 8.4px), 16px); }
 body {
-  margin: 0; min-height: 100vh; color: var(--text); font: 400 14.5px/1.55 var(--font); -webkit-font-smoothing: antialiased;
+  margin: 0; min-height: 100vh; color: var(--text); font: 400 0.94rem/1.55 var(--font); -webkit-font-smoothing: antialiased;
 }
 /* Nền gradient nằm trong một lớp cố định riêng (không dùng background-attachment: fixed, vốn bắt trình duyệt vẽ lại mỗi khung hình khi cuộn) */
 body::before {
@@ -89,7 +91,15 @@ a:hover { color: var(--gold-2); }
 .icon-btn svg { width: 18px; height: 18px; }
 
 .content { width: 100%; }
-.view { max-width: 1360px; margin: 0 auto; padding: 2rem clamp(1rem, 3vw, 2.25rem) 3.5rem; }
+.view { max-width: min(96vw, 110rem); margin: 0 auto; padding: 2rem clamp(1rem, 3vw, 2.25rem) 3.5rem; }
+/* Trang danh sách (Điểm danh, Học viên, Bài tập, Tốt nghiệp): khung trang cao đúng màn hình, KHÔNG cuộn trang;
+   bảng cuộn bên trong (tối đa 10 học viên mỗi lần nhìn, do fitView() trong main.js đặt), phần mở rộng bên dưới tự co. */
+.view.fit { display: flex; flex-direction: column; overflow: hidden; padding-bottom: 1rem; }
+.view.fit > * { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+.view.fit > * > * { flex: 0 0 auto; }
+.view.fit > * > .table-wrap { flex: 0 1 auto; min-height: 8rem; }
+.view.fit > * > details[open] { flex: 0 1 auto; min-height: 6rem; overflow: auto; }
+.view.fit > * > details { margin-top: 1rem; margin-bottom: 0; }
 
 /* ---------- Hiệu ứng chuyển trang ---------- */
 .view.leaving { opacity: 0; transform: translateY(8px); transition: opacity .14s ease, transform .14s ease; pointer-events: none; }

@@ -170,6 +170,7 @@ async function route() {
   }
 
   let result;
+  let fitNow = false;
   if (parts.length === 0 || parts[0] === 'home') {
     updateShell('home', store.get('classId'));
     result = await transitionTo(() => renderHome(ctx));
@@ -200,29 +201,44 @@ async function route() {
       const cls = state.classes.find((c) => String(c.id) === String(classId));
       const render = TABS.find((t) => t[0] === tabKey)[2];
       updateShell(tabKey, classId);
+      fitNow = FIT_TABS.has(tabKey);
       // Lớp chưa diễn ra được xem nhờ quyền "xem lớp chưa diễn ra": giao diện chỉ xem (ẩn nút ghi) như tài khoản khách
       const viewCtx = cls?.view_only ? { ...ctx, state: { ...ctx.state, user: { ...ctx.state.user, role: 'guest' } } } : ctx;
       result = await transitionTo(() => render({ ...viewCtx, cls }));
     }
   }
   if (result === 'unauth') { state.user = null; shell = null; route(); }
-  requestAnimationFrame(fitTables);
+  shell?.view.classList.toggle('fit', fitNow);
+  requestAnimationFrame(fitView);
 }
 
-// Bảng ở trang chính (không nằm trong thẻ) cao vừa khít phần màn hình còn lại: cuộn trong bảng, tiêu đề cột luôn hiện.
-function fitTables() {
-  for (const el of document.querySelectorAll('.view .table-wrap')) {
+// Trang danh sách: khung trang cao đúng phần màn hình còn lại (không cuộn trang), bảng cuộn bên trong và
+// chỉ cao tối đa bằng tiêu đề + 10 hàng. Trang khác: bảng ngoài thẻ cao vừa khít màn hình như trước.
+const FIT_TABS = new Set(['attendance', 'students', 'homework', 'graduation']);
+const ROWS_VISIBLE = 10;
+function fitView() {
+  const v = shell?.view;
+  if (!v) return;
+  const fit = v.classList.contains('fit');
+  v.style.height = '';
+  if (fit) v.style.height = `${Math.max(320, Math.floor(window.innerHeight - (v.getBoundingClientRect().top + window.scrollY)))}px`;
+  for (const el of v.querySelectorAll('.table-wrap')) {
     if (el.closest('.card')) continue;
-    const top = el.getBoundingClientRect().top + window.scrollY;
-    el.style.maxHeight = `${Math.max(240, Math.floor(window.innerHeight - top - 12))}px`;
-    // Bảng là phần cuối của trang: bù phần đệm bên dưới để trang không phải cuộn thêm
-    if (el.parentElement?.lastElementChild === el) {
-      const extra = document.documentElement.scrollHeight - window.innerHeight;
-      if (extra > 0) el.style.maxHeight = `${Math.max(240, el.getBoundingClientRect().height - extra)}px`;
+    if (fit) {
+      const head = el.querySelector('thead')?.getBoundingClientRect().height ?? 0;
+      const row = el.querySelector('tbody tr')?.getBoundingClientRect().height ?? 0;
+      el.style.maxHeight = row ? `${Math.ceil(head + row * ROWS_VISIBLE + 2)}px` : '';
+    } else {
+      const top = el.getBoundingClientRect().top + window.scrollY;
+      el.style.maxHeight = `${Math.max(240, Math.floor(window.innerHeight - top - 12))}px`;
+      if (el.parentElement?.lastElementChild === el) {
+        const extra = document.documentElement.scrollHeight - window.innerHeight;
+        if (extra > 0) el.style.maxHeight = `${Math.max(240, el.getBoundingClientRect().height - extra)}px`;
+      }
     }
   }
 }
-window.addEventListener('resize', fitTables);
+window.addEventListener('resize', () => requestAnimationFrame(fitView));
 
 window.addEventListener('hashchange', route);
 route();
