@@ -219,6 +219,12 @@ const ROWS_VISIBLE = 10;
 function fitView() {
   const v = shell?.view;
   if (!v) return;
+  // Thanh trên tràn ngang (màn 16:10, cỡ chữ lớn…) → chỉ hiện biểu tượng, không để trang cuộn ngang
+  const bar = shell.root?.querySelector('.topbar');
+  if (bar) {
+    bar.classList.remove('compact');
+    if (window.innerWidth > 900 && (bar.scrollWidth > bar.clientWidth + 1 || document.documentElement.scrollWidth > window.innerWidth + 1)) bar.classList.add('compact');
+  }
   const fit = v.classList.contains('fit');
   v.style.height = '';
   if (fit) v.style.height = `${Math.max(320, Math.floor(window.innerHeight - (v.getBoundingClientRect().top + window.scrollY)))}px`;

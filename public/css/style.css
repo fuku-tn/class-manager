@@ -81,6 +81,9 @@ a:hover { color: var(--gold-2); }
 .nav-link.active { color: var(--gold); background: var(--gold-soft); }
 .top-right { display: flex; align-items: center; gap: .55rem; }
 .admin-links { display: flex; gap: .1rem; }
+/* Thanh trên không đủ chỗ (tùy độ rộng màn hình/cỡ chữ): chỉ hiện biểu tượng — do fitView() trong main.js bật */
+.topbar.compact .nav-link span, .topbar.compact .chip-user-name { display: none; }
+.topbar.compact .nav-link { padding: .5rem .7rem; }
 .admin-links .nav-link span { display: none; } /* chỉ hiện biểu tượng, tên xem ở tooltip */
 .admin-links .nav-link { padding: .5rem .6rem; }
 .chip-user { display: flex; align-items: center; gap: .55rem; padding: .25rem .35rem .25rem .3rem; border: 1px solid var(--border); border-radius: 999px; background: var(--glass); }
