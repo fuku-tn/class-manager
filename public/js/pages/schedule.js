@@ -1,90 +1,144 @@
-// Lịch khai giảng / bế giảng và lịch giảng dạy (mọi tài khoản; mỗi người thấy các lớp mình có quyền — dữ liệu từ /api/classes).
-// Khai giảng = ngày bắt đầu của lớp (start_date, theo tab COURSE). Bế giảng và giảng viên từng buổi: chủ dự án sẽ cung cấp sau.
-import { h } from '../ui.js';
-import { classDisplayName, SHIFT_LABEL, TIMING_LABEL, PROGRAM_NAMES, formatDays } from '../class-filter.mjs';
+// Lịch dạng tuần (Thứ 2 → Chủ nhật): khai giảng + lịch học của các lớp mình có quyền (dữ liệu từ /api/classes).
+// - Khai giảng = ngày đầu tiên của lớp (start_date). Bế giảng: chủ dự án sẽ gửi sau.
+// - Lịch học = các ngày trong [start_date, end_date] trùng thứ học (cột DAYS OF WEEK, vd "24" = T2, T4; "78" = T7, CN).
+// - Giảng viên từng buổi: chờ Sheet phân công (chủ dự án gửi sau).
+import { h, icon } from '../ui.js';
+import { classDisplayName, SHIFT_LABEL, PROGRAM_NAMES, formatDays, weekdaysOf, classEventOn } from '../class-filter.mjs';
 
-const WEEKDAY = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
-const todayVN = () => new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 10);
-const dateOf = (iso) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso ?? '')); return m ? { y: +m[1], mo: +m[2], d: +m[3], iso: m[0] } : null; };
-const fmt = (iso) => { const x = dateOf(iso); return x ? `${String(x.d).padStart(2, '0')}/${String(x.mo).padStart(2, '0')}/${x.y}` : '—'; };
-const wd = (iso) => { const x = dateOf(iso); return x ? WEEKDAY[new Date(Date.UTC(x.y, x.mo - 1, x.d)).getUTCDay()] : ''; };
+const DOW = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+const DOW_LONG = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+const SHIFT_ORDER = { morning: 0, full_day: 1, afternoon: 2, evening: 3 };
+
+// Ngày làm việc bằng chuỗi yyyy-mm-dd theo UTC để không lệch múi giờ.
+const iso = (d) => d.toISOString().slice(0, 10);
+const parse = (s) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s ?? '')); return m ? new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])) : null; };
+const addDays = (d, n) => new Date(d.getTime() + n * 864e5);
+const todayVN = () => parse(new Date(Date.now() + 7 * 3600 * 1000).toISOString());
+const mondayOf = (d) => addDays(d, -((d.getUTCDay() + 6) % 7));
+const dd = (d) => String(d.getUTCDate()).padStart(2, '0');
+const mm = (d) => String(d.getUTCMonth() + 1).padStart(2, '0');
+
 const segLabel = (c) => [c.is_b2c && 'B2C', c.is_b2b && 'B2B'].filter(Boolean).join(' + ') || '—';
 
 export async function renderSchedule({ state }) {
   const classes = state.classes.filter((c) => c.start_date);
   const today = todayVN();
-  let range = 'upcoming';          // upcoming | month | all
+  let weekStart = mondayOf(today);
   let program = '';
+  let pickerMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
 
-  const chip = (text, on, onClick) => h('button', { type: 'button', class: `chip${on ? ' active' : ''}`, 'aria-pressed': String(on), onclick: onClick }, text);
   const programs = [...new Set(classes.map((c) => c.program).filter(Boolean))].sort();
-  const chipsRange = h('div', { class: 'chips' });
-  const chipsProgram = h('div', { class: 'chips' });
-  const openingBox = h('div');
-  const teachBox = h('div');
+  const rangeLabel = h('b', { class: 'cal-range' });
+  const grid = h('div', { class: 'cal-grid' });
+  const unknownBox = h('div', { class: 'cal-unknown' });
+  const progSel = h('select', { 'aria-label': 'Lọc chương trình', class: 'cal-prog' },
+    h('option', { value: '' }, 'Mọi chương trình'), programs.map((p) => h('option', { value: p }, p)));
+  progSel.addEventListener('change', () => { program = progSel.value; paint(); });
 
-  const inRange = (c) => {
-    if (range === 'upcoming') return c.start_date >= today;
-    if (range === 'month') return c.start_date.slice(0, 7) === today.slice(0, 7);
-    return true;
+  // ---- Ô chọn ngày (lịch tháng nhỏ)
+  const pop = h('div', { class: 'cal-pop', hidden: true, role: 'dialog', 'aria-label': 'Chọn ngày' });
+  const pickBtn = h('button', { type: 'button', class: 'cal-pick', 'aria-haspopup': 'dialog' }, icon('attendance'), h('span', {}, 'Chọn ngày'), icon('chevron'));
+  function paintPicker() {
+    const y = pickerMonth.getUTCFullYear(); const mo = pickerMonth.getUTCMonth();
+    const first = new Date(Date.UTC(y, mo, 1));
+    const start = mondayOf(first);
+    const cells = [];
+    for (let i = 0; i < 42; i++) {
+      const d = addDays(start, i);
+      const inMonth = d.getUTCMonth() === mo;
+      const isToday = iso(d) === iso(today);
+      const inWeek = d >= weekStart && d < addDays(weekStart, 7);
+      const hasOpening = classes.some((c) => c.start_date === iso(d) && (!program || c.program === program));
+      cells.push(h('button', { type: 'button', class: `cal-day${inMonth ? '' : ' out'}${isToday ? ' today' : ''}${inWeek ? ' inweek' : ''}${hasOpening ? ' has' : ''}`,
+        title: hasOpening ? 'Có lớp khai giảng' : '', onclick: () => { weekStart = mondayOf(d); pop.hidden = true; paint(); } }, String(d.getUTCDate())));
+    }
+    pop.replaceChildren(
+      h('div', { class: 'cal-pop-head' },
+        h('button', { type: 'button', class: 'icon-btn', 'aria-label': 'Tháng trước', onclick: () => { pickerMonth = new Date(Date.UTC(y, mo - 1, 1)); paintPicker(); } }, '‹'),
+        h('b', {}, `Tháng ${mo + 1}/${y}`),
+        h('button', { type: 'button', class: 'icon-btn', 'aria-label': 'Tháng sau', onclick: () => { pickerMonth = new Date(Date.UTC(y, mo + 1, 1)); paintPicker(); } }, '›')),
+      h('div', { class: 'cal-pop-grid' }, ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map((x) => h('span', { class: 'cal-dow' }, x)), cells),
+      h('div', { class: 'cal-pop-foot' }, h('span', { class: 'cal-dot' }), ' Ngày có lớp khai giảng'));
+  }
+  pickBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    pop.hidden = !pop.hidden;
+    if (!pop.hidden) { pickerMonth = new Date(Date.UTC(weekStart.getUTCFullYear(), weekStart.getUTCMonth(), 1)); paintPicker(); }
+  });
+  const closePop = (e) => {
+    if (!root.isConnected) { document.removeEventListener('click', closePop); document.removeEventListener('keydown', closePop); return; }
+    if (e.type === 'keydown' ? e.key === 'Escape' : !pop.contains(e.target)) pop.hidden = true;
   };
+  document.addEventListener('click', closePop);
+  document.addEventListener('keydown', closePop);
+
+  // ---- Sự kiện của một ngày
+  function eventsOn(d) {
+    const day = iso(d);
+    const out = [];
+    for (const c of classes) {
+      if (program && c.program !== program) continue;
+      const kind = classEventOn(c, day);
+      if (kind) out.push({ kind, c });
+    }
+    return out.sort((a, b) => (a.kind === 'open' ? -1 : 0) - (b.kind === 'open' ? -1 : 0)
+      || (SHIFT_ORDER[a.c.shift] ?? 9) - (SHIFT_ORDER[b.c.shift] ?? 9) || classDisplayName(a.c).localeCompare(classDisplayName(b.c)));
+  }
+  const eventCard = ({ kind, c }) => h('a', { class: `cal-ev ${kind}`, href: `#/c/${c.id}/dashboard`, title: `${c.code}${c.days_of_week ? ` · thứ học ${formatDays(c.days_of_week)}` : ''}` },
+    h('div', { class: 'cal-ev-top' }, h('span', { class: 'cal-time' }, SHIFT_LABEL[c.shift] ?? 'Chưa rõ ca'),
+      kind === 'open' ? h('span', { class: 'cal-tag' }, 'Khai giảng') : null),
+    h('div', { class: 'cal-ev-title' }, classDisplayName(c)),
+    h('div', { class: 'cal-ev-sub' }, PROGRAM_NAMES[c.program] ?? c.program ?? ''),
+    h('div', { class: 'cal-ev-meta' }, icon('students'), `${c.delivery_mode ?? '—'} · ${segLabel(c)}`),
+    h('div', { class: 'cal-ev-meta muted' }, 'GV: chờ phân công'));
 
   function paint() {
-    chipsRange.replaceChildren(
-      chip('Sắp khai giảng', range === 'upcoming', () => { range = 'upcoming'; paint(); }),
-      chip('Tháng này', range === 'month', () => { range = 'month'; paint(); }),
-      chip('Tất cả', range === 'all', () => { range = 'all'; paint(); }));
-    chipsProgram.replaceChildren(chip('Mọi chương trình', !program, () => { program = ''; paint(); }),
-      ...programs.map((p) => chip(p, program === p, () => { program = program === p ? '' : p; paint(); })));
-    const pick = (c) => !program || c.program === program;
-
-    // 1) Lịch khai giảng / bế giảng, nhóm theo tháng
-    const list = classes.filter((c) => inRange(c) && pick(c))
-      .sort((a, b) => (range === 'all' ? b.start_date.localeCompare(a.start_date) : a.start_date.localeCompare(b.start_date)));
-    const byMonth = new Map();
-    for (const c of list) { const k = c.start_date.slice(0, 7); (byMonth.get(k) ?? byMonth.set(k, []).get(k)).push(c); }
-    const openRow = (c) => h('tr', {},
-      h('td', {}, h('b', {}, fmt(c.start_date)), h('div', { class: 'muted small' }, wd(c.start_date))),
-      h('td', {}, h('a', { href: `#/c/${c.id}/dashboard`, title: c.code }, classDisplayName(c))),
-      h('td', { title: PROGRAM_NAMES[c.program] ?? '' }, c.program || '—'),
-      h('td', {}, SHIFT_LABEL[c.shift] ?? '—'),
-      h('td', { title: c.days_of_week ?? '' }, formatDays(c.days_of_week) || '—'),
-      h('td', {}, segLabel(c)),
-      h('td', {}, c.delivery_mode ?? '—'),
-      h('td', { class: 'num' }, c.student_count ?? 0),
-      h('td', { class: 'muted', title: 'Chủ dự án sẽ cập nhật ngày bế giảng' }, 'Chờ cập nhật'),
-      h('td', {}, h('span', { class: `badge ${c.timing === 'running' ? 'ok' : c.timing === 'upcoming' ? 'warn' : ''}` }, TIMING_LABEL[c.timing] ?? '—')));
-    const monthBlock = ([k, items]) => h('div', { class: 'sched-month' },
-      h('h3', {}, `Tháng ${+k.slice(5)}/${k.slice(0, 4)}`, h('span', { class: 'muted small' }, ` · ${items.length} lớp`)),
-      h('div', { class: 'table-wrap' }, h('table', {},
-        h('thead', {}, h('tr', {}, ['Khai giảng', 'Lớp', 'Chương trình', 'Ca', 'Thứ học', 'Loại', 'Hình thức', 'Học viên', 'Bế giảng', 'Giai đoạn'].map((x) => h('th', {}, x)))),
-        h('tbody', {}, items.map(openRow)))));
-    if (list.length) openingBox.replaceChildren(...[...byMonth].map(monthBlock));
-    else openingBox.replaceChildren(h('p', { class: 'empty-state' }, range === 'upcoming' ? 'Chưa có lớp nào sắp khai giảng.' : 'Không có lớp nào khớp bộ lọc.'));
-
-    // 2) Lịch giảng dạy: lớp đang học + sắp mở
-    const teach = classes.filter((c) => ['running', 'upcoming'].includes(c.timing) && pick(c)).sort((a, b) => a.start_date.localeCompare(b.start_date));
-    teachBox.replaceChildren(teach.length ? h('div', { class: 'table-wrap' }, h('table', {},
-      h('thead', {}, h('tr', {}, ['Lớp', 'Chương trình', 'Giảng viên', 'Ca', 'Thứ học', 'Loại', 'Hình thức', 'Thời gian', 'Giai đoạn'].map((x) => h('th', {}, x)))),
-      h('tbody', {}, teach.map((c) => h('tr', {},
-        h('td', {}, h('a', { href: `#/c/${c.id}/dashboard`, title: c.code }, classDisplayName(c))),
-        h('td', {}, c.program || '—', h('div', { class: 'muted small' }, PROGRAM_NAMES[c.program] ?? '')),
-        h('td', { class: 'muted', title: 'Lịch phân công giảng viên từng buổi sẽ được cập nhật từ Sheet riêng' }, 'Chờ lịch phân công'),
-        h('td', {}, SHIFT_LABEL[c.shift] ?? '—'),
-        h('td', { title: c.days_of_week ?? '' }, formatDays(c.days_of_week) || '—'),
-        h('td', {}, segLabel(c)),
-        h('td', {}, c.delivery_mode ?? '—'),
-        h('td', {}, `${fmt(c.start_date)} → ${fmt(c.end_date)}`),
-        h('td', {}, h('span', { class: `badge ${c.timing === 'running' ? 'ok' : 'warn'}` }, TIMING_LABEL[c.timing] ?? '—')))))))
-      : h('p', { class: 'empty-state' }, 'Không có lớp đang học hoặc sắp mở khớp bộ lọc.'));
+    const end = addDays(weekStart, 6);
+    rangeLabel.textContent = weekStart.getUTCMonth() === end.getUTCMonth()
+      ? `${dd(weekStart)} – ${dd(end)}/${mm(end)}/${end.getUTCFullYear()}`
+      : `${dd(weekStart)}/${mm(weekStart)} – ${dd(end)}/${mm(end)}/${end.getUTCFullYear()}`;
+    const cols = [];
+    for (let i = 0; i < 7; i++) {
+      const d = addDays(weekStart, i);
+      const isToday = iso(d) === iso(today);
+      const evs = eventsOn(d);
+      cols.push(h('div', { class: `cal-col${isToday ? ' today' : ''}` },
+        h('div', { class: 'cal-head' }, h('span', { class: 'cal-wd', title: DOW_LONG[d.getUTCDay()] }, DOW[d.getUTCDay()]), h('span', { class: 'cal-num' }, dd(d)),
+          h('span', { class: 'cal-mon muted small' }, `Tháng ${d.getUTCMonth() + 1}`)),
+        h('div', { class: 'cal-body' }, evs.length ? evs.map(eventCard) : h('div', { class: 'cal-empty' }, '—'))));
+    }
+    grid.replaceChildren(...cols);
+    // Màn hẹp (cuộn ngang theo cột): đưa cột hôm nay vào tầm nhìn
+    requestAnimationFrame(() => {
+      const t = grid.querySelector('.cal-col.today'); const sc = grid.parentElement;
+      if (sc) sc.scrollLeft = t ? Math.max(0, t.offsetLeft - 8) : 0;
+    });
+    // Lớp đang học trong tuần nhưng chưa có thứ học → không xếp được vào ngày
+    const wkStart = iso(weekStart); const wkEnd = iso(end);
+    const unknown = classes.filter((c) => (!program || c.program === program) && !weekdaysOf(c.days_of_week).size
+      && c.start_date <= wkEnd && (!c.end_date || c.end_date >= wkStart) && !(c.start_date >= wkStart && c.start_date <= wkEnd));
+    unknownBox.replaceChildren(...(unknown.length ? [
+      h('span', { class: 'muted small' }, `${unknown.length} lớp đang học tuần này chưa có thứ học (cột DAYS OF WEEK trong Google Sheet): `),
+      ...unknown.map((c) => h('a', { class: 'chip', href: `#/c/${c.id}/dashboard`, title: `${c.code} · ${SHIFT_LABEL[c.shift] ?? ''}` }, classDisplayName(c)))] : []));
   }
-  paint();
 
-  return h('div', {},
-    h('div', { class: 'page-head' }, h('h1', {}, 'Lịch'), h('span', { class: 'muted' }, 'Khai giảng · Bế giảng · Giảng dạy')),
-    h('div', { class: 'toolbar sched-filters' }, chipsRange, chipsProgram),
-    h('section', { class: 'card' }, h('div', { class: 'eyebrow' }, 'Khai giảng & bế giảng'),
-      h('h2', {}, 'Lịch khai giảng'), h('p', { class: 'muted small' }, 'Ngày khai giảng = ngày đầu tiên của lớp. Ngày bế giảng sẽ được cập nhật sau.'), openingBox),
-    h('section', { class: 'card' }, h('div', { class: 'eyebrow' }, 'Giảng dạy'),
-      h('h2', {}, 'Lịch giảng dạy'), h('p', { class: 'muted small' }, 'Các lớp đang học và sắp mở: chương trình, ca, thứ học, B2C/B2B, hình thức. Giảng viên từng buổi sẽ lấy từ Sheet phân công (cập nhật sau).'), teachBox));
+  const nav = (n) => () => { weekStart = addDays(weekStart, 7 * n); paint(); };
+  const root = h('div', {},
+    h('section', { class: 'cal' },
+      h('div', { class: 'cal-top' },
+        h('div', { class: 'cal-nav' },
+          h('button', { type: 'button', class: 'icon-btn', 'aria-label': 'Tuần trước', onclick: nav(-1) }, '‹'),
+          rangeLabel,
+          h('button', { type: 'button', class: 'icon-btn', 'aria-label': 'Tuần sau', onclick: nav(1) }, '›'),
+          h('button', { type: 'button', class: 'cal-today', onclick: () => { weekStart = mondayOf(today); paint(); } }, 'Hôm nay')),
+        h('h1', { class: 'cal-title' }, 'Lịch khai giảng & giảng dạy'),
+        h('div', { class: 'cal-tools' }, progSel, h('div', { class: 'cal-pick-wrap' }, pickBtn, pop))),
+      h('div', { class: 'cal-legend muted small' },
+        h('span', {}, h('i', { class: 'lg open' }), 'Khai giảng (ngày đầu tiên của lớp)'),
+        h('span', {}, h('i', { class: 'lg teach' }), 'Buổi học theo thứ học'),
+        h('span', {}, 'Bế giảng: chờ cập nhật · Giảng viên: chờ lịch phân công')),
+      h('div', { class: 'cal-scroll' }, grid),
+      unknownBox));
+  paint();
+  return root;
 }

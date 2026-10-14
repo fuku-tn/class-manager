@@ -245,3 +245,21 @@ test('tab COURSE: đọc cột DAYS OF WEEK (thứ học), không đọc cột t
   const { formatDays } = await import('../public/js/class-filter.mjs');
   assert.deepEqual(['24', '78', '35', '8', 'S78', '', null].map(formatDays), ['T2, T4', 'T7, CN', 'T3, T5', 'CN', 'T7, CN (S)', '', '']);
 });
+
+test('Lịch tuần: khai giảng theo start_date, buổi học theo thứ học trong khoảng start..end', async () => {
+  const { classEventOn, weekdaysOf } = await import('../public/js/class-filter.mjs');
+  assert.deepEqual([...weekdaysOf('S78')].sort(), [0, 6]);
+  // 2026-10-14 là Thứ 4; lớp học T2, T4 từ 12/10 đến 21/10
+  const c = { start_date: '2026-10-12', end_date: '2026-10-21', days_of_week: '24' };
+  const at = (day, cls = c) => classEventOn(cls, day);
+  assert.equal(at('2026-10-12'), 'open');           // ngày khai giảng (Thứ 2) là khai giảng, không lặp thành buổi học
+  assert.equal(at('2026-10-14'), 'teach');          // Thứ 4
+  assert.equal(at('2026-10-15'), null);             // Thứ 5: không học
+  assert.equal(at('2026-10-19'), 'teach');          // Thứ 2 tuần sau
+  assert.equal(at('2026-10-26'), null);             // quá end_date
+  assert.equal(at('2026-10-05'), null);             // trước khai giảng
+  assert.equal(at('2026-10-18', { ...c, days_of_week: '78' }), 'teach');   // 8 = Chủ nhật
+  assert.equal(at('2026-10-14', { ...c, days_of_week: null }), null);      // chưa có thứ học: chỉ hiện khai giảng
+  assert.equal(at('2026-10-12', { ...c, days_of_week: null }), 'open');
+  assert.equal(at('2026-10-12', { ...c, start_date: null }), null);
+});

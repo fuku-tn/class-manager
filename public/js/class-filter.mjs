@@ -25,6 +25,23 @@ export function formatDays(raw) {
   return days.length ? days.join(', ') + (prefix ? ` (${prefix})` : '') : s;
 }
 
+// Thứ học dạng số của Date.getUTCDay() (0 = CN … 6 = T7): "24" → {1, 3}; "78" → {6, 0}.
+export function weekdaysOf(raw) {
+  const set = new Set();
+  for (const ch of String(raw ?? '')) if (ch >= '2' && ch <= '8') set.add(ch === '8' ? 0 : Number(ch) - 1);
+  return set;
+}
+
+// Sự kiện của lớp vào ngày `day` (yyyy-mm-dd) trên trang Lịch: 'open' = khai giảng (start_date),
+// 'teach' = buổi học (sau khai giảng, chưa quá end_date, đúng thứ học); null nếu không có.
+export function classEventOn(c, day) {
+  if (!c.start_date) return null;
+  if (c.start_date === day) return 'open';
+  if (c.start_date > day || (c.end_date && day > c.end_date)) return null;
+  const [y, m, d] = day.split('-').map(Number);
+  return weekdaysOf(c.days_of_week).has(new Date(Date.UTC(y, m - 1, d)).getUTCDay()) ? 'teach' : null;
+}
+
 // Bỏ dấu + chữ thường để tìm "bie101", "thang 10" không cần gõ dấu.
 export function norm(s) {
   return String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/gi, 'd').toLowerCase();
