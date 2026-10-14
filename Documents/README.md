@@ -15,4 +15,5 @@
 | **4. Vận hành** | [workflow.md](4-van-hanh/workflow.md) | Quy trình làm việc, thêm tính năng, phát hành |
 | | [deploy-vercel.md](4-van-hanh/deploy-vercel.md) | Triển khai lên Vercel |
 | | [security.md](4-van-hanh/security.md) | Bảo mật: đã có gì, việc cần tự làm, khi nghi bị lộ |
+| | [backup.md](4-van-hanh/backup.md) | Sao lưu và khôi phục toàn bộ dữ liệu |
 | **Nhật ký** | [../memory.md](../memory.md) · [../Archive.md](../Archive.md) | Quyết định theo ngày · nội dung cũ |

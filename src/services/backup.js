@@ -1,0 +1,99 @@
+// Sao lưu / khôi phục toàn bộ dữ liệu (mọi bảng trong schema public).
+// - exportAll: đọc trong MỘT transaction "repeatable read, read only" → ảnh chụp nhất quán, không khóa ai.
+// - importAll: chỉ ghi vào database TRỐNG (tránh đè dữ liệu thật); giữ nguyên id, rồi chỉnh lại bộ đếm id.
+// Không sao lưu auth_sessions (phiên đăng nhập tạm thời; khôi phục xong mọi người đăng nhập lại).
+// Bản sao lưu chứa dữ liệu cá nhân + mã băm mật khẩu: chỉ lưu ở private-data/ (git-ignore), không gửi đi đâu.
+
+const SKIP = new Set(['auth_sessions']);
+const CHUNK = 2000;
+const FORMAT = 1;
+
+// Thứ tự bảng theo khóa ngoại (bảng được tham chiếu đứng trước) — đọc từ catalog nên tự theo kịp bảng mới.
+async function tableOrder(q) {
+  const tables = (await q.all(
+    "select table_name as t from information_schema.tables where table_schema = 'public' and table_type = 'BASE TABLE' order by table_name"))
+    .map((r) => r.t).filter((t) => !SKIP.has(t));
+  const deps = await q.all(
+    `select cl.relname as child, pr.relname as parent from pg_constraint c
+       join pg_class cl on cl.oid = c.conrelid join pg_class pr on pr.oid = c.confrelid
+       join pg_namespace n on n.oid = cl.relnamespace
+      where c.contype = 'f' and n.nspname = 'public'`);
+  const need = new Map(tables.map((t) => [t, new Set()]));
+  for (const d of deps) if (need.has(d.child) && need.has(d.parent) && d.child !== d.parent) need.get(d.child).add(d.parent);
+  const out = [];
+  const done = new Set();
+  while (out.length < tables.length) {
+    const ready = tables.filter((t) => !done.has(t) && [...need.get(t)].every((p) => done.has(p)));
+    if (!ready.length) throw new Error('Không xác định được thứ tự bảng (vòng khóa ngoại)');
+    for (const t of ready) { done.add(t); out.push(t); }
+  }
+  return out;
+}
+
+const ident = (t) => {
+  if (!/^[a-z_][a-z0-9_]*$/.test(t)) throw new Error(`Tên bảng không hợp lệ: ${t}`);
+  return `"${t}"`;
+};
+
+async function exportAll(db) {
+  return db.tx(async (t) => {
+    await t.run('set transaction isolation level repeatable read, read only');
+    const order = await tableOrder(t);
+    const tables = {};
+    for (const name of order) {
+      const hasId = await t.one("select 1 as x from information_schema.columns where table_schema = 'public' and table_name = $1 and column_name = 'id'", [name]);
+      tables[name] = await t.all(`select * from ${ident(name)}${hasId ? ' order by id' : ''}`);
+    }
+    const meta = await t.one("select now() as at, current_setting('server_version') as server_version");
+    return {
+      manifest: {
+        format: FORMAT, app: 'class-manager', created_at: meta.at, server_version: meta.server_version,
+        order, counts: Object.fromEntries(order.map((n) => [n, tables[n].length])), skipped: [...SKIP],
+      },
+      tables,
+    };
+  });
+}
+
+// Khôi phục vào database đã có schema. Từ chối nếu bất kỳ bảng nào đã có dữ liệu (trừ khi allowNonEmpty).
+async function importAll(db, backup, { dryRun = false, allowNonEmpty = false } = {}) {
+  const { manifest, tables } = backup;
+  if (!manifest || manifest.app !== 'class-manager' || manifest.format !== FORMAT) throw new Error('Không phải bản sao lưu Class Manager hợp lệ');
+  const ROLLBACK = Symbol('rollback');
+  const report = { restored: {}, dry_run: dryRun };
+  try {
+    await db.tx(async (t) => {
+      const existing = new Set((await t.all(
+        "select table_name as t from information_schema.tables where table_schema = 'public' and table_type = 'BASE TABLE'")).map((r) => r.t));
+      const missing = manifest.order.filter((n) => !existing.has(n));
+      if (missing.length) throw new Error(`Database đích thiếu bảng: ${missing.join(', ')} — chạy schema trước`);
+      if (!allowNonEmpty) {
+        const busy = [];
+        for (const n of manifest.order) if ((await t.one(`select count(*)::int as n from ${ident(n)}`)).n > 0) busy.push(n);
+        if (busy.length) throw new Error(`Database đích đã có dữ liệu (${busy.join(', ')}). Chỉ khôi phục vào database trống.`);
+      }
+      for (const n of manifest.order) {
+        const rows = tables[n] ?? [];
+        for (let i = 0; i < rows.length; i += CHUNK) {
+          await t.run(`insert into ${ident(n)} select * from json_populate_recordset(null::${ident(n)}, $1::json)`, [JSON.stringify(rows.slice(i, i + CHUNK))]);
+        }
+        report.restored[n] = rows.length;
+        // bộ đếm id (identity) tiếp tục sau id lớn nhất, để bản ghi mới không trùng
+        const hasId = await t.one("select 1 as x from information_schema.columns where table_schema = 'public' and table_name = $1 and column_name = 'id'", [n]);
+        const seq = hasId ? await t.one("select pg_get_serial_sequence($1, 'id') as s", [`public.${n}`]) : null;
+        if (seq?.s && rows.length) await t.run(`select setval($1::regclass, (select max(id) from ${ident(n)}))`, [seq.s]);
+      }
+      // đối chiếu số dòng với bản sao lưu
+      for (const n of manifest.order) {
+        const got = (await t.one(`select count(*)::int as n from ${ident(n)}`)).n;
+        if (!allowNonEmpty && got !== manifest.counts[n]) throw new Error(`Bảng ${n}: khôi phục ${got} dòng, bản sao lưu có ${manifest.counts[n]}`);
+      }
+      if (dryRun) throw ROLLBACK;
+    });
+  } catch (e) {
+    if (e !== ROLLBACK) throw e;
+  }
+  return report;
+}
+
+module.exports = { exportAll, importAll, tableOrder, SKIP };
