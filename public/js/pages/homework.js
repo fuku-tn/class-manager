@@ -46,16 +46,18 @@ export async function renderHomework({ cls, state }) {
   const pending = new Set();
 
   const scoreAt = (enr, aid) => scoreOf.get(enr)?.scores?.[aid]?.score ?? null;
+  const kindOf = new Map(data.assignments.map((a) => [a.id, a.kind]));
   const paint = (btn, cell, enr, aid) => {
-    const st = cell?.status ?? null;
     const score = hasScores ? scoreAt(enr, aid) : null;
+    // Mini Project không có tick nộp bài: có điểm nghĩa là đã nộp → hiện như "Đã nộp" (chỉ hiển thị, không ghi trạng thái, không tính % HW)
+    const st = cell?.status ?? (kindOf.get(aid) === 'mini' && score != null ? 'submitted' : null);
     btn.className = `cell ${st ?? 'empty'}${cell?.note ? ' has-note' : ''}${mode !== 'status' && score != null ? ' scored' : ''}`;
-    const mark = st ? SHORT[st] + (cell.challenge ? '★' : '') : '·';
+    const mark = st ? SHORT[st] + (cell?.challenge ? '★' : '') : '·';
     if (mode === 'status' || (mode === 'both' && score == null)) btn.replaceChildren(mark);
     else if (mode === 'score') btn.replaceChildren(h('b', { class: 'cell-score' }, fmtScore(score)));
     else btn.replaceChildren(h('span', { class: 'cell-mark' }, mark), h('b', { class: 'cell-score' }, fmtScore(score)));
     const who = cell?.by ? ` · ${cell.by}${cell.at ? `, ${fmtTime(cell.at)}` : ''}` : '';
-    btn.title = (st ? LABEL[st] : 'Chưa ghi nhận') + (score != null ? ` · Điểm ${fmtScore(score)}/10` : '')
+    btn.title = (cell?.status ? LABEL[st] : st ? 'Có điểm Mini Project' : 'Chưa ghi nhận') + (score != null ? ` · Điểm ${fmtScore(score)}/10` : '')
       + (cell?.challenge ? ' · có làm Challenge' : '') + who + (cell?.note ? ` — ${cell.note}` : '');
   };
   const flash = (el) => { el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1200); };
@@ -164,7 +166,7 @@ export async function renderHomework({ cls, state }) {
   const scoredCount = (sc?.rows ?? []).filter((r) => r.avg != null).length;
   const scoreSummary = hasScores ? h('div', { class: 'score-summary' },
     h('span', { class: 'score-kpi' }, h('small', {}, 'Điểm TB cả lớp'), h('b', {}, fmtScore(sc.class_avg)), h('small', {}, '/10')),
-    h('span', { class: 'muted small' }, `${scoredCount}/${sc.rows.length} học viên có điểm · ${sc.assignments.length} bài đã có điểm · đồng bộ từ Google Sheet bảng điểm`)) : null;
+    h('span', { class: 'muted small' }, `${scoredCount}/${sc.rows.length} học viên có điểm · ${sc.assignments.length} bài đã có điểm · cập nhật từ file Chấm điểm lúc 12:00 hằng ngày`)) : null;
 
   const view = h('div', {},
     h('div', { class: 'page-head' }, h('h1', {}, 'Bài tập'), h('span', { class: 'muted', title: cls.code }, classDisplayName(cls)), liveBadge),
