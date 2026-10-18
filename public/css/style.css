@@ -312,6 +312,18 @@ th .small { text-transform: none; letter-spacing: 0; font-weight: 500; color: va
 .cell.absent, .cell.missing { background: var(--bad-bg); color: var(--bad); border-color: transparent; }
 .cell.excused { background: var(--info-bg); color: var(--info); border-color: transparent; }
 .cell.has-note::after { content: "•"; margin-left: 2px; }
+/* Ô bài tập có điểm (trang Bài tập): dấu trạng thái nhỏ + điểm in đậm; màu ô vẫn theo trạng thái */
+.cell.scored { display: inline-flex; align-items: center; justify-content: center; gap: .3rem; min-width: 3.4rem; }
+.cell-mark { font-size: .72rem; opacity: .75; }
+.cell-score { font-size: .92rem; font-weight: 750; color: var(--text); font-variant-numeric: tabular-nums; }
+.avg-score { color: var(--gold); font-size: .95rem; font-variant-numeric: tabular-nums; }
+th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+th.sortable:hover { color: var(--gold); }
+.seg-chips { margin: 0; padding: .2rem; border: 1px solid var(--border); border-radius: 999px; background: var(--glass); }
+.score-summary { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem 1rem; margin: 0 0 .8rem; }
+.score-kpi { display: inline-flex; align-items: baseline; gap: .35rem; padding: .35rem .9rem; border-radius: 999px; background: var(--gold-soft); border: 1px solid var(--gold); }
+.score-kpi b { font-size: 1.15rem; color: var(--gold); font-variant-numeric: tabular-nums; }
+.score-kpi small { color: var(--muted); font-size: .76rem; }
 .cell:hover { filter: brightness(1.2); }
 .cell.readonly { cursor: default; }
 .cell.readonly:hover { filter: none; }

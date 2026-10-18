@@ -104,7 +104,7 @@ Học viên
 
 Bài tập
 ├─ Bảng học viên × bài: ✓ đã nộp · ↻ nộp lại · ✗ thiếu · ★ challenge
-└─ Điểm bài tập (thang 10): điểm từng HW, Module, Điểm TB, TB lớp  (ẩn với khách)
+└─ Điểm (thang 10) nằm ngay trong ô HW + cột Điểm TB (sắp xếp được) + thẻ TB lớp; chọn Trạng thái + điểm / Chỉ điểm / Chỉ trạng thái  (ẩn với khách)
 
 Tốt nghiệp
 ├─ Quy tắc đang áp dụng (số buổi tối thiểu · HW · Capstone) + trạng thái quy tắc
