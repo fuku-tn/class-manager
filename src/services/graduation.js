@@ -96,13 +96,14 @@ function buildGraduationRows(data, stats, rules) {
 }
 
 // ---------- Xét TỰ ĐỘNG (chủ dự án chốt 18/10/2026) ----------
-// BIE-8, BIE-12, BIH-20, BIH-11: Tốt nghiệp = đủ số buổi tối thiểu (Quy định 003/2026; BIH-11 chưa có trong quy định → 9 buổi)
+// BIE-8, BIE-12, BIH-20, BIH-11, EBA-6 (EBA: 5 buổi theo Quy định + đủ 4 HW + Capstone): Tốt nghiệp = đủ số buổi tối thiểu (Quy định 003/2026; BIH-11 chưa có trong quy định → 9 buổi)
 // + làm đủ TẤT CẢ bài đã giao: mọi HW, mọi Mini Project (BIH) và Capstone Project.
 // Kết quả tự đổi khi tick HW / điểm danh đổi (tính lại mỗi lần mở trang); khi admin công bố thì kết quả được chốt vào enrollments.
-const AUTO_MIN_SESSIONS = { 'BIE-8': 6, 'BIE-12': 9, 'BIH-20': 16, 'BIH-11': 9 };
+const AUTO_MIN_SESSIONS = { 'BIE-8': 6, 'BIE-12': 9, 'BIH-20': 16, 'BIH-11': 9, 'EBA-6': 5 };
 const AUTO_SOURCE = { 'BIH-11': 'chủ dự án (chưa có trong Quy định 003/2026)' };
-// BIE và BIH chỉ có HW1–HW5 (BIH: HW5 = Mini Project 3); HW6+ còn sót trong dữ liệu cũ không xét.
-const AUTO_HW_MAX = 5;
+// Số HW tối đa được xét theo chương trình: BIE, BIH có HW1–HW5 (BIH: HW5 = Mini Project 3); EBA có HW1–HW4 + Capstone.
+// HW lớn hơn còn sót trong dữ liệu cũ không xét.
+const AUTO_HW_MAX = { BIE: 5, BIH: 5, EBA: 4 };
 // Có điểm thì phải ≥ 6 (thang 10) mới tính là đã làm bài (chủ dự án chốt 18/10/2026); chưa có điểm thì dựa vào tick "Đã nộp".
 const PASS_SCORE = 6;
 function autoRulesFor(cur) {
@@ -110,7 +111,7 @@ function autoRulesFor(cur) {
   if (min == null) return null;
   return { status: 'auto', auto: true, curriculum_code: cur.code, source: 'curriculum', min_sessions: min,
     min_sessions_source: AUTO_SOURCE[cur.code] ?? SESSION_RULE_SOURCE, all_assignments: true, capstone: true, attendance_min: null,
-    hw_max: AUTO_HW_MAX, pass_score: PASS_SCORE };
+    hw_max: AUTO_HW_MAX[cur.program ?? String(cur.code).split('-')[0]] ?? 5, pass_score: PASS_SCORE };
 }
 
 // Tên bài hiển thị (BIH: HW5 chính là Mini Project 3 — khớp ASSIGNMENT_ALIASES trong public/js/class-filter.mjs)

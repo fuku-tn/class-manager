@@ -9,9 +9,10 @@ let t, admin, gv, classId, enr, sessions, asg;
 const base = () => `/api/classes/${classId}`;
 const byCode = async () => Object.fromEntries((await admin.get(`${base()}/graduation`)).body.rows.map((r) => [r.student_code, r]));
 
-test('bảng số buổi tự động: BIE-8 6, BIE-12 9, BIH-20 16, BIH-11 9; giáo trình khác không xét tự động', () => {
-  assert.deepEqual(['BIE-8', 'BIE-12', 'BIH-20', 'BIH-11'].map((code) => grad.autoRulesFor({ code }).min_sessions), [6, 9, 16, 9]);
-  assert.equal(grad.autoRulesFor({ code: 'EBA-6' }), null);
+test('bảng số buổi tự động: BIE-8 6, BIE-12 9, BIH-20 16, BIH-11 9, EBA-6 5 (HW1–HW4); giáo trình khác không xét tự động', () => {
+  assert.deepEqual(['BIE-8', 'BIE-12', 'BIH-20', 'BIH-11', 'EBA-6'].map((code) => grad.autoRulesFor({ code }).min_sessions), [6, 9, 16, 9, 5]);
+  assert.deepEqual(['BIE-8', 'BIH-20', 'EBA-6'].map((code) => grad.autoRulesFor({ code }).hw_max), [5, 5, 4]);
+  assert.equal(grad.autoRulesFor({ code: 'PBM-10' }), null);
   assert.equal(grad.autoRulesFor(null), null);
   assert.deepEqual([{ kind: 'hw', seq: 5 }, { kind: 'mini', seq: 1 }, { kind: 'capstone', seq: 1 }].map((a) => grad.assignmentName(a, 'BIH')), ['MP3', 'MP1', 'Capstone']);
   assert.equal(grad.assignmentName({ kind: 'hw', seq: 5 }, 'BIE'), 'HW5');
