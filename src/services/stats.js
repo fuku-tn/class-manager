@@ -54,6 +54,7 @@ function npsScore(values) {
   return Math.round(((promoters - detractors) / v.length) * 100);
 }
 
+const KIND_ORDER = { hw: 0, mini: 1, capstone: 2 };   // thứ tự cột bài: HW → Mini Project → Capstone
 async function loadClassData(db, classId) {
   const [sessions, assignments, enrollments, attendance, submissions] = await Promise.all([
     db.all('select * from sessions where class_id = $1 order by session_no', [classId]),
@@ -68,7 +69,7 @@ async function loadClassData(db, classId) {
     db.all(`select b.*, u.name as updated_by_name from submissions b join assignments a on a.id = b.assignment_id
       left join users u on u.id = b.updated_by where a.class_id = $1`, [classId]),
   ]);
-  assignments.sort((a, b) => (a.kind === b.kind ? a.seq - b.seq : a.kind === 'hw' ? -1 : 1)); // hw trước capstone
+  assignments.sort((a, b) => (KIND_ORDER[a.kind] ?? 9) - (KIND_ORDER[b.kind] ?? 9) || a.seq - b.seq); // HW → Mini Project → Capstone
   return { sessions, assignments, enrollments, attendance, submissions };
 }
 

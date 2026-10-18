@@ -154,7 +154,7 @@ export async function renderDashboard({ cls, state }) {
     } });
     const coll = d.by_assignment.filter((x) => x.collected);
     if (!b.empty) new Chart(b.canvas, { type: 'bar', options: opts(true), plugins: [valueLabels], data: {
-      labels: coll.map((x) => (x.kind === 'capstone' ? 'CP' : `HW${x.seq}`)),
+      labels: coll.map((x) => (x.kind === 'capstone' ? 'CP' : x.kind === 'mini' ? `MP${x.seq}` : `HW${x.seq}`)),
       datasets: [ds('Đã nộp', coll.map((x) => x.submitted), '--ok'), ds('Nộp lại', coll.map((x) => x.resubmit), '--warn'),
         ds('Thiếu', coll.map((x) => x.missing), '--bad')],
     } });

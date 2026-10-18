@@ -40,7 +40,7 @@ Dùng **PGlite** (Postgres thật chạy trong bộ nhớ) với `src/schema.sql
 | `tests/db-errors.test.js` | Phân loại lỗi cấu hình/kết nối DB; thiếu `DATABASE_URL` → đăng nhập trả 503 có lý do |
 | `tests/import.test.js` | Nhập điểm danh nhiều sheet (workbook dựng trong test): X/O/trống, có phép không tính mẫu số, bỏ sheet ẩn và cột tiền, giáo trình theo tên sheet, khớp mã lớp lệch P/B, không ghi đè ô sửa trên app, dry-run |
 
-## Đã được kiểm thử tự động (159 test)
+## Đã được kiểm thử tự động (160 test)
 - Chưa đăng nhập → 401; đăng nhập sai/đúng.
 - Giảng viên không truy cập được lớp chưa được phân (403), sau khi phân thì được; không tạo lớp / xem user được.
 - Tỉ lệ điểm danh: có phép không tính vào mẫu số (A=0.67, B=0.5).
@@ -50,6 +50,7 @@ Dùng **PGlite** (Postgres thật chạy trong bộ nhớ) với `src/schema.sql
 - Dashboard tổng hợp; thêm trùng học viên → 409; ngày sai định dạng → 400.
 - Tên chứa HTML được lưu nguyên văn.
 - Sao lưu/khôi phục: CSV ghi rồi đọc lại khớp (kể cả chuỗi rỗng, NULL, JSON, tiếng Việt), khôi phục chỉ vào database trống, chốt chặn không chép đè database chính.
+- Đồng bộ điểm: ô HW chỉ có số, mã lớp nhiều kiểu viết (`BIE 102`, `BIE95`, mã đầy đủ), Mini Project tự tạo cột MP và không tính % HW, trả ví dụ dòng bị bỏ qua (không có mã/tên học viên).
 - Lịch: khai giảng theo `start_date`, buổi học theo thứ học trong khoảng start..end (`classEventOn`, `weekdaysOf`, `formatDays`); đọc cột DAYS OF WEEK không lọt cột tiền.
 - Import: 46 học viên; số có mặt theo buổi `[35,38,40,36,38,32,35,33]` và số nộp `[42,38,39,37,27,0,32]` đúng bằng dòng 4 của Excel; số điện thoại khôi phục số 0 đầu.
 

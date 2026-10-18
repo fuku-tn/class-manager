@@ -72,7 +72,7 @@ Bảng điểm là một **Google Sheet độc lập** (không chung file với 
 |---|---|
 | `StudentID` | Mã học viên (P.12345) — ghép với ghi danh của lớp |
 | `Course` | Mã lớp viết tắt `BIE101` (cũng nhận `BIE 101`, `BIE-101`, `BIE95` → BIE095, hoặc mã đầy đủ `P2.BIE.P101.…`) |
-| `HW` | Số thứ tự HW: `HW2`, `HW 2`, `HW-02`, `Bài 2` hoặc **chỉ số `2`**; `Capstone…` cho Capstone — ghép với bài tập cùng số của lớp |
+| `HW` | Số thứ tự HW: `HW2`, `HW 2`, `HW-02`, `Bài 2` hoặc **chỉ số `2`**; `Capstone…` cho Capstone; `Mini Project 2` / `MP2` cho Mini Project (lớp chưa có cột MP thì **tự tạo**) — ghép với bài tập cùng số của lớp |
 | `Point` | Điểm thang 10 (cho phép dấu phẩy "8,8") |
 | `Module` | Tên module (chỉ để hiển thị) |
 

@@ -65,7 +65,7 @@ export async function renderHomework({ cls, state }) {
   head.append(h('tr', {},
     h('th', { class: 'sticky' }, 'Học viên'),
     data.assignments.map((a) => h('th', { class: 'num', title: [a.title, moduleOf.get(String(a.id))].filter(Boolean).join(' · ') },
-      a.kind === 'capstone' ? 'Capstone' : `HW${a.seq}`)),
+      a.kind === 'capstone' ? 'Capstone' : a.kind === 'mini' ? `MP${a.seq}` : `HW${a.seq}`)),
     h('th', { class: 'num' }, 'Hoàn thành HW'),
     hasScores ? avgHead : null));
 

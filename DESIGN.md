@@ -1,7 +1,7 @@
 # DESIGN — Class Manager (Starttrain)
 
 Tài liệu thiết kế của webapp quản lý lớp học: **vì sao** hệ thống được dựng như vậy, dữ liệu chảy thế nào, quy tắc nào là bất biến.
-Cập nhật theo trạng thái ngày **18/10/2026** (159 test). Chi tiết cài đặt từng phần xem [Documents/3-ky-thuat/code-guide.md](Documents/3-ky-thuat/code-guide.md); nhật ký quyết định theo ngày xem [memory.md](memory.md).
+Cập nhật theo trạng thái ngày **18/10/2026** (160 test). Chi tiết cài đặt từng phần xem [Documents/3-ky-thuat/code-guide.md](Documents/3-ky-thuat/code-guide.md); nhật ký quyết định theo ngày xem [memory.md](memory.md).
 
 ---
 
@@ -88,7 +88,7 @@ erDiagram
   curricula ||--o{ classes : "giáo trình"
   curricula ||--o{ curriculum_items : ""
   classes ||--o{ sessions : "buổi học"
-  classes ||--o{ assignments : "bài tập HW/Capstone"
+  classes ||--o{ assignments : "bài tập HW/Mini Project/Capstone"
   classes ||--o{ enrollments : "ghi danh"
   students ||--o{ enrollments : ""
   enrollments ||--o{ attendance : ""
@@ -111,7 +111,7 @@ erDiagram
 | `curricula`, `curriculum_items` | Giáo trình (BIE-8, BIE-12, BIH-20, BIH-11, EBA-6, PBM-10) | Cột `grad_*` giữ quy tắc tốt nghiệp theo giáo trình |
 | `students`, `enrollments` | Học viên (mã `P.xxxxx` / `B.xxxxx`) và ghi danh vào lớp | `enrollments`: `course_status`, `segment` (b2c/b2b), `sheet_status` (nhãn STATUS), `origin` (web/sheet/import), kết quả tốt nghiệp |
 | `sessions`, `attendance` | Buổi học, trạng thái từng học viên từng buổi | `attendance.status`: present / late / absent / excused; ô trống = vắng |
-| `assignments`, `submissions` | HW / Capstone, trạng thái nộp | `submitted` / `resubmit` / `missing`; cờ `challenge` |
+| `assignments`, `submissions` | HW / Mini Project / Capstone, trạng thái nộp | `submitted` / `resubmit` / `missing`; cờ `challenge` |
 | `homework_scores` | Điểm thang 10 từ Sheet điểm | Tách riêng khỏi `submissions`: không làm đổi tiến độ nộp bài |
 | `potential_students` | Người có trong PERSONAL nhưng không vào danh sách lớp | `snapshot` giữ điểm danh/bài tập để khôi phục |
 | `enrollment_events` | Nhật ký ghi danh (append-only) | Chụp mã/tên/lớp nên đọc được cả khi bản ghi gốc đã xóa |
@@ -135,7 +135,7 @@ Vắng có phép **không làm giảm** tỉ lệ; mẫu số ≤ 0 thì không 
 ### 5.2 Bài tập và điểm
 | Đại lượng | Công thức |
 |---|---|
-| Hoàn thành HW của học viên | số HW `submitted` ÷ số HW đã thu (`collected`); "nộp lại" **chưa** tính hoàn thành |
+| Hoàn thành HW của học viên | số HW `submitted` ÷ số HW đã thu (`collected`); "nộp lại" **chưa** tính hoàn thành; **Mini Project và Capstone không tính** |
 | Tiến độ nhắc bài | `done / total`, phần trăm làm tròn nguyên (`homeworkProgress`) |
 | Điểm trung bình | trung bình cộng các điểm thang 10, làm tròn 2 chữ số (`averageScore`) |
 | Học viên cần chú ý | chuyên cần < 80% **hoặc** thiếu ≥ 2 HW (ngưỡng đổi được bằng biến môi trường) |
@@ -316,7 +316,7 @@ flowchart LR
 
 ## 11. Kiểm thử
 
-159 test chạy trên Postgres trong bộ nhớ, **không** động tới Supabase. Nhóm chính: đăng nhập/phân quyền, điểm danh/bài tập và xung đột `expected`, đồng bộ Sheet (cột cho phép, chốt chặn, Potential, STATUS), điểm, tốt nghiệp, giai đoạn lớp, nhắc bài (quyền, ẩn danh), bảo mật đăng nhập, header CSP, nhập Excel không lọt cột tiền, sao lưu/khôi phục CSV, lịch (khai giảng/buổi học theo thứ học). Mỗi quy tắc bất biến ở mục 2 có ít nhất một test chặn hồi quy.
+160 test chạy trên Postgres trong bộ nhớ, **không** động tới Supabase. Nhóm chính: đăng nhập/phân quyền, điểm danh/bài tập và xung đột `expected`, đồng bộ Sheet (cột cho phép, chốt chặn, Potential, STATUS), điểm, tốt nghiệp, giai đoạn lớp, nhắc bài (quyền, ẩn danh), bảo mật đăng nhập, header CSP, nhập Excel không lọt cột tiền, sao lưu/khôi phục CSV, lịch (khai giảng/buổi học theo thứ học). Mỗi quy tắc bất biến ở mục 2 có ít nhất một test chặn hồi quy.
 
 ---
 

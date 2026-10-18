@@ -77,7 +77,7 @@ module.exports = (db) => {
   });
 
   router.get('/:classId/assignments', access, async (req, res) =>
-    res.json(await db.all("select * from assignments where class_id = $1 order by kind = 'capstone', seq", [req.cls.id])));
+    res.json(await db.all("select * from assignments where class_id = $1 order by case kind when 'hw' then 0 when 'mini' then 1 else 2 end, seq", [req.cls.id])));
 
   router.put('/:classId/assignments/:assignmentId', access, async (req, res) => {
     const a = await db.one('select * from assignments where id = $1 and class_id = $2', [Number(req.params.assignmentId) || 0, req.cls.id]);

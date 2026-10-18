@@ -27,7 +27,7 @@ users ─< class_instructors >─ classes ─< sessions
 | `enrollments` | Học viên trong lớp: `mode`, `course_status`, `certificate_status`; `UNIQUE(class_id, student_id)` |
 | `sessions` | `session_no`, `title`, `session_date`, `held` |
 | `attendance` | `status` ∈ present/late/absent/excused + `note`; `UNIQUE(enrollment_id, session_id)` |
-| `assignments` | `kind` hw/capstone, `seq`, `collected` |
+| `assignments` | `kind` hw/capstone/mini (Mini Project — chỉ có điểm, tự tạo khi Sheet điểm gửi "Mini Project N", không tính % HW/tốt nghiệp; migration `2026-10-18-mini-project.sql`), `seq`, `collected` |
 | `submissions` | `status` ∈ submitted/resubmit/missing, `challenge`, `note` |
 | `users`, `auth_sessions` | Tài khoản + phiên đăng nhập (băm SHA-256 của token) |
 | `curricula`, `curriculum_items` | Mẫu giáo trình (BIE-8…): mỗi dòng item = module/công cụ/giờ/nội dung của một buổi |

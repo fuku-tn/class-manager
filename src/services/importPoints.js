@@ -14,13 +14,15 @@ const EXAMPLES = 10;   // số giá trị mẫu (khác nhau) của dòng bị b�
 const addExample = (set, v) => { if (v != null && set.size < EXAMPLES) set.add(String(v).trim().slice(0, 40)); };
 
 // Số thứ tự HW: "HW2" / "HW 2" / "HW-02" / "Homework 2" / "Bài 2" / chỉ số "2" (ô số 2) -> { kind: 'hw', seq: 2 };
-// "Capstone…" -> { kind: 'capstone', seq: 1 }
+// "Capstone…" -> { kind: 'capstone', seq: 1 }; "Mini Project 2" / "MP2" -> { kind: 'mini', seq: 2 }
 function parseHw(raw) {
   if (typeof raw === 'number') return Number.isInteger(raw) && raw >= 1 && raw <= 99 ? { kind: 'hw', seq: raw } : null;
   const s = String(raw ?? '').trim().normalize('NFC');
   const m = /^(?:(?:HW|HOMEWORK|BÀI(?:\s*TẬP)?|BAI(?:\s*TAP)?)\s*[-_.#:]?\s*)?0*(\d{1,2})$/i.exec(s);
   if (m && Number(m[1]) >= 1) return { kind: 'hw', seq: Number(m[1]) };
   if (/^capstone/i.test(s)) return { kind: 'capstone', seq: 1 };
+  const mini = /^(?:MINI\s*PROJECT|MINI|MP)\s*[-_.#:]?\s*0*(\d{1,2})$/i.exec(s);
+  if (mini && Number(mini[1]) >= 1) return { kind: 'mini', seq: Number(mini[1]) };
   return null;
 }
 // Mã lớp viết tắt: "BIE102" / "bie 102" / "BIE-102" / "BIE95" / mã đầy đủ "P2.BIE.P102.HY.AA.260726" -> "BIE102"
@@ -73,7 +75,7 @@ async function importPoints(db, table, { dryRun = false } = {}) {
     skipped_bad_student_id: parsed.skipped.bad_student_id, skipped_bad_hw: parsed.skipped.bad_hw,
     skipped_bad_point: parsed.skipped.bad_point, skipped_no_course: parsed.skipped.no_course,
     skipped_unknown_class: 0, skipped_no_enrollment: 0, skipped_no_assignment: 0,
-    inserted: 0, updated: 0, deleted: 0, delete_skipped: false, class_ids: [],
+    inserted: 0, updated: 0, deleted: 0, delete_skipped: false, class_ids: [], created_assignments: 0,
     examples: { bad_hw: [...parsed.badHw], unknown_class: [], no_assignment: [] },
   };
   const unknownClass = new Set(); const noAssignment = new Set();
@@ -86,6 +88,16 @@ async function importPoints(db, table, { dryRun = false } = {}) {
       const classes = await t.all('select id, short_code from classes where short_code = any($1::text[])', [shorts]);
       const classId = new Map(classes.map((c) => [c.short_code, c.id]));
       const ids = classes.map((c) => c.id);
+      // Mini Project chưa có ở lớp thì tạo (lớp không có sẵn bài Mini Project như HW/Capstone)
+      const minis = [...new Map(entries.filter((e) => e.kind === 'mini' && classId.has(e.short))
+        .map((e) => [`${classId.get(e.short)}|${e.seq}`, [classId.get(e.short), e.seq]])).values()];
+      if (minis.length) {
+        const made = await t.all(
+          `insert into assignments (class_id, kind, seq, title)
+           select c, 'mini', s, 'Mini Project ' || s from unnest($1::bigint[], $2::int[]) as u(c, s)
+           on conflict (class_id, kind, seq) do nothing returning id`, [minis.map((m) => m[0]), minis.map((m) => m[1])]);
+        summary.created_assignments = made.length;
+      }
       const enr = ids.length ? await t.all(
         `select e.id, e.class_id, s.student_code from enrollments e join students s on s.id = e.student_id where e.class_id = any($1::bigint[])`, [ids]) : [];
       const enrId = new Map(enr.map((e) => [`${e.class_id}|${e.student_code}`, e.id]));
@@ -100,7 +112,7 @@ async function importPoints(db, table, { dryRun = false } = {}) {
         const eid = enrId.get(`${cid}|${e.sid}`);
         if (!eid) { summary.skipped_no_enrollment++; continue; }
         const aid = asgId.get(`${cid}|${e.kind}:${e.seq}`);
-        if (!aid) { summary.skipped_no_assignment++; addExample(noAssignment, `${e.short} ${e.kind === 'capstone' ? 'Capstone' : `HW${e.seq}`}`); continue; }
+        if (!aid) { summary.skipped_no_assignment++; addExample(noAssignment, `${e.short} ${e.kind === 'capstone' ? 'Capstone' : `${e.kind === 'mini' ? 'MP' : 'HW'}${e.seq}`}`); continue; }
         rows.push({ eid, aid, score: e.score, module: e.module });
         usedClasses.add(cid);
       }

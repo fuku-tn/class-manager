@@ -380,7 +380,7 @@ module.exports = (db) => {
   router.get('/scores', async (req, res) => {
     if (req.user.role === 'guest') return res.status(403).json({ error: 'Tài khoản khách không xem được điểm' });
     const [assignments, enrollments, scores] = await Promise.all([
-      db.all("select id, kind, seq, title from assignments where class_id = $1 order by (kind = 'capstone'), seq", [req.cls.id]),
+      db.all("select id, kind, seq, title from assignments where class_id = $1 order by case kind when 'hw' then 0 when 'mini' then 1 else 2 end, seq", [req.cls.id]),
       db.all(`select e.id, e.course_status, s.student_code, s.full_name from enrollments e join students s on s.id = e.student_id
                where e.class_id = $1 order by lower(s.full_name), s.id`, [req.cls.id]),
       db.all(`select hs.enrollment_id, hs.assignment_id, hs.score::float8 as score, hs.module from homework_scores hs
