@@ -103,8 +103,8 @@ export async function renderGraduation({ cls, state }) {
   function exportCsv() {
     if (isAuto()) {
       downloadCsv(`${cls.code}-tot-nghiep.csv`, [
-        ['Mã', 'Họ tên', 'Số buổi có mặt', 'Tối thiểu', 'Bài đã làm', 'Còn thiếu', 'Kết quả', 'Ghi chú', 'Chứng chỉ', 'Số chứng chỉ', 'Ngày gửi'],
-        ...d.rows.map((r) => [r.student_code, r.full_name, r.sessions_present, r.sessions_min, `${r.hw_done}/${r.hw_pool}`, r.missing.join(', '),
+        ['Mã', 'Họ tên', 'Số buổi có mặt', 'Tối thiểu', 'Bài đã làm', 'Còn thiếu', 'Dưới điểm đạt', 'Kết quả', 'Ghi chú', 'Chứng chỉ', 'Số chứng chỉ', 'Ngày gửi'],
+        ...d.rows.map((r) => [r.student_code, r.full_name, r.sessions_present, r.sessions_min, `${r.hw_done}/${r.hw_pool}`, r.missing.join(', '), r.low.join(', '),
           AUTO_RESULT[r.result], r.decision.note ?? '', r.certificate.status ?? '', r.certificate.number ?? '', r.certificate.sent_date ?? '']),
       ]);
       return;
@@ -122,7 +122,7 @@ export async function renderGraduation({ cls, state }) {
     const s = d.summary;
     const st = d.rules.status;
     rulesEl.textContent = isAuto()
-      ? `Xét tự động: có mặt ≥ ${d.rules.min_sessions} buổi (vắng có phép không bị trừ; theo ${d.rules.min_sessions_source}) + làm đủ TẤT CẢ bài đã giao, gồm HW, Mini Project và Capstone Project (tick "Đã nộp" hoặc đã có điểm). Kết quả tự cập nhật khi tick bài/điểm danh thay đổi${c.published_at ? '; danh sách đã công bố nên kết quả đang được chốt.' : '; khi admin công bố, kết quả được chốt.'}`
+      ? `Xét tự động: có mặt ≥ ${d.rules.min_sessions} buổi (vắng có phép không bị trừ; theo ${d.rules.min_sessions_source}) + làm đủ TẤT CẢ bài đã giao (HW1–HW5, Mini Project, Capstone Project): có điểm thì phải ≥ ${d.rules.pass_score} điểm, chưa có điểm thì cần tick "Đã nộp". Kết quả tự cập nhật khi tick bài/điểm danh thay đổi${c.published_at ? '; danh sách đã công bố nên kết quả đang được chốt.' : '; khi admin công bố, kết quả được chốt.'}`
       : st === 'none'
       ? `Chưa có quy định tốt nghiệp cho ${d.rules.source === 'default' ? 'lớp này (chưa gắn giáo trình)' : 'giáo trình này'} — chưa có gợi ý, bạn đặt kết quả thủ công.`
       : `Điều kiện gợi ý: ${ruleText(d.rules)}${d.rules.min_sessions != null ? ` — số buổi theo ${d.rules.min_sessions_source}` : ''}${
@@ -191,8 +191,9 @@ export async function renderGraduation({ cls, state }) {
     return h('tr', {},
       h('td', {}, r.full_name, h('div', { class: 'muted small' }, [r.student_code, r.segment === 'b2b' ? ['B2B', r.company_name].filter(Boolean).join(' ') : null].filter(Boolean).join(' · '))),
       h('td', { class: 'num' }, h('b', { class: okSess ? '' : 'text-bad' }, `${r.sessions_present}/${r.sessions_min}`), h('div', { class: 'muted small' }, `chuyên cần ${pct(r.attendance_rate)}`)),
-      h('td', { class: 'num' }, h('b', { class: r.missing.length ? 'text-bad' : '' }, r.hw_pool ? `${r.hw_done}/${r.hw_pool}` : '—'),
-        r.missing.length ? h('div', { class: 'muted small' }, `Thiếu ${r.missing.join(', ')}`) : null),
+      h('td', { class: 'num' }, h('b', { class: r.missing.length || r.low.length ? 'text-bad' : '' }, r.hw_pool ? `${r.hw_done}/${r.hw_pool}` : '—'),
+        r.missing.length ? h('div', { class: 'muted small' }, `Thiếu ${r.missing.join(', ')}`) : null,
+        r.low.length ? h('div', { class: 'muted small' }, `Dưới ${d.rules.pass_score} điểm: ${r.low.join(', ')}`) : null),
       h('td', {}, h('span', { class: `badge ${AUTO_BADGE[r.result] ?? ''}`, title: r.auto.reasons.join(' · ') }, AUTO_RESULT[r.result] ?? r.result),
         r.result !== 'passed' && r.auto.reasons.length ? h('div', { class: 'muted small' }, r.auto.reasons.join(' · ')) : null),
       h('td', {}, r.certificate.status || r.certificate.number

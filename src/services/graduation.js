@@ -101,11 +101,16 @@ function buildGraduationRows(data, stats, rules) {
 // Kết quả tự đổi khi tick HW / điểm danh đổi (tính lại mỗi lần mở trang); khi admin công bố thì kết quả được chốt vào enrollments.
 const AUTO_MIN_SESSIONS = { 'BIE-8': 6, 'BIE-12': 9, 'BIH-20': 16, 'BIH-11': 9 };
 const AUTO_SOURCE = { 'BIH-11': 'chủ dự án (chưa có trong Quy định 003/2026)' };
+// BIE và BIH chỉ có HW1–HW5 (BIH: HW5 = Mini Project 3); HW6+ còn sót trong dữ liệu cũ không xét.
+const AUTO_HW_MAX = 5;
+// Có điểm thì phải ≥ 6 (thang 10) mới tính là đã làm bài (chủ dự án chốt 18/10/2026); chưa có điểm thì dựa vào tick "Đã nộp".
+const PASS_SCORE = 6;
 function autoRulesFor(cur) {
   const min = AUTO_MIN_SESSIONS[cur?.code];
   if (min == null) return null;
   return { status: 'auto', auto: true, curriculum_code: cur.code, source: 'curriculum', min_sessions: min,
-    min_sessions_source: AUTO_SOURCE[cur.code] ?? SESSION_RULE_SOURCE, all_assignments: true, capstone: true, attendance_min: null };
+    min_sessions_source: AUTO_SOURCE[cur.code] ?? SESSION_RULE_SOURCE, all_assignments: true, capstone: true, attendance_min: null,
+    hw_max: AUTO_HW_MAX, pass_score: PASS_SCORE };
 }
 
 // Tên bài hiển thị (BIH: HW5 chính là Mini Project 3 — khớp ASSIGNMENT_ALIASES trong public/js/class-filter.mjs)
@@ -116,13 +121,16 @@ function assignmentName(a, program) {
 }
 const KIND_RANK = { hw: 0, mini: 1, capstone: 2 };
 
-// Bài bắt buộc: HW / Mini Project đã giao (đã có tick ở ít nhất 1 học viên — collected — hoặc đã có điểm) + Capstone (luôn bắt buộc).
-// Hoàn thành một bài = tick "Đã nộp" HOẶC đã có điểm (Mini Project không có tick, chỉ có điểm).
+// Bài bắt buộc: HW1–HW5 / Mini Project đã giao (đã có tick ở ít nhất 1 học viên — collected — hoặc đã có điểm) + Capstone
+// (bắt buộc nếu lớp có bài Capstone; lớp không có Project thì không có bài này).
+// Hoàn thành một bài: có điểm → điểm ≥ 6; chưa có điểm → tick "Đã nộp" (Mini Project không có tick, chỉ có điểm).
 function buildAutoRows(data, stats, rules, { scores = [], program, open = false } = {}) {
-  const scored = new Set(scores.map((s) => `${s.enrollment_id}:${s.assignment_id}`));
+  const scoreOf = new Map(scores.map((s) => [`${s.enrollment_id}:${s.assignment_id}`, s.score == null ? null : Number(s.score)]));
+  const scored = new Set(scoreOf.keys());
   const scoredAsg = new Set(scores.map((s) => s.assignment_id));
+  const passScore = rules.pass_score ?? PASS_SCORE;
   const required = data.assignments
-    .filter((a) => a.kind === 'capstone' || a.collected || scoredAsg.has(a.id))
+    .filter((a) => a.kind === 'capstone' || ((a.collected || scoredAsg.has(a.id)) && !(a.kind === 'hw' && a.seq > (rules.hw_max ?? 99))))
     .map((a) => ({ ...a, name: assignmentName(a, program) }))
     .sort((a, b) => {
       const ra = a.name.startsWith('MP') ? 1 : KIND_RANK[a.kind]; const rb = b.name.startsWith('MP') ? 1 : KIND_RANK[b.kind];
@@ -134,11 +142,17 @@ function buildAutoRows(data, stats, rules, { scores = [], program, open = false 
     .map((e) => {
       const st = stats.get(e.id);
       const sess = sessionsCheck(rules.min_sessions, { attended: st.attended, excused: st.excused, held: st.held, total: st.sessions_total });
-      const missing = required.filter((a) => !(sub.get(`${e.id}:${a.id}`) === 'submitted' || scored.has(`${e.id}:${a.id}`))).map((a) => a.name);
+      const missing = []; const low = [];
+      for (const a of required) {
+        const k = `${e.id}:${a.id}`;
+        if (scoreOf.has(k)) { if (!(scoreOf.get(k) >= passScore)) low.push(`${a.name} (${scoreOf.get(k)})`); }
+        else if (sub.get(k) !== 'submitted') missing.push(a.name);
+      }
       const reasons = [];
       if (sess.ok === false || (sess.ok === null && open)) reasons.push(`Có mặt ${sess.value}/${rules.min_sessions} buổi`);
       if (missing.length) reasons.push(`Thiếu ${missing.join(', ')}`);
-      const passed = sess.ok === true && !missing.length;
+      if (low.length) reasons.push(`Dưới ${passScore} điểm: ${low.join(', ')}`);
+      const passed = sess.ok === true && !missing.length && !low.length;
       // Lớp còn đang học / trong thời gian nộp & chấm bài: chưa đủ thì là "Đang học", chưa kết luận "Chưa đạt".
       // Lớp đã qua thời gian chấm mà không có dữ liệu điểm danh: "Chưa đủ dữ liệu".
       const result = passed ? 'passed' : open ? 'in_progress' : sess.ok === null ? 'no_data' : 'failed';
@@ -147,7 +161,7 @@ function buildAutoRows(data, stats, rules, { scores = [], program, open = false 
         enrollment_id: e.id, student_code: e.student_code, full_name: e.full_name, course_status: e.course_status,
         segment: e.segment, company_name: e.company_name,
         attendance_rate: st.attendance_rate, sessions_present: sess.value, sessions_min: rules.min_sessions,
-        hw_done: required.length - missing.length, hw_pool: required.length, missing,
+        hw_done: required.length - missing.length - low.length, hw_pool: required.length, missing, low,
         capstone_status: capstone ? (sub.get(`${e.id}:${capstone.id}`) ?? (scored.has(`${e.id}:${capstone.id}`) ? 'submitted' : null)) : null,
         auto: { result, reasons },
         suggestion: { eligible: result === 'passed' ? true : result === 'failed' ? false : null, reasons },

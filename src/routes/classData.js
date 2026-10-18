@@ -161,7 +161,7 @@ module.exports = (db) => {
     const auto = grad.autoRulesFor(cur);
     let rules; let rows;
     if (auto) {
-      const scores = await db.all(`select hs.enrollment_id, hs.assignment_id from homework_scores hs
+      const scores = await db.all(`select hs.enrollment_id, hs.assignment_id, hs.score::float8 as score from homework_scores hs
         join enrollments e on e.id = hs.enrollment_id where e.class_id = $1`, [cls.id]);
       rules = auto;
       rows = grad.buildAutoRows(data, stats, auto, { scores, program: cls.program, open: ['upcoming', 'running', 'grading'].includes(meta.timing) });

@@ -106,3 +106,26 @@ test('công bố: chốt kết quả vào enrollments + ghi lịch sử; sau đ�
   await admin.del(`${base()}/graduation-publish`);
   assert.equal((await byCode()).C1.result, 'passed');                                   // hủy công bố → tự động lại
 });
+
+test('có điểm thì phải ≥ 6 mới tính là làm bài; HW6 trở đi không xét; lớp không có bài Capstone thì không bắt buộc', async () => {
+  await t.db.run('update homework_scores set score = 5.5 where enrollment_id = $1 and assignment_id = $2', [enr.A1, asg.mini1.id]);
+  await t.db.run('insert into homework_scores (enrollment_id, assignment_id, score) values ($1, $2, 6)', [enr.B1, asg.hw2.id]);   // đúng 6 → đạt
+  const hw6 = await t.db.one("insert into assignments (class_id, kind, seq, title, collected) values ($1, 'hw', 6, 'HW 6', true) returning id", [classId]);
+  let by = await byCode();
+  assert.equal(by.A1.result, 'failed');
+  assert.deepEqual(by.A1.low, ['MP1 (5.5)']);
+  assert.match(by.A1.auto.reasons.join(' '), /Dưới 6 điểm: MP1 \(5\.5\)/);
+  assert.deepEqual([by.B1.result, by.B1.hw_pool], ['passed', 7]);                       // HW6 không nằm trong danh sách xét
+  // điểm thấp nhưng có tick "Đã nộp": vẫn chưa đạt (điểm quyết định khi đã có điểm)
+  await t.db.run('update homework_scores set score = 4 where enrollment_id = $1 and assignment_id = $2', [enr.B1, asg.hw2.id]);
+  assert.equal((await byCode()).B1.result, 'failed');
+  await t.db.run('delete from homework_scores where enrollment_id = $1 and assignment_id = $2', [enr.B1, asg.hw2.id]);
+  await t.db.run('update homework_scores set score = 8 where enrollment_id = $1 and assignment_id = $2', [enr.A1, asg.mini1.id]);
+  // lớp không có Project: bỏ bài Capstone thì không còn bắt buộc
+  await admin.put(`${base()}/submissions`, { enrollment_id: enr.A1, assignment_id: asg.capstone1.id, status: 'missing' });
+  assert.deepEqual((await byCode()).A1.missing, ['Capstone']);
+  await t.db.run('delete from assignments where id = $1', [asg.capstone1.id]);
+  by = await byCode();
+  assert.deepEqual([by.A1.result, by.A1.hw_pool], ['passed', 6]);
+  await t.db.run('delete from assignments where id = $1', [hw6.id]);
+});
