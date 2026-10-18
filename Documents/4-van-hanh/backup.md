@@ -4,15 +4,15 @@
 | Việc | Lệnh | Ghi chú |
 |---|---|---|
 | Sao lưu toàn bộ | `npm run backup` | Chỉ đọc database; ~6 giây; ra thư mục `private-data/backups/<ngày_giờ>/` |
-| Sao lưu + giữ N bản mới nhất | `npm run backup -- --keep 28` | |
-| Sao lưu + chép sang database dự phòng | `npm run backup -- --keep 28 --mirror` | Lịch tự động dùng lệnh này; cần `BACKUP_DATABASE_URL` trong `.env` |
+| Sao lưu + giữ N bản mới nhất | `npm run backup -- --keep 3` | |
+| Sao lưu + chép sang database dự phòng | `npm run backup -- --keep 3 --mirror` | Lịch tự động dùng lệnh này; cần `BACKUP_DATABASE_URL` trong `.env` |
 | Thử khôi phục | `npm run restore -- <thư-mục> --dry-run` | Chạy hết rồi hoàn tác |
 | Khôi phục thật | `RESTORE_DATABASE_URL=… npm run restore -- <thư-mục>` | **Chỉ** vào database trống |
 
 ## Database dự phòng (project Supabase riêng)
 - `BACKUP_DATABASE_URL` (trong `.env`, không lên Git) trỏ tới project Supabase **khác** project chính (hiện: project vùng Singapore). Mỗi lần sao lưu có `--mirror`, toàn bộ dữ liệu được **xóa sạch rồi nạp lại trong một giao dịch** ở project dự phòng và đối chiếu số dòng; lỗi giữa chừng → hoàn tác, bản dự phòng cũ giữ nguyên.
 - **Chốt chặn:** lệnh từ chối nếu `BACKUP_DATABASE_URL` cùng mã project với `DATABASE_URL` (kể cả khác cổng/dạng chuỗi) — không bao giờ ghi đè database chính.
-- Project dự phòng chỉ giữ **bản mới nhất**; các bản cũ vẫn là CSV trên máy (28 bản).
+- Project dự phòng chỉ giữ **bản mới nhất**; các bản cũ vẫn là CSV trên máy (3 bản).
 - **Chuyển web sang dự phòng khi project chính hỏng:** đổi `DATABASE_URL` trên Vercel sang chuỗi kết nối của project dự phòng → Redeploy. Sau đó đặt project dự phòng thành chính và tạo/chọn project khác làm dự phòng.
 
 ## Sao lưu tự động (Windows Task Scheduler)
@@ -22,8 +22,8 @@
 |---|---|
 | Tên tác vụ | `ClassManager - Sao luu du lieu` |
 | Lịch | **Mỗi ngày 2 lần: 12:00 trưa và 18:00**; **máy tắt lúc đó thì chạy bù** khi mở máy (cần đăng nhập Windows và có mạng) |
-| Chạy | `scripts/backup-scheduled.cmd` → `scripts/backup.js --keep 28 --mirror` |
-| Giữ | 28 bản mới nhất ≈ 14 ngày (bản cũ hơn tự xóa; chỉ xóa thư mục dạng `yyyy-mm-dd_hhmm`) |
+| Chạy | `scripts/backup-scheduled.cmd` → `scripts/backup.js --keep 3 --mirror` |
+| Giữ | **3 bản mới nhất** ≈ 1,5 ngày (chủ dự án chọn 18/10/2026; bản cũ hơn tự xóa sau mỗi lần sao lưu thành công; chỉ xóa thư mục dạng `yyyy-mm-dd_hhmm`) |
 | Nhật ký | `private-data/backups/backup-log.txt` (mỗi lần chạy: thời điểm, số dòng từng bảng, lỗi nếu có) |
 
 **Thao tác thường gặp** (mở *Task Scheduler* → *Task Scheduler Library* → tìm tên tác vụ):
@@ -71,5 +71,5 @@ private-data/backups/2026-10-14_1951/
 
 ## Gợi ý lịch
 - Lịch tự động đã lo **mỗi ngày 2 lần**; chạy thêm bằng tay **trước mọi thay đổi lớn** (nhập Excel hàng loạt, chạy migration, dọn dữ liệu).
-- Lịch giữ 28 bản (≈ 14 ngày, mỗi bản ~12MB ≈ 340MB); bản cũ hơn tự xóa để không tích dữ liệu cá nhân không cần thiết.
+- Lịch giữ 3 bản (≈ 1,5 ngày, mỗi bản ~12MB); bản cũ hơn tự xóa để không tích dữ liệu cá nhân không cần thiết. Lưu ý: lỗi dữ liệu phát hiện muộn hơn ~1,5 ngày thì không còn bản cũ hơn để quay lại — trước thay đổi lớn nên chép riêng một bản (`npm run backup -- private-data/backups-giu/<tên>`, thư mục này không bị tự xóa).
 - Gói Supabase trả phí có thêm sao lưu tự động hằng ngày (Database → Backups); gói miễn phí thì dùng lệnh ở trên.

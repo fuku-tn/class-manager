@@ -1,17 +1,14 @@
 // Sao lưu toàn bộ dữ liệu ra máy: npm run backup [-- <thư-mục-đích>] [--keep N]
 // --keep N: sau khi sao lưu xong, chỉ giữ N bản mới nhất trong private-data/backups/ (dùng cho lịch tự động).
 // --mirror: chép thêm toàn bộ sang database dự phòng BACKUP_DATABASE_URL (project Supabase riêng; không bao giờ là database chính).
-// Mặc định: private-data/backups/<ngày_giờ>/ (git-ignore). Gồm:
-//   manifest.json      — thời điểm, số dòng từng bảng, thứ tự khôi phục
-//   tables/<bảng>.json — dữ liệu đầy đủ (dùng để khôi phục: npm run restore)
-//   xem-nhanh.xlsx     — bản để mở bằng Excel (mỗi bảng một sheet; KHÔNG có mã băm mật khẩu)
+// Mặc định: private-data/backups/<ngày_giờ>/ (git-ignore). TOÀN BỘ là file CSV (UTF-8 có BOM, mở được bằng Excel):
+//   _manifest.csv  — thời điểm, số dòng từng bảng, thứ tự khôi phục
+//   <bảng>.csv     — dữ liệu đầy đủ từng bảng (dùng để khôi phục: npm run restore)
 // Chỉ ĐỌC database (một transaction chỉ-đọc, ảnh chụp nhất quán).
 const fs = require('node:fs');
 const path = require('node:path');
 const { openDb } = require('../src/db');
 const { exportAll, toCsv, manifestToCsv, mirrorAll, assertDifferentTarget } = require('../src/services/backup');
-
-const HIDE_IN_EXCEL = { users: ['password_hash'] };
 
 (async () => {
   const args = process.argv.slice(2);
@@ -35,7 +32,7 @@ const HIDE_IN_EXCEL = { users: ['password_hash'] };
   for (const n of manifest.order) console.log(`  ${n.padEnd(22)} ${manifest.counts[n]}`);
   console.log(`Thư mục: ${dir}`);
   console.log('Lưu ý: có dữ liệu cá nhân và mã băm mật khẩu — chỉ cất ở nơi an toàn, không gửi qua chat/email.');
-  // Giữ N bản mới nhất (chỉ xóa thư mục đúng dạng <yyyy-mm-dd_hhmm> có manifest.json, trong private-data/backups)
+  // Giữ N bản mới nhất (chỉ xóa thư mục đúng dạng <yyyy-mm-dd_hhmm> có _manifest.csv/manifest.json, trong private-data/backups)
   if (Number.isInteger(keep) && keep >= 1) {
     const olds = fs.readdirSync(root, { withFileTypes: true })
       .filter((d) => d.isDirectory() && /^\d{4}-\d{2}-\d{2}_\d{4}$/.test(d.name) && (fs.existsSync(path.join(root, d.name, '_manifest.csv')) || fs.existsSync(path.join(root, d.name, 'manifest.json'))))
