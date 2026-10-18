@@ -47,7 +47,7 @@ function parsePointRows(table) {
   const h = table.headers;
   const col = (...names) => names.map((n) => h.indexOf(n)).find((i) => i >= 0) ?? -1;
   const iSid = col('STUDENTID', 'STUDENT ID'), iCourse = col('COURSE'), iHw = col('HW'), iPoint = col('POINT'), iModule = col('MODULE');
-  const out = { entries: new Map(), skipped: { bad_student_id: 0, bad_hw: 0, bad_point: 0, no_course: 0 }, total: table.rows.length, badHw: new Set() };
+  const out = { entries: new Map(), skipped: { bad_student_id: 0, bad_hw: 0, bad_point: 0, no_course: 0 }, total: table.rows.length, badHw: new Set(), badPoint: new Set() };
   if ([iSid, iCourse, iHw, iPoint].some((i) => i < 0)) {
     const e = new Error('Thiếu cột trong tab Point (cần StudentID, Course, HW, Point)');
     e.status = 422; e.expose = true; throw e;
@@ -61,7 +61,7 @@ function parsePointRows(table) {
     const hw = parseHw(r[iHw]);
     if (!hw) { out.skipped.bad_hw++; addExample(out.badHw, r[iHw]); continue; }
     const score = parseScore(r[iPoint]);
-    if (score == null) { out.skipped.bad_point++; continue; }
+    if (score == null) { out.skipped.bad_point++; addExample(out.badPoint, `${short} ${txt(r[iHw]) ?? ''}: ${r[iPoint] == null ? '(trống)' : r[iPoint]}`); continue; }
     out.entries.set(`${short}|${sid}|${hw.kind}:${hw.seq}`, { short, sid, ...hw, score, module: (txt(iModule >= 0 ? r[iModule] : null) ?? '').slice(0, 60) || null });
   }
   return out;
@@ -76,9 +76,9 @@ async function importPoints(db, table, { dryRun = false } = {}) {
     skipped_bad_point: parsed.skipped.bad_point, skipped_no_course: parsed.skipped.no_course,
     skipped_unknown_class: 0, skipped_no_enrollment: 0, skipped_no_assignment: 0,
     inserted: 0, updated: 0, deleted: 0, delete_skipped: false, class_ids: [], created_assignments: 0,
-    examples: { bad_hw: [...parsed.badHw], unknown_class: [], no_assignment: [] },
+    examples: { bad_hw: [...parsed.badHw], bad_point: [...parsed.badPoint], unknown_class: [], no_assignment: [], no_enrollment: [] },
   };
-  const unknownClass = new Set(); const noAssignment = new Set();
+  const unknownClass = new Set(); const noAssignment = new Set(); const noEnrollment = new Set();
   if (!entries.length) return summary;
 
   const ROLLBACK = Symbol('rollback');
@@ -110,7 +110,7 @@ async function importPoints(db, table, { dryRun = false } = {}) {
         const cid = classId.get(e.short);
         if (!cid) { summary.skipped_unknown_class++; addExample(unknownClass, e.short); continue; }
         const eid = enrId.get(`${cid}|${e.sid}`);
-        if (!eid) { summary.skipped_no_enrollment++; continue; }
+        if (!eid) { summary.skipped_no_enrollment++; addExample(noEnrollment, `${e.short} ${e.kind === 'capstone' ? 'Capstone' : `${e.kind === 'mini' ? 'MP' : 'HW'}${e.seq}`}`); continue; }
         const aid = asgId.get(`${cid}|${e.kind}:${e.seq}`);
         if (!aid) { summary.skipped_no_assignment++; addExample(noAssignment, `${e.short} ${e.kind === 'capstone' ? 'Capstone' : `${e.kind === 'mini' ? 'MP' : 'HW'}${e.seq}`}`); continue; }
         rows.push({ eid, aid, score: e.score, module: e.module });
@@ -119,6 +119,7 @@ async function importPoints(db, table, { dryRun = false } = {}) {
       summary.class_ids = [...usedClasses];
       summary.examples.unknown_class = [...unknownClass];
       summary.examples.no_assignment = [...noAssignment];
+      summary.examples.no_enrollment = [...noEnrollment];
 
       if (rows.length) {
         const res = await t.all(

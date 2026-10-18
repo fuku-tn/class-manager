@@ -42,9 +42,9 @@ Cập nhật theo trạng thái ngày **18/10/2026** (160 test). Chi tiết cài
 flowchart LR
   subgraph Google
     GS1[Sheet đăng ký<br/>PERSONAL / COMPANY / COURSE / FORM]
-    GS2[Sheet điểm<br/>StudentID · Course · HW · Point · Module]
+    GS2[Excel Chấm điểm.xlsx - Point_Transform<br/>StudentID · Course · HW · Point · Module]
     AS1[Apps Script<br/>sync-transactions.gs]
-    AS2[Apps Script<br/>sync-points.gs]
+    AS2[Task Scheduler 12:00<br/>Refresh Excel + import-points]
     GS1 --- AS1
     GS2 --- AS2
   end
@@ -57,7 +57,7 @@ flowchart LR
   U[Trình duyệt<br/>admin / giảng viên / khách]
 
   AS1 -- "POST /api/sync/transactions<br/>X-Sync-Token" --> API
-  AS2 -- "POST /api/sync/points<br/>X-Sync-Token" --> API
+  AS2 -- "ghi thẳng database" --> DB
   U -- "cookie phiên (HttpOnly)" --> API
   U --> STATIC
   API <--> DB
@@ -214,8 +214,8 @@ sequenceDiagram
 ```
 Nguyên tắc ghi: **chỉ thêm và điền chỗ trống**; những gì người dùng đã sửa tay trên web được giữ; học viên admin đã "Gỡ khỏi lớp" không bị tự thêm lại.
 
-### 6.2 Đồng bộ điểm (Sheet riêng)
-Script `sync-points.gs` (cài trong Google Sheet bảng điểm) gửi 5 cột `StudentID, Course, HW, Point, Module` tới `/api/sync/points`. Ghép theo `(mã lớp, mã học viên, HW)` với ghi danh/bài tập đã có; điểm thang 10; Sheet là bản chuẩn (sửa/xóa dòng thì app cập nhật/xóa, có chốt chặn xóa hàng loạt). Cột họ tên **không** được đọc.
+### 6.2 Điểm từ file Excel "Chấm điểm.xlsx" (từ 18/10/2026)
+Lịch Task Scheduler 12:00 hằng ngày trên máy chủ dự án: Excel **Refresh All** file `Chấm điểm.xlsx` (Power Query + công thức) rồi lưu → `import-points.js` đọc bảng `Point_Transform`, **chỉ** 5 cột `StudentID, Course, HW, Point, Module` → cùng bộ ghép `importPoints` (theo `(mã lớp, mã học viên, HW/Mini Project/Capstone)`, file là bản chuẩn, chốt chặn xóa hàng loạt). File đang mở thì không lưu đè, nhập bản đã lưu. Google Sheet điểm cũ đã tắt (410). Cột họ tên **không** được đọc.
 
 ### 6.3 Ghi một ô điểm danh/bài tập
 ```mermaid

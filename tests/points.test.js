@@ -18,6 +18,7 @@ const post = (rows, headers = HEAD) => realFetch(`${t.base}/api/sync/points`, {
 
 before(async () => {
   process.env.SYNC_TOKEN = TOKEN;
+  process.env.POINTS_SHEET_SYNC = '1';   // các test dưới dùng đường Sheet (đã tắt mặc định) để thử bộ ghép điểm chung
   t = await startTestApp();
   await t.addUser('admin@x.com', 'admin');
   const gvId = await t.addUser('gv@x.com', 'instructor');
@@ -31,7 +32,7 @@ before(async () => {
   for (const id of [gvId, gId]) await admin.put(`/api/users/${id}/classes`, { class_ids: [classId] });
   for (const [code, name] of [['P.5001', 'An'], ['P.5002', 'Bình'], ['P.5003', 'Chi']]) await admin.post(`/api/classes/${classId}/students`, { student_code: code, full_name: name });
 });
-after(async () => { delete process.env.SYNC_TOKEN; await t.close(); });
+after(async () => { delete process.env.SYNC_TOKEN; delete process.env.POINTS_SHEET_SYNC; await t.close(); });
 
 const scores = () => t.db.all(`select s.student_code, a.kind, a.seq, hs.score::float8 as score, hs.module from homework_scores hs
   join enrollments e on e.id = hs.enrollment_id join students s on s.id = e.student_id join assignments a on a.id = hs.assignment_id
@@ -80,7 +81,7 @@ test('sửa điểm trong Sheet thì cập nhật; điểm bị xóa khỏi Shee
   assert.deepEqual([r.body.updated, r.body.deleted, r.body.skipped_bad_student_id, r.body.skipped_bad_hw, r.body.skipped_bad_point,
     r.body.skipped_unknown_class, r.body.skipped_no_enrollment, r.body.skipped_no_assignment], [1, 1, 1, 1, 1, 1, 1, 1]);
   // ví dụ giá trị bị bỏ qua (để sửa Sheet): chỉ nhãn HW / mã lớp, không có mã học viên hay tên
-  assert.deepEqual(r.body.examples, { bad_hw: ['Quiz'], unknown_class: ['XXX999'], no_assignment: [`${r.body.examples.no_assignment[0].split(' ')[0]} HW9`] });
+  assert.deepEqual(r.body.examples, { bad_hw: ['Quiz'], bad_point: ['PTS101 HW1: 15'], unknown_class: ['XXX999'], no_assignment: ['PTS101 HW9'], no_enrollment: ['PTS101 HW1'] });
   assert.ok(!JSON.stringify(r.body.examples).includes('P.'));
   const s = await scores();
   assert.equal(s.find((x) => x.student_code === 'P.5001' && x.seq === 1).score, 9);
@@ -172,4 +173,32 @@ test('Mini Project: tự tạo cột MP cho lớp, lưu điểm, không tính v�
   const sub = (await admin.get(`/api/classes/${classId}/submissions`)).body.assignments.map((a) => `${a.kind}${a.seq}`);
   assert.deepEqual(sub.filter((k) => k.startsWith('mini')), ['mini1', 'mini2']);
   assert.ok(sub.indexOf('mini1') > sub.lastIndexOf('hw4') && sub.indexOf('mini2') < sub.indexOf('capstone1'), sub.join(' '));
+});
+
+test('Sheet điểm đã tắt mặc định (nguồn điểm là file Excel): trả 410, không ghi gì', async () => {
+  delete process.env.POINTS_SHEET_SYNC;
+  const before = (await scores()).length;
+  const r = await post([row('P.5001', 'HW1', 1)]);
+  process.env.POINTS_SHEET_SYNC = '1';
+  assert.equal(r.status, 410);
+  assert.match(r.body.error, /Chấm điểm\.xlsx/);
+  assert.equal((await scores()).length, before);
+});
+
+test('đọc bảng Point_Transform trong file Excel: chỉ cột cho phép, lấy giá trị công thức, bỏ cột họ tên', async () => {
+  const ExcelJS = require('exceljs');
+  const { readPointTransform } = require('../src/services/pointsExcel');
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('Tổng điểm');
+  ws.addTable({ name: 'Point_Transform', ref: 'A1', columns: ['StudentID', 'Họ và tên', 'Course', 'HW', 'Point', 'Module'].map((name) => ({ name })),
+    rows: [['P.5001', 'Tên bí mật', 'PTS101', 'HW1', 8, 'Data Transformation'], ['P.5002', 'Tên bí mật', 'PTS101', 'Mini Project 1', 7.5, 'Project']] });
+  ws.getCell('E3').value = { formula: 'SUMIFS(X,Y,Z)', result: 9.25 };   // ô công thức: lấy giá trị Excel đã tính
+  const other = wb.addWorksheet('StudentProfile');
+  other.addTable({ name: 'StudentProfile', ref: 'A1', columns: [{ name: 'FULL NAME' }, { name: 'EMAIL' }], rows: [['Tên bí mật', 'x@y.z']] });
+  const buf = Buffer.from(await wb.xlsx.writeBuffer());
+  const t2 = await readPointTransform(buf);
+  assert.deepEqual(t2.headers, ['STUDENTID', 'COURSE', 'HW', 'POINT', 'MODULE']);
+  assert.deepEqual(t2.rows, [['P.5001', 'PTS101', 'HW1', 8, 'Data Transformation'], ['P.5002', 'PTS101', 'Mini Project 1', 9.25, 'Project']]);
+  assert.ok(!JSON.stringify(t2).includes('Tên bí mật') && !JSON.stringify(t2).includes('x@y.z'));
+  await assert.rejects(readPointTransform(buf, { tableName: 'Khong_Co' }), /Không thấy bảng/);
 });

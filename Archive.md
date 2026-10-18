@@ -40,3 +40,8 @@ Mẫu mỗi mục: `### [ngày] Tiêu đề` → *Nội dung cũ* → *Lý do b�
 - **Nội dung cũ:** `backup-scheduled.cmd` chạy `--keep 28`.
 - **Lý do bỏ:** chủ dự án chỉ muốn giữ 3 bản gần nhất.
 - **Thay bằng:** `--keep 3` (đã dọn 8 bản cũ trên máy ngày 18/10/2026).
+
+### [2026-10-18] Điểm HW đồng bộ từ Google Sheet bảng điểm (Apps Script `sync-points.gs`)
+- **Nội dung cũ:** Google Sheet bảng điểm riêng + `scripts/google-apps-script/sync-points.gs` (hẹn giờ 5 phút, Script properties `SYNC_URL` = `/api/sync/points`, `SYNC_TOKEN`) gửi 5 cột StudentID/Course/HW/Point/Module.
+- **Lý do bỏ:** chủ dự án chuyển sang chấm điểm trong file Excel "Chấm điểm.xlsx" (bảng `Point_Transform`), chỉ cần cập nhật 1 lần/ngày.
+- **Thay bằng:** `npm run import-points` + lịch 12:00 (`scripts/points-scheduled.cmd`, Refresh Excel rồi nhập). Route `/api/sync/points` vẫn còn nhưng trả 410 trừ khi `POINTS_SHEET_SYNC=1`; file `.gs` giữ lại để tham khảo/bật lại.

@@ -158,6 +158,11 @@ module.exports = (db) => {
   let busyPoints = false;
   router.post('/points', async (req, res) => {
     checkToken(req);
+    // Từ 18/10/2026 điểm HW lấy từ file Excel "Chấm điểm.xlsx" (npm run import-points, lịch 12:00) — Sheet điểm không còn được nhận,
+    // tránh hai nguồn ghi đè/xóa lẫn nhau. Bật lại tạm bằng POINTS_SHEET_SYNC=1.
+    if (process.env.POINTS_SHEET_SYNC !== '1') {
+      return res.status(410).json({ error: 'Điểm HW giờ cập nhật từ file Excel "Chấm điểm.xlsx", không nhận từ Google Sheet nữa. Hãy chạy hàm stop() trong Apps Script của Sheet điểm.' });
+    }
     if (busyPoints) return res.status(409).json({ error: 'Đang xử lý một lượt đồng bộ điểm khác' });
     busyPoints = true;
     try {

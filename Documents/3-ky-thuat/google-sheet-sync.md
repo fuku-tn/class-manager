@@ -57,32 +57,30 @@ Tạm dừng: chạy hàm `stop`. Bật lại: chạy `setup`.
 | Lớp thiếu giáo trình | Vẫn nhận đăng ký; lớp chưa có giáo trình cho đến khi nạp (`npm run import-tx` kèm `session-management.xlsx`) |
 | Điểm danh, bài tập | **Không** đồng bộ — web là nơi nhập chính |
 
-## Điểm bài tập (Google Sheet riêng, script riêng)
-Bảng điểm là một **Google Sheet độc lập** (không chung file với PERSONAL), có script riêng:
-`scripts/google-apps-script/sync-points.gs` (script đăng ký `sync-transactions.gs` giữ nguyên, không phải dán lại).
+## Điểm bài tập — từ file Excel "Chấm điểm.xlsx" (từ 18/10/2026)
+Nguồn điểm HW **duy nhất** là file Excel `Chấm điểm.xlsx`, bảng (Excel Table) **`Point_Transform`** (sheet "Tổng điểm"). Google Sheet điểm **không còn được nhận**: `/api/sync/points` trả 410 (bật lại tạm bằng biến `POINTS_SHEET_SYNC=1`) — chạy `stop()` trong Apps Script của Sheet điểm để tắt hẹn giờ.
 
-**Cài đặt (một lần):**
-1. Mở Google Sheet bảng điểm → Tiện ích mở rộng → Apps Script → dán toàn bộ `sync-points.gs`, Lưu.
-2. Project Settings → Script properties, thêm:
-   - `SYNC_URL` = `https://<tên-miền-web>/api/sync/points`
-   - `SYNC_TOKEN` = đúng mã `SYNC_TOKEN` đang dùng cho Sheet đăng ký (đặt ở Vercel).
-3. Chạy hàm `setup()` một lần, cấp quyền. Từ đó script kiểm tra mỗi 5 phút và chỉ gửi khi bảng đổi.
+| Việc | Cách |
+|---|---|
+| Tự động | Task Scheduler `ClassManager - Cap nhat diem`, **12:00 mỗi ngày** (máy tắt thì chạy bù khi mở, cần đăng nhập Windows + mạng) → `scripts/points-scheduled.cmd`: (1) `scripts/refresh-excel.ps1` mở file bằng Excel, **Refresh All** (Power Query) + tính lại, lưu; (2) `scripts/import-points.js` nhập bảng `Point_Transform`. Nhật ký: `private-data/points-log.txt` |
+| Chạy tay | `npm run import-points -- [file] [--dry-run]` (chỉ nhập, không Refresh) · hoặc chạy ngay lịch: `Start-ScheduledTask -TaskName 'ClassManager - Cap nhat diem'` |
+| Vị trí file | `POINTS_XLSX` trong `.env`, nếu không có thì `private-data/excel/Chấm điểm.xlsx`, rồi `Chấm điểm.xlsx` ở thư mục gốc (git-ignore `*.xlsx`) |
+
+- File đang mở trong Excel lúc 12:00 → **không** Refresh/lưu đè (tránh mất phần đang sửa); vẫn nhập từ bản đã lưu gần nhất. Lưu file trước giờ chạy để điểm mới được lấy.
+- Chỉ đọc 5 cột theo tên tiêu đề trong bảng `Point_Transform` (`POINT_SYNC_COLUMNS`); **không** đọc cột `Họ và tên`, sheet `StudentProfile` hay bảng khác. Ô công thức lấy giá trị Excel đã tính.
+- File là **bản chuẩn**: sửa điểm thì web cập nhật; dòng biến mất thì web xóa điểm đó (chốt chặn: bỗng xóa > max(50, 20%) thì bỏ qua bước xóa). Mỗi lượt ghi `sync_runs` với `source = 'excel-points'`.
 
 | Cột | Ý nghĩa |
 |---|---|
 | `StudentID` | Mã học viên (P.12345) — ghép với ghi danh của lớp |
 | `Course` | Mã lớp viết tắt `BIE101` (cũng nhận `BIE 101`, `BIE-101`, `BIE95` → BIE095, hoặc mã đầy đủ `P2.BIE.P101.…`) |
 | `HW` | Số thứ tự HW: `HW2`, `HW 2`, `HW-02`, `Bài 2` hoặc **chỉ số `2`**; `Capstone…` cho Capstone; `Mini Project 2` / `MP2` cho Mini Project (lớp chưa có cột MP thì **tự tạo**) — ghép với bài tập cùng số của lớp |
-| `Point` | Điểm thang 10 (cho phép dấu phẩy "8,8") |
+| `Point` | Điểm thang 10 (cho phép dấu phẩy "8,8"); trống / ngoài 0–10 bị bỏ qua |
 | `Module` | Tên module (chỉ để hiển thị) |
 
-- Tab điểm đặt tên gì cũng được: script tìm tab có ô tiêu đề `StudentID` (bảng "Table" của Google Sheets vẫn đọc bình thường).
-- Cột `Họ và tên` **không được đọc/gửi**; tên lấy từ danh sách học viên của lớp trong app.
-- Sheet là bản chuẩn: sửa điểm thì app cập nhật; xóa dòng điểm thì app xóa điểm đó. Nếu một lượt bỗng xóa quá nhiều (> max(50, 20%)) thì bỏ qua bước xóa.
-- Dòng không khớp (sai mã, nhãn HW lạ, điểm ngoài 0–10, lớp/học viên/bài tập chưa có trong app) bị bỏ qua và được đếm trong kết quả; kết quả kèm `examples` (tối đa 10 **nhãn HW lạ / mã lớp chưa có / lớp + HW chưa có bài tập**, không có mã hay tên học viên). Xem trong Apps Script → **Executions** (dòng "Ví dụ cần kiểm tra trong Sheet").
-- **Học viên phải có trong lớp** của app (qua đồng bộ đăng ký) và lớp phải có bài tập HW tương ứng thì điểm mới hiện.
-- Xem điểm: trang **Học viên** (cột Điểm TB) và trang **Bài tập** (điểm ngay trong ô HW, cột Điểm TB) — admin + giảng viên của lớp; khách không thấy.
-- **Bản script mới (18/10/2026)** ghi nhật ký rõ hơn (số dòng thêm/sửa/xóa, dòng bị bỏ qua và ví dụ); dán đè bản cũ, **không** cần chạy lại `setup()` hay sửa Script properties.
+- Dòng không khớp bị bỏ qua và được đếm; nhật ký kèm `examples` (tối đa 10 mỗi loại: nhãn HW lạ, điểm lỗi, mã lớp chưa có, lớp + bài chưa có, lớp + bài của học viên không có trong lớp) — **không** có mã hay tên học viên.
+- **Học viên phải có trong lớp** của app (qua đồng bộ đăng ký) thì điểm mới hiện.
+- Xem điểm: trang **Học viên** (cột Điểm TB) và trang **Bài tập** (điểm ngay trong ô, cột Điểm TB) — admin + giảng viên của lớp; khách không thấy.
 
 ## An toàn
 - **Không lấy tiền:** script chỉ đọc đúng các cột cho phép (`ALLOWED_TX`, `ALLOWED_COURSE`) theo tên tiêu đề, từng cột một; cột khác không bao giờ được đọc. Máy chủ lọc lại một lần nữa và bỏ mọi cột lạ. Test kiểm danh sách trong script khớp với máy chủ.
