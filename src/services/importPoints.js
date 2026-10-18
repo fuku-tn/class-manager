@@ -10,6 +10,8 @@ const DELETE_MIN = 50;      // dưới ngưỡng này luôn được xóa
 const DELETE_RATIO = 0.2;   // hoặc tối đa 20% điểm hiện có của các lớp trong lượt
 
 const txt = (v) => (v == null ? null : (String(v).trim() || null));
+const EXAMPLES = 10;   // số giá trị mẫu (khác nhau) của dòng bị bỏ qua, để người dùng sửa Sheet — chỉ nhãn HW / mã lớp, không có thông tin cá nhân
+const addExample = (set, v) => { if (v != null && set.size < EXAMPLES) set.add(String(v).trim().slice(0, 40)); };
 
 // "HW2" / "HW 2" / "Homework 2" -> { kind: 'hw', seq: 2 }; "Capstone" -> { kind: 'capstone', seq: 1 }
 function parseHw(raw) {
@@ -31,7 +33,7 @@ function parsePointRows(table) {
   const h = table.headers;
   const col = (...names) => names.map((n) => h.indexOf(n)).find((i) => i >= 0) ?? -1;
   const iSid = col('STUDENTID', 'STUDENT ID'), iCourse = col('COURSE'), iHw = col('HW'), iPoint = col('POINT'), iModule = col('MODULE');
-  const out = { entries: new Map(), skipped: { bad_student_id: 0, bad_hw: 0, bad_point: 0, no_course: 0 }, total: table.rows.length };
+  const out = { entries: new Map(), skipped: { bad_student_id: 0, bad_hw: 0, bad_point: 0, no_course: 0 }, total: table.rows.length, badHw: new Set() };
   if ([iSid, iCourse, iHw, iPoint].some((i) => i < 0)) {
     const e = new Error('Thiếu cột trong tab Point (cần StudentID, Course, HW, Point)');
     e.status = 422; e.expose = true; throw e;
@@ -43,7 +45,7 @@ function parsePointRows(table) {
     if (!sid || !STUDENT_ID_RE.test(sid)) { out.skipped.bad_student_id++; continue; }
     if (!short) { out.skipped.no_course++; continue; }
     const hw = parseHw(r[iHw]);
-    if (!hw) { out.skipped.bad_hw++; continue; }
+    if (!hw) { out.skipped.bad_hw++; addExample(out.badHw, r[iHw]); continue; }
     const score = parseScore(r[iPoint]);
     if (score == null) { out.skipped.bad_point++; continue; }
     out.entries.set(`${short}|${sid}|${hw.kind}:${hw.seq}`, { short, sid, ...hw, score, module: (txt(iModule >= 0 ? r[iModule] : null) ?? '').slice(0, 60) || null });
@@ -60,7 +62,9 @@ async function importPoints(db, table, { dryRun = false } = {}) {
     skipped_bad_point: parsed.skipped.bad_point, skipped_no_course: parsed.skipped.no_course,
     skipped_unknown_class: 0, skipped_no_enrollment: 0, skipped_no_assignment: 0,
     inserted: 0, updated: 0, deleted: 0, delete_skipped: false, class_ids: [],
+    examples: { bad_hw: [...parsed.badHw], unknown_class: [], no_assignment: [] },
   };
+  const unknownClass = new Set(); const noAssignment = new Set();
   if (!entries.length) return summary;
 
   const ROLLBACK = Symbol('rollback');
@@ -80,15 +84,17 @@ async function importPoints(db, table, { dryRun = false } = {}) {
       const usedClasses = new Set();
       for (const e of entries) {
         const cid = classId.get(e.short);
-        if (!cid) { summary.skipped_unknown_class++; continue; }
+        if (!cid) { summary.skipped_unknown_class++; addExample(unknownClass, e.short); continue; }
         const eid = enrId.get(`${cid}|${e.sid}`);
         if (!eid) { summary.skipped_no_enrollment++; continue; }
         const aid = asgId.get(`${cid}|${e.kind}:${e.seq}`);
-        if (!aid) { summary.skipped_no_assignment++; continue; }
+        if (!aid) { summary.skipped_no_assignment++; addExample(noAssignment, `${e.short} ${e.kind === 'capstone' ? 'Capstone' : `HW${e.seq}`}`); continue; }
         rows.push({ eid, aid, score: e.score, module: e.module });
         usedClasses.add(cid);
       }
       summary.class_ids = [...usedClasses];
+      summary.examples.unknown_class = [...unknownClass];
+      summary.examples.no_assignment = [...noAssignment];
 
       if (rows.length) {
         const res = await t.all(

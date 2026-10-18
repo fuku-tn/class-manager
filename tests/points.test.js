@@ -73,6 +73,9 @@ test('sửa điểm trong Sheet thì cập nhật; điểm bị xóa khỏi Shee
   assert.equal(r.status, 200, JSON.stringify(r.body));
   assert.deepEqual([r.body.updated, r.body.deleted, r.body.skipped_bad_student_id, r.body.skipped_bad_hw, r.body.skipped_bad_point,
     r.body.skipped_unknown_class, r.body.skipped_no_enrollment, r.body.skipped_no_assignment], [1, 1, 1, 1, 1, 1, 1, 1]);
+  // ví dụ giá trị bị bỏ qua (để sửa Sheet): chỉ nhãn HW / mã lớp, không có mã học viên hay tên
+  assert.deepEqual(r.body.examples, { bad_hw: ['Quiz'], unknown_class: ['XXX999'], no_assignment: [`${r.body.examples.no_assignment[0].split(' ')[0]} HW9`] });
+  assert.ok(!JSON.stringify(r.body.examples).includes('P.'));
   const s = await scores();
   assert.equal(s.find((x) => x.student_code === 'P.5001' && x.seq === 1).score, 9);
   assert.equal(s.some((x) => x.student_code === 'P.5002'), false);

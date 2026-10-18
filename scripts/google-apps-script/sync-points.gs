@@ -77,7 +77,12 @@ function syncNow(forceArg) {
     if (code !== 200) throw new Error('Máy chủ trả về ' + code + ': ' + res.getContentText().slice(0, 300));
     props.setProperty('LAST_HASH', hash);
     props.setProperty('LAST_SENT', String(Date.now()));
-    console.log('Đã đồng bộ điểm: ' + res.getContentText().slice(0, 400));
+    const out = JSON.parse(res.getContentText());
+    console.log('Đã đồng bộ điểm: ' + out.valid + '/' + out.points_rows + ' dòng hợp lệ · thêm ' + out.inserted + ' · sửa ' + out.updated + ' · xóa ' + out.deleted);
+    const skip = ['bad_student_id', 'bad_hw', 'bad_point', 'no_course', 'unknown_class', 'no_enrollment', 'no_assignment']
+      .filter(function (k) { return out['skipped_' + k]; }).map(function (k) { return k + '=' + out['skipped_' + k]; });
+    if (skip.length) console.log('Dòng bị bỏ qua: ' + skip.join(', '));
+    if (out.examples) console.log('Ví dụ cần kiểm tra trong Sheet: ' + JSON.stringify(out.examples));
   } finally {
     lock.releaseLock();
   }

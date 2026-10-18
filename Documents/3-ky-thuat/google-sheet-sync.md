@@ -79,9 +79,10 @@ Bảng điểm là một **Google Sheet độc lập** (không chung file với 
 - Tab điểm đặt tên gì cũng được: script tìm tab có ô tiêu đề `StudentID` (bảng "Table" của Google Sheets vẫn đọc bình thường).
 - Cột `Họ và tên` **không được đọc/gửi**; tên lấy từ danh sách học viên của lớp trong app.
 - Sheet là bản chuẩn: sửa điểm thì app cập nhật; xóa dòng điểm thì app xóa điểm đó. Nếu một lượt bỗng xóa quá nhiều (> max(50, 20%)) thì bỏ qua bước xóa.
-- Dòng không khớp (sai mã, nhãn HW lạ, điểm ngoài 0–10, lớp/học viên/bài tập chưa có trong app) bị bỏ qua và được đếm trong kết quả.
+- Dòng không khớp (sai mã, nhãn HW lạ, điểm ngoài 0–10, lớp/học viên/bài tập chưa có trong app) bị bỏ qua và được đếm trong kết quả; kết quả kèm `examples` (tối đa 10 **nhãn HW lạ / mã lớp chưa có / lớp + HW chưa có bài tập**, không có mã hay tên học viên). Xem trong Apps Script → **Executions** (dòng "Ví dụ cần kiểm tra trong Sheet").
 - **Học viên phải có trong lớp** của app (qua đồng bộ đăng ký) và lớp phải có bài tập HW tương ứng thì điểm mới hiện.
-- Xem điểm: trang **Học viên** (cột Điểm TB) và trang **Bài tập** → "Điểm bài tập" (admin + giảng viên của lớp; khách không thấy).
+- Xem điểm: trang **Học viên** (cột Điểm TB) và trang **Bài tập** (điểm ngay trong ô HW, cột Điểm TB) — admin + giảng viên của lớp; khách không thấy.
+- **Bản script mới (18/10/2026)** ghi nhật ký rõ hơn (số dòng thêm/sửa/xóa, dòng bị bỏ qua và ví dụ); dán đè bản cũ, **không** cần chạy lại `setup()` hay sửa Script properties.
 
 ## An toàn
 - **Không lấy tiền:** script chỉ đọc đúng các cột cho phép (`ALLOWED_TX`, `ALLOWED_COURSE`) theo tên tiêu đề, từng cột một; cột khác không bao giờ được đọc. Máy chủ lọc lại một lần nữa và bỏ mọi cột lạ. Test kiểm danh sách trong script khớp với máy chủ.
