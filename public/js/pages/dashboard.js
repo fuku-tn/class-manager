@@ -1,6 +1,6 @@
 import { get } from '../api.js';
 import { h, pct, icon } from '../ui.js';
-import { classDisplayName, fmtDate, TIMING_LABEL } from '../class-filter.mjs';
+import { classDisplayName, fmtDate, TIMING_LABEL, assignmentLabel, sortAssignments } from '../class-filter.mjs';
 import { feedbackSummaryBlock } from './feedback.js';
 
 const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -152,9 +152,9 @@ export async function renderDashboard({ cls, state }) {
       datasets: [ds('Có mặt', held.map((s) => s.present), '--ok'), ds('Đi trễ', held.map((s) => s.late), '--warn'),
         ds('Có phép', held.map((s) => s.excused), '--info'), ds('Vắng', held.map((s) => s.absent), '--bad')],
     } });
-    const coll = d.by_assignment.filter((x) => x.collected);
+    const coll = sortAssignments(d.by_assignment.filter((x) => x.collected), cls);
     if (!b.empty) new Chart(b.canvas, { type: 'bar', options: opts(true), plugins: [valueLabels], data: {
-      labels: coll.map((x) => (x.kind === 'capstone' ? 'CP' : x.kind === 'mini' ? `MP${x.seq}` : `HW${x.seq}`)),
+      labels: coll.map((x) => assignmentLabel(x, cls, { short: true })),
       datasets: [ds('Đã nộp', coll.map((x) => x.submitted), '--ok'), ds('Nộp lại', coll.map((x) => x.resubmit), '--warn'),
         ds('Thiếu', coll.map((x) => x.missing), '--bad')],
     } });

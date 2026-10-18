@@ -42,6 +42,29 @@ export function classEventOn(c, day) {
   return weekdaysOf(c.days_of_week).has(new Date(Date.UTC(y, m - 1, d)).getUTCDay()) ? 'teach' : null;
 }
 
+// Bài tương đương theo chương trình: BIH có HW1–HW4, Mini Project 1–3, Capstone; "Mini Project 3" chính là HW5
+// (giữ tick nộp HW5, tính % HW và tốt nghiệp như HW5, chỉ đổi tên hiển thị). Phải khớp ASSIGNMENT_ALIASES trong src/services/importPoints.js.
+export const ASSIGNMENT_ALIASES = { BIH: { 'hw:5': { kind: 'mini', seq: 3 } } };
+const programOf = (cls) => String(cls?.program || /^([A-Za-z]+)/.exec(String(cls?.short_code ?? ''))?.[1] || '').toUpperCase();
+// Bài hiển thị: { kind, seq } sau khi đổi theo chương trình (vd BIH hw5 -> mini 3)
+export function displayAssignment(a, cls) {
+  return ASSIGNMENT_ALIASES[programOf(cls)]?.[`${a.kind}:${a.seq}`] ?? { kind: a.kind, seq: a.seq };
+}
+// Tên ngắn trên tiêu đề cột: HW2 · MP1 · Capstone (short = true: CP cho biểu đồ)
+export function assignmentLabel(a, cls, { short = false } = {}) {
+  const d = displayAssignment(a, cls);
+  if (d.kind === 'capstone') return short ? 'CP' : 'Capstone';
+  return `${d.kind === 'mini' ? 'MP' : 'HW'}${d.seq}`;
+}
+// Sắp cột: HW → Mini Project → Capstone (theo bài hiển thị)
+const KIND_RANK = { hw: 0, mini: 1, capstone: 2 };
+export function sortAssignments(list, cls) {
+  return [...list].sort((x, y) => {
+    const a = displayAssignment(x, cls); const b = displayAssignment(y, cls);
+    return (KIND_RANK[a.kind] ?? 9) - (KIND_RANK[b.kind] ?? 9) || a.seq - b.seq;
+  });
+}
+
 // Bỏ dấu + chữ thường để tìm "bie101", "thang 10" không cần gõ dấu.
 export function norm(s) {
   return String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/gi, 'd').toLowerCase();

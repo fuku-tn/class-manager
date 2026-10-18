@@ -43,6 +43,14 @@ function parseScore(raw) {
   return Math.round(n * 100) / 100;
 }
 
+// Bài tương đương theo chương trình (theo chữ đầu mã lớp): BIH "Mini Project 3" chính là HW5 → lưu vào bài HW5 của lớp
+// (giữ tick nộp, % HW, tốt nghiệp như HW5; giao diện hiện tên MP3). Phải khớp ASSIGNMENT_ALIASES (chiều ngược) trong public/js/class-filter.mjs.
+const POINT_ALIASES = { BIH: { 'mini:3': { kind: 'hw', seq: 5 } } };
+function applyAlias(short, hw) {
+  const prog = /^([A-Z]+)/.exec(short)?.[1];
+  return POINT_ALIASES[prog]?.[`${hw.kind}:${hw.seq}`] ?? hw;
+}
+
 function parsePointRows(table) {
   const h = table.headers;
   const col = (...names) => names.map((n) => h.indexOf(n)).find((i) => i >= 0) ?? -1;
@@ -58,7 +66,8 @@ function parsePointRows(table) {
     if (!sid && !short && r[iHw] == null && r[iPoint] == null) { out.total--; continue; }   // dòng trống
     if (!sid || !STUDENT_ID_RE.test(sid)) { out.skipped.bad_student_id++; continue; }
     if (!short) { out.skipped.no_course++; continue; }
-    const hw = parseHw(r[iHw]);
+    const raw = parseHw(r[iHw]);
+    const hw = raw && applyAlias(short, raw);
     if (!hw) { out.skipped.bad_hw++; addExample(out.badHw, r[iHw]); continue; }
     const score = parseScore(r[iPoint]);
     if (score == null) { out.skipped.bad_point++; addExample(out.badPoint, `${short} ${txt(r[iHw]) ?? ''}: ${r[iPoint] == null ? '(trống)' : r[iPoint]}`); continue; }
@@ -153,4 +162,4 @@ async function importPoints(db, table, { dryRun = false } = {}) {
   return summary;
 }
 
-module.exports = { importPoints, parsePointRows, parseHw, parseScore, normalizeCourse, POINT_COLUMNS, POINT_SYNC_COLUMNS };
+module.exports = { importPoints, parsePointRows, parseHw, parseScore, normalizeCourse, applyAlias, POINT_ALIASES, POINT_COLUMNS, POINT_SYNC_COLUMNS };

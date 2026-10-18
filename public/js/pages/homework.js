@@ -1,7 +1,7 @@
 import { get, put } from '../api.js';
 import { h, toast, pct, formModal } from '../ui.js';
 import { startLive, LIVE_LABEL } from '../live.js';
-import { classDisplayName, norm } from '../class-filter.mjs';
+import { classDisplayName, norm, assignmentLabel, sortAssignments } from '../class-filter.mjs';
 
 const SHORT = { submitted: '✓', resubmit: '↻', missing: '✗' };
 const LABEL = { submitted: 'Đã nộp', resubmit: 'Nộp lại', missing: 'Thiếu' };
@@ -28,6 +28,7 @@ export async function renderHomework({ cls, state }) {
     get(`${base}/submissions`),
     readOnly ? null : get(`${base}/scores`).catch(() => null),
   ]);
+  data.assignments = sortAssignments(data.assignments, cls);   // HW → Mini Project → Capstone (BIH: HW5 hiện là MP3)
   const hasScores = !!sc?.has_scores;
   const scoreOf = new Map((sc?.rows ?? []).map((r) => [r.enrollment_id, r]));   // enrollment_id -> { scores: {assignment_id: {score, module}}, avg }
   const moduleOf = new Map();
@@ -65,7 +66,7 @@ export async function renderHomework({ cls, state }) {
   head.append(h('tr', {},
     h('th', { class: 'sticky' }, 'Học viên'),
     data.assignments.map((a) => h('th', { class: 'num', title: [a.title, moduleOf.get(String(a.id))].filter(Boolean).join(' · ') },
-      a.kind === 'capstone' ? 'Capstone' : a.kind === 'mini' ? `MP${a.seq}` : `HW${a.seq}`)),
+      assignmentLabel(a, cls))),
     h('th', { class: 'num' }, 'Hoàn thành HW'),
     hasScores ? avgHead : null));
 
@@ -128,6 +129,7 @@ export async function renderHomework({ cls, state }) {
 
   async function applyRemote() {
     const fresh = await get(`${base}/submissions`);
+    fresh.assignments = sortAssignments(fresh.assignments, cls);
     const sameShape = fresh.assignments.length === data.assignments.length && fresh.rows.length === data.rows.length
       && fresh.rows.every((r, i) => r.enrollment_id === data.rows[i].enrollment_id);
     if (!sameShape) { Object.assign(data, fresh); renderBody(); return; }

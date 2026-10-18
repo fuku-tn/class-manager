@@ -79,6 +79,7 @@ Nguồn điểm HW **duy nhất** là file Excel `Chấm điểm.xlsx`, bảng (
 | `Point` | Điểm thang 10 (cho phép dấu phẩy "8,8"); trống / ngoài 0–10 bị bỏ qua |
 | `Module` | Tên module (chỉ để hiển thị) |
 
+- **Lớp BIH:** cột bài là HW1–HW4, MP1, MP2, MP3, Capstone. `Mini Project 3` **chính là HW5** → điểm lưu vào bài HW5 của lớp (giữ tick nộp HW5; tính % hoàn thành và quy tắc tốt nghiệp như HW5), giao diện hiện tên **MP3**. MP1, MP2 là Mini Project thường (không tính %). Bảng tương đương: `POINT_ALIASES` (`importPoints.js`) ↔ `ASSIGNMENT_ALIASES` (`class-filter.mjs`).
 - Dòng không khớp bị bỏ qua và được đếm; nhật ký kèm `examples` (tối đa 10 mỗi loại: nhãn HW lạ, điểm lỗi, mã lớp chưa có, lớp + bài chưa có, lớp + bài của học viên không có trong lớp) — **không** có mã hay tên học viên.
 - **Học viên phải có trong lớp** của app (qua đồng bộ đăng ký) thì điểm mới hiện.
 - Xem điểm: trang **Học viên** (cột Điểm TB) và trang **Bài tập** (điểm ngay trong ô, cột Điểm TB) — admin + giảng viên của lớp; khách không thấy.

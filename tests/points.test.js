@@ -217,3 +217,25 @@ test('sao lưu điểm trước khi nhập: ảnh chụp 5 cột ra CSV, nạp l
   const s = await importPoints(t.db, readPointsCsv(csv));
   assert.deepEqual([s.valid, s.inserted, s.updated, s.deleted], [snap.rows.length, 0, 0, 0]);
 });
+
+test('BIH: "Mini Project 3" = HW5 (lưu vào bài HW5, không tạo cột MP3); giao diện hiện MP3, thứ tự HW1–4, MP1–3, Capstone', async () => {
+  const { applyAlias } = require('../src/services/importPoints');
+  assert.deepEqual(applyAlias('BIH098', { kind: 'mini', seq: 3 }), { kind: 'hw', seq: 5 });
+  assert.deepEqual(applyAlias('BIE101', { kind: 'mini', seq: 3 }), { kind: 'mini', seq: 3 });
+  assert.deepEqual(applyAlias('BIH098', { kind: 'mini', seq: 1 }), { kind: 'mini', seq: 1 });
+  const c = await admin.post('/api/classes', { code: 'P2.BIH.P901.HY.EE.010126', session_count: 2, hw_count: 5, start_date: '2026-01-01' });
+  await t.db.run("update classes set short_code = 'BIH901', program = 'BIH' where id = $1", [c.body.id]);
+  await admin.post(`/api/classes/${c.body.id}/students`, { student_code: 'P.7001', full_name: 'HV BIH' });
+  const r = await post([row('P.7001', 'HW1', 8, 'x', 'BIH901'), row('P.7001', 'Mini Project 1', 7, 'x', 'BIH901'), row('P.7001', 'Mini Project 3', 9, 'x', 'BIH901')]);
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.deepEqual([r.body.inserted, r.body.created_assignments], [3, 1]);   // chỉ tạo MP1; MP3 vào HW5
+  const got = await t.db.all(`select a.kind, a.seq, hs.score::float8 score from homework_scores hs join assignments a on a.id = hs.assignment_id
+    where a.class_id = $1 order by a.kind, a.seq`, [c.body.id]);
+  assert.deepEqual(got, [{ kind: 'hw', seq: 1, score: 8 }, { kind: 'hw', seq: 5, score: 9 }, { kind: 'mini', seq: 1, score: 7 }]);
+  const { assignmentLabel, sortAssignments } = await import('../public/js/class-filter.mjs');
+  const bih = { short_code: 'BIH901', program: 'BIH' };
+  const list = [['hw', 1], ['hw', 5], ['capstone', 1], ['mini', 2], ['hw', 4], ['mini', 1]].map(([kind, seq]) => ({ kind, seq }));
+  assert.deepEqual(sortAssignments(list, bih).map((a) => assignmentLabel(a, bih)), ['HW1', 'HW4', 'MP1', 'MP2', 'MP3', 'Capstone']);
+  assert.deepEqual(sortAssignments(list, { short_code: 'BIE101' }).map((a) => assignmentLabel(a, { short_code: 'BIE101' })), ['HW1', 'HW4', 'HW5', 'MP1', 'MP2', 'Capstone']);
+  assert.equal(assignmentLabel({ kind: 'capstone', seq: 1 }, bih, { short: true }), 'CP');
+});
