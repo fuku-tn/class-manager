@@ -40,6 +40,12 @@ const scores = () => t.db.all(`select s.student_code, a.kind, a.seq, hs.score::f
 test('đọc nhãn bài và điểm: HW2/HW 2/Homework 2, Capstone; điểm dấu phẩy; ngoài 0–10 bị loại', () => {
   assert.deepEqual([parseHw('HW2'), parseHw('hw 12'), parseHw('Homework 3'), parseHw('Capstone Project'), parseHw('Quiz')],
     [{ kind: 'hw', seq: 2 }, { kind: 'hw', seq: 12 }, { kind: 'hw', seq: 3 }, { kind: 'capstone', seq: 1 }, null]);
+  // ô HW chỉ ghi số thứ tự (ô số hoặc chữ), các kiểu viết khác; số 0 / số lẻ / chữ lạ thì không nhận
+  assert.deepEqual([2, '3', 'HW-04', 'HW_5', 'Bài 6', 'bai tap 7', 0, 2.5, 'HW', '1a'].map(parseHw),
+    [{ kind: 'hw', seq: 2 }, { kind: 'hw', seq: 3 }, { kind: 'hw', seq: 4 }, { kind: 'hw', seq: 5 }, { kind: 'hw', seq: 6 }, { kind: 'hw', seq: 7 }, null, null, null, null]);
+  const { normalizeCourse } = require('../src/services/importPoints');
+  assert.deepEqual(['BIE102', 'bie 102', 'BIE-102', 'BIE95', 'P2.BIE.P102.HY.AA.260726', 'P1.EBA.B084.HY.MA.180925', ' EBA120 ', '', null].map(normalizeCourse),
+    ['BIE102', 'BIE102', 'BIE102', 'BIE095', 'BIE102', 'EBA084', 'EBA120', null, null]);
   assert.deepEqual([parseScore(8.8), parseScore('9,5'), parseScore('10'), parseScore(0), parseScore(11), parseScore(-1), parseScore('x'), parseScore(null)],
     [8.8, 9.5, 10, 0, null, null, null, null]);
 });

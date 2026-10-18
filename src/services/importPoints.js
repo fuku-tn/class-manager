@@ -13,13 +13,25 @@ const txt = (v) => (v == null ? null : (String(v).trim() || null));
 const EXAMPLES = 10;   // số giá trị mẫu (khác nhau) của dòng bị bỏ qua, để người dùng sửa Sheet — chỉ nhãn HW / mã lớp, không có thông tin cá nhân
 const addExample = (set, v) => { if (v != null && set.size < EXAMPLES) set.add(String(v).trim().slice(0, 40)); };
 
-// "HW2" / "HW 2" / "Homework 2" -> { kind: 'hw', seq: 2 }; "Capstone" -> { kind: 'capstone', seq: 1 }
+// Số thứ tự HW: "HW2" / "HW 2" / "HW-02" / "Homework 2" / "Bài 2" / chỉ số "2" (ô số 2) -> { kind: 'hw', seq: 2 };
+// "Capstone…" -> { kind: 'capstone', seq: 1 }
 function parseHw(raw) {
-  const s = String(raw ?? '').trim();
-  let m = /^(?:HW|HOMEWORK)\s*0*(\d{1,2})$/i.exec(s);
-  if (m) return { kind: 'hw', seq: Number(m[1]) };
+  if (typeof raw === 'number') return Number.isInteger(raw) && raw >= 1 && raw <= 99 ? { kind: 'hw', seq: raw } : null;
+  const s = String(raw ?? '').trim().normalize('NFC');
+  const m = /^(?:(?:HW|HOMEWORK|BÀI(?:\s*TẬP)?|BAI(?:\s*TAP)?)\s*[-_.#:]?\s*)?0*(\d{1,2})$/i.exec(s);
+  if (m && Number(m[1]) >= 1) return { kind: 'hw', seq: Number(m[1]) };
   if (/^capstone/i.test(s)) return { kind: 'capstone', seq: 1 };
   return null;
+}
+// Mã lớp viết tắt: "BIE102" / "bie 102" / "BIE-102" / "BIE95" / mã đầy đủ "P2.BIE.P102.HY.AA.260726" -> "BIE102"
+function normalizeCourse(raw) {
+  const s = txt(raw)?.toUpperCase().normalize('NFC');
+  if (!s) return null;
+  const full = /^[A-Z]\d*\.([A-Z]{2,5})\.[A-Z]?(\d{1,4})(?!\d)/.exec(s);
+  if (full) return full[1] + full[2].padStart(3, '0');
+  const short = /^([A-Z]{2,5})[\s._-]*0*(\d{1,4})$/.exec(s);
+  if (short) return short[1] + short[2].padStart(3, '0');
+  return s.replace(/\s+/g, '');
 }
 // 8 / "8,8" / "9.5" -> số 0..10 (làm tròn 2 chữ số); ngoài khoảng hoặc không phải số -> null
 function parseScore(raw) {
@@ -40,7 +52,7 @@ function parsePointRows(table) {
   }
   for (const r of table.rows) {
     const sid = txt(r[iSid]);
-    const short = txt(r[iCourse])?.toUpperCase();
+    const short = normalizeCourse(r[iCourse]);
     if (!sid && !short && r[iHw] == null && r[iPoint] == null) { out.total--; continue; }   // dòng trống
     if (!sid || !STUDENT_ID_RE.test(sid)) { out.skipped.bad_student_id++; continue; }
     if (!short) { out.skipped.no_course++; continue; }
@@ -128,4 +140,4 @@ async function importPoints(db, table, { dryRun = false } = {}) {
   return summary;
 }
 
-module.exports = { importPoints, parsePointRows, parseHw, parseScore, POINT_COLUMNS, POINT_SYNC_COLUMNS };
+module.exports = { importPoints, parsePointRows, parseHw, parseScore, normalizeCourse, POINT_COLUMNS, POINT_SYNC_COLUMNS };
