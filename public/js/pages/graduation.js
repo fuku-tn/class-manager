@@ -7,6 +7,9 @@ import { classDisplayName, fmtDate, TIMING_LABEL, norm } from '../class-filter.m
 const DECISION = { pending: 'Chưa xét', passed: 'Tốt nghiệp', failed: 'Chưa đạt' };
 const DECISION_BADGE = { pending: '', passed: 'ok', failed: 'bad' };
 const CAPSTONE = { submitted: 'Đã nộp', resubmit: 'Nộp lại', missing: 'Thiếu' };
+// Xét tự động (BIE-8, BIE-12, BIH-20, BIH-11): kết quả tính từ số buổi + bài đã làm, không đặt tay
+const AUTO_RESULT = { passed: 'Tốt nghiệp', failed: 'Chưa đạt', in_progress: 'Đang học', no_data: 'Chưa đủ dữ liệu', pending: 'Chưa xét' };
+const AUTO_BADGE = { passed: 'ok', failed: 'bad', in_progress: 'warn', no_data: '', pending: '' };
 
 const fmtWhen = (iso) => {
   const d = new Date(iso);
@@ -32,6 +35,8 @@ export async function renderGraduation({ cls, state }) {
   const summaryEl = h('div', { class: 'chips' });
   const bannerEl = h('div');
   const rulesEl = h('p', { class: 'muted' });
+  const headEl = h('thead');
+  const isAuto = () => !!d.rules.auto;
   // Ô tìm kiếm nằm cố định (không dựng lại khi gõ) để không mất con trỏ sau mỗi ký tự; chỉ các nút được vẽ lại.
   const buttonsEl = h('span', { class: 'contents' });
   const actionsEl = h('div', { class: 'toolbar' }, search, buttonsEl);
@@ -86,7 +91,9 @@ export async function renderGraduation({ cls, state }) {
   async function publish(on) {
     const pending = d.summary.pending;
     const msg = on
-      ? `Công bố danh sách tốt nghiệp của lớp ${classDisplayName(cls)}?${pending ? ` Còn ${pending} học viên chưa xét.` : ''} Sau khi công bố, giảng viên không sửa được nữa.`
+      ? isAuto()
+        ? `Công bố danh sách tốt nghiệp của lớp ${classDisplayName(cls)}? Kết quả tự động hiện tại (${d.summary.passed} tốt nghiệp, ${d.summary.failed} chưa đạt${d.summary.in_progress ? `, ${d.summary.in_progress} đang học` : ''}) sẽ được chốt; sau đó tick bài/điểm danh không làm đổi kết quả nữa.`
+        : `Công bố danh sách tốt nghiệp của lớp ${classDisplayName(cls)}?${pending ? ` Còn ${pending} học viên chưa xét.` : ''} Sau khi công bố, giảng viên không sửa được nữa.`
       : 'Hủy công bố để chỉnh sửa lại danh sách?';
     if (!await confirmModal(msg, on ? 'Công bố' : 'Hủy công bố')) return;
     try { await (on ? post(`${base}/graduation-publish`) : del(`${base}/graduation-publish`)); await reload(); toast(on ? 'Đã công bố danh sách' : 'Đã hủy công bố'); }
@@ -94,6 +101,14 @@ export async function renderGraduation({ cls, state }) {
   }
 
   function exportCsv() {
+    if (isAuto()) {
+      downloadCsv(`${cls.code}-tot-nghiep.csv`, [
+        ['Mã', 'Họ tên', 'Số buổi có mặt', 'Tối thiểu', 'Bài đã làm', 'Còn thiếu', 'Kết quả', 'Ghi chú', 'Chứng chỉ', 'Số chứng chỉ', 'Ngày gửi'],
+        ...d.rows.map((r) => [r.student_code, r.full_name, r.sessions_present, r.sessions_min, `${r.hw_done}/${r.hw_pool}`, r.missing.join(', '),
+          AUTO_RESULT[r.result], r.decision.note ?? '', r.certificate.status ?? '', r.certificate.number ?? '', r.certificate.sent_date ?? '']),
+      ]);
+      return;
+    }
     downloadCsv(`${cls.code}-tot-nghiep.csv`, [
       ['Mã', 'Họ tên', 'Chuyên cần', 'HW hoàn thành', 'Capstone', 'Gợi ý', 'Kết quả', 'Ghi chú', 'Chứng chỉ', 'Số chứng chỉ', 'Ngày gửi'],
       ...d.rows.map((r) => [r.student_code, r.full_name, pct(r.attendance_rate), `${r.hw_done}/${r.hw_pool}`, CAPSTONE[r.capstone_status] ?? '',
@@ -106,11 +121,22 @@ export async function renderGraduation({ cls, state }) {
     const c = d.class;
     const s = d.summary;
     const st = d.rules.status;
-    rulesEl.textContent = st === 'none'
+    rulesEl.textContent = isAuto()
+      ? `Xét tự động: có mặt ≥ ${d.rules.min_sessions} buổi (vắng có phép không bị trừ; theo ${d.rules.min_sessions_source}) + làm đủ TẤT CẢ bài đã giao, gồm HW, Mini Project và Capstone Project (tick "Đã nộp" hoặc đã có điểm). Kết quả tự cập nhật khi tick bài/điểm danh thay đổi${c.published_at ? '; danh sách đã công bố nên kết quả đang được chốt.' : '; khi admin công bố, kết quả được chốt.'}`
+      : st === 'none'
       ? `Chưa có quy định tốt nghiệp cho ${d.rules.source === 'default' ? 'lớp này (chưa gắn giáo trình)' : 'giáo trình này'} — chưa có gợi ý, bạn đặt kết quả thủ công.`
       : `Điều kiện gợi ý: ${ruleText(d.rules)}${d.rules.min_sessions != null ? ` — số buổi theo ${d.rules.min_sessions_source}` : ''}${
         st === 'partial' ? '; bài tập/điểm chưa có quy định nên chưa xét' : st === 'provisional' ? '; phần bài tập tạm theo công thức Excel cũ, chờ xác nhận chính thức' : ''}`;
-    setChildren(summaryEl,
+    setChildren(headEl, h('tr', {}, (isAuto()
+      ? ['Học viên', 'Số buổi có mặt', 'Bài đã làm', 'Kết quả', 'Chứng chỉ / ghi chú', '']
+      : ['Học viên', 'Chuyên cần', 'HW', 'Capstone', 'Gợi ý', 'Kết quả', 'Chứng chỉ / ghi chú', '']).map((x) => h('th', {}, x))));
+    if (isAuto()) setChildren(summaryEl,
+      h('span', { class: 'badge ok' }, `Tốt nghiệp ${s.passed}`),
+      h('span', { class: 'badge bad' }, `Chưa đạt ${s.failed}`),
+      s.in_progress ? h('span', { class: 'badge warn' }, `Đang học ${s.in_progress}`) : null,
+      s.no_data ? h('span', { class: 'badge' }, `Chưa đủ dữ liệu ${s.no_data}`) : null,
+      s.pending ? h('span', { class: 'badge' }, `Chưa xét ${s.pending}`) : null);
+    else setChildren(summaryEl,
       h('span', { class: 'badge ok' }, `Tốt nghiệp ${s.passed}`),
       h('span', { class: 'badge bad' }, `Chưa đạt ${s.failed}`),
       h('span', { class: 'badge' }, `Chưa xét ${s.pending}`),
@@ -121,9 +147,9 @@ export async function renderGraduation({ cls, state }) {
         h('b', {}, `Danh sách đã công bố lúc ${fmtWhen(c.published_at)}`), c.published_by ? ` bởi ${c.published_by}` : '',
         locked() || readOnly ? '' : ' — admin có thể sửa hoặc hủy công bố.') : null);
     setChildren(buttonsEl,
-      !readOnly && d.rules.status !== 'none' && h('button', { type: 'button', disabled: !canEdit(), onclick: applySuggestions, title: 'Chỉ đặt cho học viên chưa xét' }, 'Áp dụng gợi ý'),
+      !readOnly && !isAuto() && d.rules.status !== 'none' && h('button', { type: 'button', disabled: !canEdit(), onclick: applySuggestions, title: 'Chỉ đặt cho học viên chưa xét' }, 'Áp dụng gợi ý'),
       h('button', { type: 'button', onclick: exportCsv }, 'Xuất CSV'),
-      admin && d.class.has_curriculum && h('button', { type: 'button', onclick: editRules }, d.rules.status === 'none' ? 'Thiết lập quy tắc' : 'Sửa quy tắc'),
+      admin && d.class.has_curriculum && !isAuto() && h('button', { type: 'button', onclick: editRules }, d.rules.status === 'none' ? 'Thiết lập quy tắc' : 'Sửa quy tắc'),
       admin && (c.published_at
         ? h('button', { type: 'button', class: 'danger', onclick: () => publish(false) }, 'Hủy công bố')
         : h('button', { type: 'button', class: 'primary', onclick: () => publish(true) }, 'Công bố danh sách')));
@@ -135,6 +161,7 @@ export async function renderGraduation({ cls, state }) {
     const q = norm(search.value).trim(); // không phân biệt hoa/thường và dấu tiếng Việt
     const list = d.rows.filter((r) => !q || norm(r.full_name).includes(q) || norm(r.student_code).includes(q));
     body.replaceChildren(...list.map((r) => {
+      if (isAuto()) return autoRow(r);
       const sg = r.suggestion;
       const sel = h('select', { class: 'grad-sel', 'aria-label': `Kết quả của ${r.full_name}`, disabled: !canEdit() },
         Object.entries(DECISION).map(([k, label]) => h('option', { value: k }, label)));
@@ -158,6 +185,22 @@ export async function renderGraduation({ cls, state }) {
     if (!list.length) body.append(h('tr', {}, h('td', { colspan: 7, class: 'empty-state' }, d.rows.length ? 'Không có học viên khớp tìm kiếm.' : 'Lớp chưa có học viên đang học.')));
   }
 
+  // Một dòng ở chế độ xét tự động: số buổi, bài đã làm (kèm bài còn thiếu), kết quả + lý do
+  function autoRow(r) {
+    const okSess = r.sessions_present >= r.sessions_min;
+    return h('tr', {},
+      h('td', {}, r.full_name, h('div', { class: 'muted small' }, [r.student_code, r.segment === 'b2b' ? ['B2B', r.company_name].filter(Boolean).join(' ') : null].filter(Boolean).join(' · '))),
+      h('td', { class: 'num' }, h('b', { class: okSess ? '' : 'text-bad' }, `${r.sessions_present}/${r.sessions_min}`), h('div', { class: 'muted small' }, `chuyên cần ${pct(r.attendance_rate)}`)),
+      h('td', { class: 'num' }, h('b', { class: r.missing.length ? 'text-bad' : '' }, r.hw_pool ? `${r.hw_done}/${r.hw_pool}` : '—'),
+        r.missing.length ? h('div', { class: 'muted small' }, `Thiếu ${r.missing.join(', ')}`) : null),
+      h('td', {}, h('span', { class: `badge ${AUTO_BADGE[r.result] ?? ''}`, title: r.auto.reasons.join(' · ') }, AUTO_RESULT[r.result] ?? r.result),
+        r.result !== 'passed' && r.auto.reasons.length ? h('div', { class: 'muted small' }, r.auto.reasons.join(' · ')) : null),
+      h('td', {}, r.certificate.status || r.certificate.number
+        ? h('span', { class: 'small' }, [r.certificate.status, r.certificate.number].filter(Boolean).join(' · ')) : h('span', { class: 'muted small' }, '—'),
+      r.decision.note ? h('div', { class: 'muted small', title: r.decision.note }, `“${r.decision.note.slice(0, 40)}${r.decision.note.length > 40 ? '…' : ''}”`) : null),
+      h('td', {}, canEdit() ? h('button', { class: 'small', type: 'button', title: 'Ghi chú và thông tin chứng chỉ', onclick: () => editDetails(r) }, '✎') : null));
+  }
+
   search.addEventListener('input', paintRows);
   paint();
 
@@ -170,7 +213,5 @@ export async function renderGraduation({ cls, state }) {
         ? `Buổi cuối ${fmtDate(c0.last_session_date)} · Lớp B2B kết thúc trong ngày buổi cuối`
         : `Buổi cuối ${fmtDate(c0.last_session_date)} · Nộp & chấm bài đến ${fmtDate(c0.grading_until)} · Công bố tốt nghiệp ${fmtDate(c0.graduation_on)}`) : null,
     bannerEl, rulesEl, summaryEl, actionsEl,
-    h('div', { class: 'table-wrap' }, h('table', {},
-      h('thead', {}, h('tr', {}, ['Học viên', 'Chuyên cần', 'HW', 'Capstone', 'Gợi ý', 'Kết quả', 'Chứng chỉ / ghi chú', ''].map((x) => h('th', {}, x)))),
-      body)));
+    h('div', { class: 'table-wrap' }, h('table', {}, headEl, body)));
 }

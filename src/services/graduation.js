@@ -95,10 +95,74 @@ function buildGraduationRows(data, stats, rules) {
     });
 }
 
+// ---------- Xét TỰ ĐỘNG (chủ dự án chốt 18/10/2026) ----------
+// BIE-8, BIE-12, BIH-20, BIH-11: Tốt nghiệp = đủ số buổi tối thiểu (Quy định 003/2026; BIH-11 chưa có trong quy định → 9 buổi)
+// + làm đủ TẤT CẢ bài đã giao: mọi HW, mọi Mini Project (BIH) và Capstone Project.
+// Kết quả tự đổi khi tick HW / điểm danh đổi (tính lại mỗi lần mở trang); khi admin công bố thì kết quả được chốt vào enrollments.
+const AUTO_MIN_SESSIONS = { 'BIE-8': 6, 'BIE-12': 9, 'BIH-20': 16, 'BIH-11': 9 };
+const AUTO_SOURCE = { 'BIH-11': 'chủ dự án (chưa có trong Quy định 003/2026)' };
+function autoRulesFor(cur) {
+  const min = AUTO_MIN_SESSIONS[cur?.code];
+  if (min == null) return null;
+  return { status: 'auto', auto: true, curriculum_code: cur.code, source: 'curriculum', min_sessions: min,
+    min_sessions_source: AUTO_SOURCE[cur.code] ?? SESSION_RULE_SOURCE, all_assignments: true, capstone: true, attendance_min: null };
+}
+
+// Tên bài hiển thị (BIH: HW5 chính là Mini Project 3 — khớp ASSIGNMENT_ALIASES trong public/js/class-filter.mjs)
+function assignmentName(a, program) {
+  if (a.kind === 'capstone') return 'Capstone';
+  if (String(program ?? '').toUpperCase() === 'BIH' && a.kind === 'hw' && a.seq === 5) return 'MP3';
+  return `${a.kind === 'mini' ? 'MP' : 'HW'}${a.seq}`;
+}
+const KIND_RANK = { hw: 0, mini: 1, capstone: 2 };
+
+// Bài bắt buộc: HW / Mini Project đã giao (đã có tick ở ít nhất 1 học viên — collected — hoặc đã có điểm) + Capstone (luôn bắt buộc).
+// Hoàn thành một bài = tick "Đã nộp" HOẶC đã có điểm (Mini Project không có tick, chỉ có điểm).
+function buildAutoRows(data, stats, rules, { scores = [], program, open = false } = {}) {
+  const scored = new Set(scores.map((s) => `${s.enrollment_id}:${s.assignment_id}`));
+  const scoredAsg = new Set(scores.map((s) => s.assignment_id));
+  const required = data.assignments
+    .filter((a) => a.kind === 'capstone' || a.collected || scoredAsg.has(a.id))
+    .map((a) => ({ ...a, name: assignmentName(a, program) }))
+    .sort((a, b) => {
+      const ra = a.name.startsWith('MP') ? 1 : KIND_RANK[a.kind]; const rb = b.name.startsWith('MP') ? 1 : KIND_RANK[b.kind];
+      return ra - rb || Number(a.name.replace(/\D/g, '') || 0) - Number(b.name.replace(/\D/g, '') || 0);
+    });
+  const sub = new Map(data.submissions.map((s) => [`${s.enrollment_id}:${s.assignment_id}`, s.status]));
+  return data.enrollments
+    .filter((e) => e.course_status === 'active' || e.course_status === 'completed')
+    .map((e) => {
+      const st = stats.get(e.id);
+      const sess = sessionsCheck(rules.min_sessions, { attended: st.attended, excused: st.excused, held: st.held, total: st.sessions_total });
+      const missing = required.filter((a) => !(sub.get(`${e.id}:${a.id}`) === 'submitted' || scored.has(`${e.id}:${a.id}`))).map((a) => a.name);
+      const reasons = [];
+      if (sess.ok === false || (sess.ok === null && open)) reasons.push(`Có mặt ${sess.value}/${rules.min_sessions} buổi`);
+      if (missing.length) reasons.push(`Thiếu ${missing.join(', ')}`);
+      const passed = sess.ok === true && !missing.length;
+      // Lớp còn đang học / trong thời gian nộp & chấm bài: chưa đủ thì là "Đang học", chưa kết luận "Chưa đạt".
+      // Lớp đã qua thời gian chấm mà không có dữ liệu điểm danh: "Chưa đủ dữ liệu".
+      const result = passed ? 'passed' : open ? 'in_progress' : sess.ok === null ? 'no_data' : 'failed';
+      const capstone = data.assignments.find((a) => a.kind === 'capstone');
+      return {
+        enrollment_id: e.id, student_code: e.student_code, full_name: e.full_name, course_status: e.course_status,
+        segment: e.segment, company_name: e.company_name,
+        attendance_rate: st.attendance_rate, sessions_present: sess.value, sessions_min: rules.min_sessions,
+        hw_done: required.length - missing.length, hw_pool: required.length, missing,
+        capstone_status: capstone ? (sub.get(`${e.id}:${capstone.id}`) ?? (scored.has(`${e.id}:${capstone.id}`) ? 'submitted' : null)) : null,
+        auto: { result, reasons },
+        suggestion: { eligible: result === 'passed' ? true : result === 'failed' ? false : null, reasons },
+        decision: { status: e.graduation_status ?? 'pending', note: e.graduation_note ?? null, by: e.graduation_by_name ?? null, at: e.graduation_at ?? null },
+        certificate: { status: e.certificate_status ?? null, number: e.certificate_number ?? null, sent_date: e.certificate_sent_date ?? null },
+      };
+    });
+}
+
 function summarize(rows) {
-  const s = { total: rows.length, passed: 0, failed: 0, pending: 0, suggested_pass: 0, suggested_fail: 0, no_data: 0 };
+  const s = { total: rows.length, passed: 0, failed: 0, pending: 0, in_progress: 0, suggested_pass: 0, suggested_fail: 0, no_data: 0 };
   for (const r of rows) {
-    s[r.decision.status] = (s[r.decision.status] ?? 0) + 1;
+    const k = r.result ?? r.decision.status;   // xét tự động: r.result = kết quả đang hiệu lực (tự động, hoặc đã chốt khi công bố)
+    s[k] = (s[k] ?? 0) + 1;
+    if (r.auto) continue;
     if (r.suggestion.eligible === true) s.suggested_pass++;
     else if (r.suggestion.eligible === false) s.suggested_fail++;
     else s.no_data++;
@@ -106,4 +170,5 @@ function summarize(rows) {
   return s;
 }
 
-module.exports = { DEFAULT_RULES, MIN_SESSIONS, minSessionsFor, withSessionRule, rulesFromCurriculum, evaluateGraduation, buildGraduationRows, summarize };
+module.exports = { DEFAULT_RULES, MIN_SESSIONS, AUTO_MIN_SESSIONS, minSessionsFor, withSessionRule, rulesFromCurriculum, evaluateGraduation,
+  buildGraduationRows, autoRulesFor, buildAutoRows, assignmentName, summarize };

@@ -320,6 +320,7 @@ th .small { text-transform: none; letter-spacing: 0; font-weight: 500; color: va
 th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
 th.sortable:hover { color: var(--gold); }
 .seg-chips { margin: 0; padding: .2rem; border: 1px solid var(--border); border-radius: 999px; background: var(--glass); }
+.text-bad { color: var(--bad); }
 .score-summary { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem 1rem; margin: 0 0 .8rem; }
 .score-kpi { display: inline-flex; align-items: baseline; gap: .35rem; padding: .35rem .9rem; border-radius: 999px; background: var(--gold-soft); border: 1px solid var(--gold); }
 .score-kpi b { font-size: 1.15rem; color: var(--gold); font-variant-numeric: tabular-nums; }

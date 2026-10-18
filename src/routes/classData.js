@@ -144,6 +144,8 @@ module.exports = (db) => {
   const isoDate = (v) => v == null || v === '' || /^\d{4}-\d{2}-\d{2}$/.test(v);
   const published = (cls) => !!cls.graduation_published_at;
 
+  const isAutoClass = async (cls) => !!(cls.curriculum_id && grad.autoRulesFor(await db.one('select code from curricula where id = $1', [cls.curriculum_id])));
+
   async function gradPayload(cls) {
     const [data, cur, meta] = await Promise.all([
       loadClassData(db, cls.id),
@@ -155,8 +157,20 @@ module.exports = (db) => {
     const names = new Map((await db.all('select id, name from users')).map((u) => [u.id, u.name]));
     for (const e of data.enrollments) e.graduation_by_name = e.graduation_by ? names.get(e.graduation_by) ?? null : null;
     const stats = computeEnrollmentStats(data);
-    const rules = grad.withSessionRule(grad.rulesFromCurriculum(cur), cls.program, cur);
-    const rows = grad.buildGraduationRows(data, stats, rules);
+    // BIE-8/BIE-12/BIH-20/BIH-11: xét TỰ ĐỘNG (số buổi + đủ mọi bài kể cả Project); giáo trình khác: gợi ý + người đặt như cũ.
+    const auto = grad.autoRulesFor(cur);
+    let rules; let rows;
+    if (auto) {
+      const scores = await db.all(`select hs.enrollment_id, hs.assignment_id from homework_scores hs
+        join enrollments e on e.id = hs.enrollment_id where e.class_id = $1`, [cls.id]);
+      rules = auto;
+      rows = grad.buildAutoRows(data, stats, auto, { scores, program: cls.program, open: ['upcoming', 'running', 'grading'].includes(meta.timing) });
+      // Kết quả hiệu lực: chưa công bố → kết quả tự động (đổi theo tick/điểm danh); đã công bố → kết quả đã chốt lúc công bố.
+      for (const r of rows) r.result = published(cls) && r.decision.status !== 'pending' ? r.decision.status : r.auto.result;
+    } else {
+      rules = grad.withSessionRule(grad.rulesFromCurriculum(cur), cls.program, cur);
+      rows = grad.buildGraduationRows(data, stats, rules);
+    }
     return {
       class: { id: cls.id, published_at: cls.graduation_published_at ?? null, published_by: meta.published_by_name ?? null,
         timing: meta.timing, last_session_date: meta.last_session_date, grading_until: meta.grading_until, graduation_on: meta.graduation_on,
@@ -184,6 +198,7 @@ module.exports = (db) => {
     if (published(req.cls) && req.user.role !== 'admin') return res.status(403).json({ error: 'Danh sách đã công bố, chỉ admin được sửa' });
     const b = req.body;
     if (b.status !== undefined && !GRAD_STATUS.includes(b.status)) return res.status(400).json({ error: 'Kết quả tốt nghiệp không hợp lệ' });
+    if (b.status !== undefined && await isAutoClass(req.cls)) return res.status(409).json({ error: 'Lớp này xét tốt nghiệp tự động theo số buổi và bài tập — không đặt kết quả tay' });
     if (!isoDate(b.certificate_sent_date)) return res.status(400).json({ error: 'Ngày gửi chứng chỉ phải dạng yyyy-mm-dd' });
     await db.tx(async (t) => {
       const e = await findEnrollment(t, req.cls.id, req.params.enrollmentId);
@@ -210,6 +225,7 @@ module.exports = (db) => {
   // Áp dụng gợi ý cho những học viên CHƯA xét (không đụng quyết định đã đặt).
   router.post('/graduation-apply', async (req, res) => {
     if (published(req.cls) && req.user.role !== 'admin') return res.status(403).json({ error: 'Danh sách đã công bố, chỉ admin được sửa' });
+    if (await isAutoClass(req.cls)) return res.status(409).json({ error: 'Lớp này xét tốt nghiệp tự động, không cần áp dụng gợi ý' });
     const p = await gradPayload(req.cls);
     const todo = p.rows.filter((r) => r.decision.status === 'pending' && r.suggestion.eligible !== null);
     if (todo.length) {
@@ -230,7 +246,23 @@ module.exports = (db) => {
 
   // Công bố / hủy công bố danh sách (admin).
   router.post('/graduation-publish', requireAdmin, async (req, res) => {
-    await db.run('update classes set graduation_published_at = now(), graduation_published_by = $1 where id = $2', [req.user.id, req.cls.id]);
+    // Xét tự động: chốt kết quả lúc công bố vào enrollments (ghi lịch sử); học viên "Đang học" giữ "Chưa xét".
+    const p = (await isAutoClass(req.cls)) ? await gradPayload({ ...req.cls, graduation_published_at: null }) : null;
+    await db.tx(async (t) => {
+      if (p) {
+        const ev = [];
+        for (const r of p.rows) {
+          const to = r.auto.result === 'passed' || r.auto.result === 'failed' ? r.auto.result : 'pending';
+          if (to === r.decision.status) continue;
+          await t.run('update enrollments set graduation_status = $1, graduation_by = $2, graduation_at = now() where id = $3', [to, req.user.id, r.enrollment_id]);
+          ev.push({ enrollment_id: r.enrollment_id, class_id: req.cls.id, class_code: req.cls.code, student_code: r.student_code, full_name: r.full_name,
+            event: 'graduation', from_status: r.decision.status, to_status: to, source: 'web', actor_id: req.user.id, actor_name: req.user.name,
+            note: r.auto.reasons.length ? `Xét tự động khi công bố: ${r.auto.reasons.join('; ')}` : 'Xét tự động khi công bố' });
+        }
+        await logEvents(t, ev);
+      }
+      await t.run('update classes set graduation_published_at = now(), graduation_published_by = $1 where id = $2', [req.user.id, req.cls.id]);
+    });
     res.json({ ok: true });
   });
   router.delete('/graduation-publish', requireAdmin, async (req, res) => {

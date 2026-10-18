@@ -1,7 +1,7 @@
 # DESIGN — Class Manager (Starttrain)
 
 Tài liệu thiết kế của webapp quản lý lớp học: **vì sao** hệ thống được dựng như vậy, dữ liệu chảy thế nào, quy tắc nào là bất biến.
-Cập nhật theo trạng thái ngày **18/10/2026** (160 test). Chi tiết cài đặt từng phần xem [Documents/3-ky-thuat/code-guide.md](Documents/3-ky-thuat/code-guide.md); nhật ký quyết định theo ngày xem [memory.md](memory.md).
+Cập nhật theo trạng thái ngày **18/10/2026** (170 test). Chi tiết cài đặt từng phần xem [Documents/3-ky-thuat/code-guide.md](Documents/3-ky-thuat/code-guide.md); nhật ký quyết định theo ngày xem [memory.md](memory.md).
 
 ---
 
@@ -155,7 +155,8 @@ stateDiagram-v2
 `end_date` là ngày **buổi học cuối**. Thiếu ngày kết thúc thì coi buổi cuối = ngày bắt đầu + 90 ngày. Không so sánh ngày ở nơi nào khác ngoài `timing.js`.
 
 ### 5.4 Tốt nghiệp (`graduation.js`)
-- **Gợi ý, không phải quyết định.** Kết quả cuối (`passed/failed/pending`) do người đặt, ghi vào nhật ký; công bố/sửa quy tắc chỉ admin; sau công bố giảng viên bị khóa.
+- **Xét tự động (BIE-8, BIE-12, BIH-20, BIH-11 — chủ dự án chốt 18/10/2026):** Tốt nghiệp = (có mặt + vắng có phép) ≥ tối thiểu (6 / 9 / 16 / 9 — BIH-11 chưa có trong Quy định nên 9) **và** làm đủ mọi bài đã giao: HW, Mini Project (BIH: MP1–MP3, MP3 = HW5) và Capstone (luôn bắt buộc). "Làm" = tick Đã nộp hoặc có điểm; bài "đã giao" = có tick ở ít nhất một học viên hoặc đã có điểm. Kết quả tính lại mỗi lần mở trang nên đổi theo tick/điểm danh; lớp đang học hoặc trong 14 ngày nộp & chấm bài → **Đang học**; lớp cũ không có điểm danh → **Chưa đủ dữ liệu**. Không đặt kết quả tay; admin **công bố** thì kết quả được chốt vào `enrollments` + nhật ký (hủy công bố → tự động lại).
+- **Giáo trình khác — gợi ý, không phải quyết định.** Kết quả cuối (`passed/failed/pending`) do người đặt, ghi vào nhật ký; công bố/sửa quy tắc chỉ admin; sau công bố giảng viên bị khóa.
 - **Trạng thái quy tắc của giáo trình:** `none` (không gợi ý) · `provisional` (tạm theo Excel cũ) · `partial` (chỉ có điều kiện số buổi) · `confirmed`.
 - **Số buổi tối thiểu (Quy định 003/2026/QĐ-STARTTRAIN):**
 
@@ -164,6 +165,7 @@ stateDiagram-v2
 | EBA | 5 | BIE 8 buổi (BIE-8) | 6 |
 | SQL | 4 | BIE 12 buổi (BIE-12) | 9 |
 | PBM | 8 | BIH-20 | 16 |
+| BIH-11 | 9 (chủ dự án, chưa có trong Quy định) | | |
 | DDM | 5 | SCA | 7 |
 
   Đạt khi `(có mặt + vắng có phép) ≥ tối thiểu`; còn đủ buổi để đạt thì chưa kết luận (`null`), hết khả năng đạt mới gợi ý "chưa đạt".
@@ -316,7 +318,7 @@ flowchart LR
 
 ## 11. Kiểm thử
 
-160 test chạy trên Postgres trong bộ nhớ, **không** động tới Supabase. Nhóm chính: đăng nhập/phân quyền, điểm danh/bài tập và xung đột `expected`, đồng bộ Sheet (cột cho phép, chốt chặn, Potential, STATUS), điểm, tốt nghiệp, giai đoạn lớp, nhắc bài (quyền, ẩn danh), bảo mật đăng nhập, header CSP, nhập Excel không lọt cột tiền, sao lưu/khôi phục CSV, lịch (khai giảng/buổi học theo thứ học). Mỗi quy tắc bất biến ở mục 2 có ít nhất một test chặn hồi quy.
+170 test chạy trên Postgres trong bộ nhớ, **không** động tới Supabase. Nhóm chính: đăng nhập/phân quyền, điểm danh/bài tập và xung đột `expected`, đồng bộ Sheet (cột cho phép, chốt chặn, Potential, STATUS), điểm, tốt nghiệp, giai đoạn lớp, nhắc bài (quyền, ẩn danh), bảo mật đăng nhập, header CSP, nhập Excel không lọt cột tiền, sao lưu/khôi phục CSV, lịch (khai giảng/buổi học theo thứ học). Mỗi quy tắc bất biến ở mục 2 có ít nhất một test chặn hồi quy.
 
 ---
 
@@ -333,6 +335,7 @@ flowchart LR
 | Realtime chỉ gửi tín hiệu | Kênh công khai không được lộ dữ liệu học viên | Mỗi thay đổi tốn thêm một lượt tải lại |
 | Giới hạn đăng nhập sai lưu trong DB | Serverless không chia sẻ bộ nhớ giữa các instance | Thêm vài truy vấn mỗi lần đăng nhập |
 | `<select>` ô điểm danh tạo theo yêu cầu | Giảm 70% node DOM bảng lớn | Cần thêm xử lý bàn phím (Enter) |
+| Tốt nghiệp BIE/BIH xét tự động, công bố mới chốt | Chủ dự án không muốn xét tay; kết quả luôn khớp tick/điểm danh | Dữ liệu tick/điểm danh thiếu → kết quả sai; lớp cũ thiếu tick Capstone sẽ "Chưa đạt" |
 | Quy tắc số buổi tốt nghiệp là bảng cố định trong code | Là văn bản chính thức, hiếm đổi | Đổi quy định phải sửa code và phát hành |
 | Điểm hiện trong ô bài tập thay vì mục riêng | Chủ dự án thấy điểm ở mục dưới khó theo dõi | Ô rộng hơn; có nút chuyển "Chỉ điểm/Chỉ trạng thái" khi cần gọn |
 | Lịch suy buổi học từ thứ học | Chưa có ngày thật từng buổi | Lệch nếu lớp nghỉ lễ/học bù; sẽ thay bằng Sheet phân công khi có |
