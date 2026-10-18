@@ -30,10 +30,12 @@ const KNOWN_TEMPLATES = {
   // 7 lớp cũ thực tế 12 buổi (có điểm danh buổi 9–12), chủ dự án xác nhận 13/10/2026
   BIE068: 'BIE-12', BIE075: 'BIE-12', BIE078: 'BIE-12', BIE081: 'BIE-12', BIE085: 'BIE-12', BIE090: 'BIE-12', BIE092: 'BIE-12',
   BIH098: 'BIH-20', BIH100: 'BIH-20', BIH103: 'BIH-11', BIH106: 'BIH-20',
+  // EBA thời 8 buổi (3 HW + Capstone, tốt nghiệp ≥ 6 buổi) — chủ dự án chốt 18/10/2026
+  EBA069: 'EBA-8', EBA070: 'EBA-8', EBA072: 'EBA-8', EBA073: 'EBA-8',
 };
 // Lớp BI cũ chưa có mẫu: theo lớp mới gần nhất cùng chương trình.
 // EBA mặc định 6 buổi, PBM 10 buổi (chủ dự án chốt 13/10/2026; EBA069/070/072/073 trước đây 8 buổi vẫn giữ buổi đã có).
-const OPTIONAL_TEMPLATES = new Set(['EBA-6', 'PBM-10']); // thiếu trong file giáo trình thì bỏ qua (không dừng nhập)
+const OPTIONAL_TEMPLATES = new Set(['EBA-6', 'EBA-8', 'PBM-10']); // thiếu trong file giáo trình thì bỏ qua (không dừng nhập)
 const DEFAULT_TEMPLATE = { BIE: 'BIE-8', BIH: 'BIH-20', EBA: 'EBA-6', PBM: 'PBM-10' };
 
 const txt = (v) => {

@@ -99,11 +99,14 @@ function buildGraduationRows(data, stats, rules) {
 // BIE-8, BIE-12, BIH-20, BIH-11, EBA-6 (EBA: 5 buổi theo Quy định + đủ 4 HW + Capstone): Tốt nghiệp = đủ số buổi tối thiểu (Quy định 003/2026; BIH-11 chưa có trong quy định → 9 buổi)
 // + làm đủ TẤT CẢ bài đã giao: mọi HW, mọi Mini Project (BIH) và Capstone Project.
 // Kết quả tự đổi khi tick HW / điểm danh đổi (tính lại mỗi lần mở trang); khi admin công bố thì kết quả được chốt vào enrollments.
-const AUTO_MIN_SESSIONS = { 'BIE-8': 6, 'BIE-12': 9, 'BIH-20': 16, 'BIH-11': 9, 'EBA-6': 5 };
+const AUTO_MIN_SESSIONS = { 'BIE-8': 6, 'BIE-12': 9, 'BIH-20': 16, 'BIH-11': 9, 'EBA-6': 5, 'EBA-8': 6 };   // EBA-8: lớp EBA thời 8 buổi (EBA069–073), chủ dự án chốt 6 buổi
 const AUTO_SOURCE = { 'BIH-11': 'chủ dự án (chưa có trong Quy định 003/2026)' };
 // Số HW tối đa được xét theo chương trình: BIE, BIH có HW1–HW5 (BIH: HW5 = Mini Project 3); EBA có HW1–HW4 + Capstone.
 // HW lớn hơn còn sót trong dữ liệu cũ không xét.
 const AUTO_HW_MAX = { BIE: 5, BIH: 5, EBA: 4 };
+// EBA: số HW CỐ ĐỊNH phải làm đủ (chủ dự án: "đủ 4 HW và 1 Capstone"; lớp cũ 8 buổi: 3 HW + Capstone) — HW chưa có tick nào vẫn bắt buộc,
+// khớp cột ELIGIBLE trong file "KHÓA EXCEL_ĐIỂM DANH HỌC VIÊN". BIE/BIH: chỉ xét bài đã giao.
+const AUTO_FIXED_HW = { 'EBA-6': 4, 'EBA-8': 3 };
 // Có điểm thì phải ≥ 6 (thang 10) mới tính là đã làm bài (chủ dự án chốt 18/10/2026); chưa có điểm thì dựa vào tick "Đã nộp".
 const PASS_SCORE = 6;
 function autoRulesFor(cur) {
@@ -111,7 +114,7 @@ function autoRulesFor(cur) {
   if (min == null) return null;
   return { status: 'auto', auto: true, curriculum_code: cur.code, source: 'curriculum', min_sessions: min,
     min_sessions_source: AUTO_SOURCE[cur.code] ?? SESSION_RULE_SOURCE, all_assignments: true, capstone: true, attendance_min: null,
-    hw_max: AUTO_HW_MAX[cur.program ?? String(cur.code).split('-')[0]] ?? 5, pass_score: PASS_SCORE };
+    hw_max: AUTO_HW_MAX[cur.program ?? String(cur.code).split('-')[0]] ?? 5, fixed_hw: AUTO_FIXED_HW[cur.code] ?? null, pass_score: PASS_SCORE };
 }
 
 // Tên bài hiển thị (BIH: HW5 chính là Mini Project 3 — khớp ASSIGNMENT_ALIASES trong public/js/class-filter.mjs)
@@ -130,8 +133,13 @@ function buildAutoRows(data, stats, rules, { scores = [], program, open = false 
   const scored = new Set(scoreOf.keys());
   const scoredAsg = new Set(scores.map((s) => s.assignment_id));
   const passScore = rules.pass_score ?? PASS_SCORE;
-  const required = data.assignments
-    .filter((a) => a.kind === 'capstone' || ((a.collected || scoredAsg.has(a.id)) && !(a.kind === 'hw' && a.seq > (rules.hw_max ?? 99))))
+  let base = data.assignments
+    .filter((a) => a.kind === 'capstone' || ((a.collected || scoredAsg.has(a.id)) && !(a.kind === 'hw' && a.seq > (rules.hw_max ?? 99))));
+  if (rules.fixed_hw) {   // EBA: luôn bắt buộc HW1..N + Capstone, kể cả bài chưa có trên web (coi như chưa làm)
+    const find = (kind, seq) => data.assignments.find((a) => a.kind === kind && a.seq === seq) ?? { id: `virtual-${kind}${seq}`, kind, seq };
+    base = [...Array.from({ length: rules.fixed_hw }, (_, i) => find('hw', i + 1)), find('capstone', 1)];
+  }
+  const required = base
     .map((a) => ({ ...a, name: assignmentName(a, program) }))
     .sort((a, b) => {
       const ra = a.name.startsWith('MP') ? 1 : KIND_RANK[a.kind]; const rb = b.name.startsWith('MP') ? 1 : KIND_RANK[b.kind];

@@ -1,7 +1,7 @@
 # DESIGN — Class Manager (Starttrain)
 
 Tài liệu thiết kế của webapp quản lý lớp học: **vì sao** hệ thống được dựng như vậy, dữ liệu chảy thế nào, quy tắc nào là bất biến.
-Cập nhật theo trạng thái ngày **18/10/2026** (171 test). Chi tiết cài đặt từng phần xem [Documents/3-ky-thuat/code-guide.md](Documents/3-ky-thuat/code-guide.md); nhật ký quyết định theo ngày xem [memory.md](memory.md).
+Cập nhật theo trạng thái ngày **18/10/2026** (173 test). Chi tiết cài đặt từng phần xem [Documents/3-ky-thuat/code-guide.md](Documents/3-ky-thuat/code-guide.md); nhật ký quyết định theo ngày xem [memory.md](memory.md).
 
 ---
 
@@ -318,7 +318,7 @@ flowchart LR
 
 ## 11. Kiểm thử
 
-171 test chạy trên Postgres trong bộ nhớ, **không** động tới Supabase. Nhóm chính: đăng nhập/phân quyền, điểm danh/bài tập và xung đột `expected`, đồng bộ Sheet (cột cho phép, chốt chặn, Potential, STATUS), điểm, tốt nghiệp, giai đoạn lớp, nhắc bài (quyền, ẩn danh), bảo mật đăng nhập, header CSP, nhập Excel không lọt cột tiền, sao lưu/khôi phục CSV, lịch (khai giảng/buổi học theo thứ học). Mỗi quy tắc bất biến ở mục 2 có ít nhất một test chặn hồi quy.
+173 test chạy trên Postgres trong bộ nhớ, **không** động tới Supabase. Nhóm chính: đăng nhập/phân quyền, điểm danh/bài tập và xung đột `expected`, đồng bộ Sheet (cột cho phép, chốt chặn, Potential, STATUS), điểm, tốt nghiệp, giai đoạn lớp, nhắc bài (quyền, ẩn danh), bảo mật đăng nhập, header CSP, nhập Excel không lọt cột tiền, sao lưu/khôi phục CSV, lịch (khai giảng/buổi học theo thứ học). Mỗi quy tắc bất biến ở mục 2 có ít nhất một test chặn hồi quy.
 
 ---
 

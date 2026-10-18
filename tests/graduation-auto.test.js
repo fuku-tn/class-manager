@@ -130,3 +130,18 @@ test('có điểm thì phải ≥ 6 mới tính là làm bài; HW6 trở đi kh�
   assert.deepEqual([by.A1.result, by.A1.hw_pool], ['passed', 6]);
   await t.db.run('delete from assignments where id = $1', [hw6.id]);
 });
+
+test('EBA: luôn bắt buộc đủ HW1–HW4 + Capstone (EBA-8: HW1–HW3), kể cả bài chưa có tick nào', () => {
+  const rules = grad.autoRulesFor({ code: 'EBA-6', program: 'EBA' });
+  assert.deepEqual([rules.min_sessions, rules.fixed_hw], [5, 4]);
+  assert.deepEqual([grad.autoRulesFor({ code: 'EBA-8', program: 'EBA' }).min_sessions, grad.autoRulesFor({ code: 'EBA-8', program: 'EBA' }).fixed_hw], [6, 3]);
+  const data = {
+    assignments: [{ id: 1, kind: 'hw', seq: 1, collected: true }, { id: 2, kind: 'hw', seq: 2, collected: false }, { id: 9, kind: 'capstone', seq: 1, collected: true }],
+    submissions: [{ enrollment_id: 10, assignment_id: 1, status: 'submitted' }, { enrollment_id: 10, assignment_id: 9, status: 'submitted' }],
+    enrollments: [{ id: 10, student_code: 'E1', course_status: 'active' }],
+  };
+  const stats = new Map([[10, { attended: 6, excused: 0, held: 6, sessions_total: 6, attendance_rate: 1 }]]);
+  const [r] = grad.buildAutoRows(data, stats, rules, { program: 'EBA' }).map((x) => ({ ...x, result: x.auto.result }));
+  assert.equal(r.result, 'failed');
+  assert.deepEqual([r.hw_pool, r.missing], [5, ['HW2', 'HW3', 'HW4']]);   // HW2 chưa giao, HW3–4 chưa có trên web: vẫn bắt buộc
+});
