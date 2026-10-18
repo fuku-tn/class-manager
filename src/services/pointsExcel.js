@@ -58,4 +58,25 @@ async function readPointTransform(file, { tableName = TABLE_NAME } = {}) {
   return { headers: cols.map((x) => x.name), rows, sheet: ws.name, ref };
 }
 
-module.exports = { readPointTransform, TABLE_NAME, parseRef, cellValue };
+// Ảnh chụp toàn bộ điểm hiện có trong database, cùng 5 cột như Point_Transform (StudentID, Course, HW, Point, Module) —
+// dùng làm bản sao lưu trước mỗi lần nhập; nạp lại được bằng chính importPoints (npm run import-points -- <file.csv>).
+async function snapshotScores(db) {
+  const rows = await db.all(
+    `select s.student_code, c.short_code, a.kind, a.seq, hs.score::float8 as score, hs.module
+       from homework_scores hs
+       join enrollments e on e.id = hs.enrollment_id join students s on s.id = e.student_id
+       join classes c on c.id = e.class_id join assignments a on a.id = hs.assignment_id
+      order by c.short_code, s.student_code, case a.kind when 'hw' then 0 when 'mini' then 1 else 2 end, a.seq`);
+  const label = (r) => (r.kind === 'capstone' ? 'Capstone Project' : r.kind === 'mini' ? `Mini Project ${r.seq}` : `HW${r.seq}`);
+  return { headers: [...POINT_SYNC_COLUMNS.slice(0, 5)], rows: rows.map((r) => [r.student_code, r.short_code, label(r), r.score, r.module]) };
+}
+
+// Đọc bản sao lưu CSV (hoặc CSV bất kỳ có các cột trên) thành { headers, rows } cho importPoints; chỉ giữ cột cho phép.
+function readPointsCsv(text) {
+  const { parseCsv } = require('./backup');
+  const { columns, rows } = parseCsv(text);
+  const keep = columns.map((c) => ({ c, name: norm(c) })).filter((x, i, arr) => POINT_SYNC_COLUMNS.includes(x.name) && arr.findIndex((y) => y.name === x.name) === i);
+  return { headers: keep.map((x) => x.name), rows: rows.map((r) => keep.map((x) => r[x.c])) };
+}
+
+module.exports = { readPointTransform, snapshotScores, readPointsCsv, TABLE_NAME, parseRef, cellValue };
