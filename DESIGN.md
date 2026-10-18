@@ -1,7 +1,7 @@
 # DESIGN — Class Manager (Starttrain)
 
 Tài liệu thiết kế của webapp quản lý lớp học: **vì sao** hệ thống được dựng như vậy, dữ liệu chảy thế nào, quy tắc nào là bất biến.
-Cập nhật theo trạng thái ngày **14/10/2026** (152 test). Chi tiết cài đặt từng phần xem [Documents/3-ky-thuat/code-guide.md](Documents/3-ky-thuat/code-guide.md); nhật ký quyết định theo ngày xem [memory.md](memory.md).
+Cập nhật theo trạng thái ngày **18/10/2026** (159 test). Chi tiết cài đặt từng phần xem [Documents/3-ky-thuat/code-guide.md](Documents/3-ky-thuat/code-guide.md); nhật ký quyết định theo ngày xem [memory.md](memory.md).
 
 ---
 
@@ -52,7 +52,7 @@ flowchart LR
     API[Express API<br/>src/create-app.js]
     STATIC[public/ — SPA thuần]
   end
-  DB[(Supabase Postgres<br/>RLS bật, không policy)]
+  DB[(Supabase Postgres - Seoul<br/>RLS bật, không policy)]
   RT[Supabase Realtime<br/>Broadcast - chỉ tín hiệu]
   U[Trình duyệt<br/>admin / giảng viên / khách]
 
@@ -140,6 +140,8 @@ Vắng có phép **không làm giảm** tỉ lệ; mẫu số ≤ 0 thì không 
 | Điểm trung bình | trung bình cộng các điểm thang 10, làm tròn 2 chữ số (`averageScore`) |
 | Học viên cần chú ý | chuyên cần < 80% **hoặc** thiếu ≥ 2 HW (ngưỡng đổi được bằng biến môi trường) |
 
+Hiển thị: trang Bài tập đặt **điểm ngay trong ô HW** (dấu trạng thái + điểm); màu ô chỉ theo trạng thái nộp, **không** tô theo mức điểm vì quy tắc xếp loại của Quy định 003/2026 chưa áp dụng. Khách không thấy điểm.
+
 ### 5.3 Giai đoạn của lớp (`timing.js`, múi giờ Việt Nam)
 ```mermaid
 stateDiagram-v2
@@ -178,7 +180,16 @@ stateDiagram-v2
 
 Đổi nhãn (Đã cọc → Đã thanh toán…) ghi sự kiện `sheet_status`. Chỉ **nhãn** được lưu, tuyệt đối không có số tiền. Người đã có kết quả tốt nghiệp/chứng chỉ không bị tự xóa.
 
-### 5.6 Nhắc bài
+### 5.6 Lịch khai giảng và giảng dạy (`#/schedule`, `classEventOn` trong `class-filter.mjs`)
+| Sự kiện | Quy tắc |
+|---|---|
+| Khai giảng | ngày `start_date` của lớp |
+| Buổi học | ngày trong khoảng (`start_date`, `end_date`] trùng thứ học `days_of_week` (cột DAYS OF WEEK: "24" = T2, T4; "78" = T7, CN; 8 = CN; chữ cái đứng trước như S/T hiện bỏ qua) |
+| Bế giảng · giảng viên từng buổi | chưa có dữ liệu (chủ dự án sẽ gửi Sheet phân công) |
+
+Hiển thị dạng **lịch tháng** (đủ mọi ngày, tuần từ T2), bấm ngày xem thẻ chi tiết; mọi tài khoản xem được, mỗi người chỉ thấy lớp mình có quyền. `sessions.session_date` hiện trống nên buổi học được **suy** từ thứ học, chưa phải lịch thật từng buổi.
+
+### 5.7 Nhắc bài
 Thẻ PNG tiến độ từng học viên (vẽ canvas ở trình duyệt), tin nhắn mẫu theo 3 trường hợp (còn thiếu / đã đủ / chưa làm), tổng quan lớp **không có tên** (gộp nhóm nhỏ theo ngưỡng ẩn danh). Tin nhắn/ảnh/chế độ chụp chỉ cho người có quyền; người khác chỉ thấy thẻ tiến độ của từng học viên.
 
 ---
@@ -281,7 +292,7 @@ Việc ngoài code (bật 2FA GitHub/Vercel/Supabase, sao lưu): xem [Documents/
 - Bỏ `background-attachment: fixed` và `backdrop-filter: blur` (nguyên nhân giật khi cuộn trên máy yếu).
 - Biểu đồ: số ghi thẳng lên cột bằng plugin tự viết, không thêm thư viện.
 
-**Hiệu năng máy chủ.** Truy vấn chính < 30 ms (Vercel `hnd1` cùng vùng Supabase Tokyo); nạp nhiều dòng bằng `unnest`; ghi nhiều lệnh liên quan trong một transaction.
+**Hiệu năng máy chủ.** Database ở Seoul (`ap-northeast-2`, từ 14/10/2026 sau sự cố), Vercel vẫn ở Tokyo (`hnd1`) → mỗi truy vấn thêm khoảng 30 ms đi về; nên chuyển Vercel sang Seoul (`icn1`, xem mục 13); nạp nhiều dòng bằng `unnest`; ghi nhiều lệnh liên quan trong một transaction.
 
 ---
 
@@ -298,13 +309,14 @@ flowchart LR
 1. Đổi schema → sửa hai file schema → viết migration → **chạy migration trên Supabase** → `npm test` → đẩy code.
 2. Quy tắc đẩy: quét bí mật trong diff (mật khẩu, chuỗi kết nối, token), không có file dữ liệu thật; sau khi Vercel chạy kiểm `/api/health/db`.
 3. Biến môi trường quan trọng: `DATABASE_URL`, `SYNC_TOKEN`, `SUPABASE_URL` + khóa publishable (realtime), `REALTIME_SECRET` (tùy chọn).
+5. **Sao lưu** ([backup.md](Documents/4-van-hanh/backup.md)): Task Scheduler trên máy chủ dự án chạy 12:00 và 18:00 mỗi ngày → CSV trong `private-data/backups/` (**giữ 3 bản mới nhất**, bản cũ tự xóa) + chép toàn bộ sang project Supabase dự phòng (Singapore, `--mirror`, có chốt chặn không ghi vào database chính). Khôi phục chỉ vào database trống.
 4. Giới hạn nền tảng: thân yêu cầu ≤ ~4,5MB (Vercel), Apps Script ~90 phút trigger/ngày, giao diện tải thư viện từ chính domain.
 
 ---
 
 ## 11. Kiểm thử
 
-152 test chạy trên Postgres trong bộ nhớ, **không** động tới Supabase. Nhóm chính: đăng nhập/phân quyền, điểm danh/bài tập và xung đột `expected`, đồng bộ Sheet (cột cho phép, chốt chặn, Potential, STATUS), điểm, tốt nghiệp, giai đoạn lớp, nhắc bài (quyền, ẩn danh), bảo mật đăng nhập, header CSP, nhập Excel không lọt cột tiền. Mỗi quy tắc bất biến ở mục 2 có ít nhất một test chặn hồi quy.
+159 test chạy trên Postgres trong bộ nhớ, **không** động tới Supabase. Nhóm chính: đăng nhập/phân quyền, điểm danh/bài tập và xung đột `expected`, đồng bộ Sheet (cột cho phép, chốt chặn, Potential, STATUS), điểm, tốt nghiệp, giai đoạn lớp, nhắc bài (quyền, ẩn danh), bảo mật đăng nhập, header CSP, nhập Excel không lọt cột tiền, sao lưu/khôi phục CSV, lịch (khai giảng/buổi học theo thứ học). Mỗi quy tắc bất biến ở mục 2 có ít nhất một test chặn hồi quy.
 
 ---
 
@@ -322,6 +334,9 @@ flowchart LR
 | Giới hạn đăng nhập sai lưu trong DB | Serverless không chia sẻ bộ nhớ giữa các instance | Thêm vài truy vấn mỗi lần đăng nhập |
 | `<select>` ô điểm danh tạo theo yêu cầu | Giảm 70% node DOM bảng lớn | Cần thêm xử lý bàn phím (Enter) |
 | Quy tắc số buổi tốt nghiệp là bảng cố định trong code | Là văn bản chính thức, hiếm đổi | Đổi quy định phải sửa code và phát hành |
+| Điểm hiện trong ô bài tập thay vì mục riêng | Chủ dự án thấy điểm ở mục dưới khó theo dõi | Ô rộng hơn; có nút chuyển "Chỉ điểm/Chỉ trạng thái" khi cần gọn |
+| Lịch suy buổi học từ thứ học | Chưa có ngày thật từng buổi | Lệch nếu lớp nghỉ lễ/học bù; sẽ thay bằng Sheet phân công khi có |
+| Sao lưu trên máy chỉ giữ 3 bản | Chủ dự án chọn: ít dữ liệu cá nhân tồn trên máy | Lỗi phát hiện sau ~1,5 ngày không còn bản cũ hơn; trước thay đổi lớn nên tạo bản giữ riêng |
 | Frontend thuần, không framework | Ít phụ thuộc, dễ bảo trì bởi ít người | Tự quản lý trạng thái/DOM ở các trang phức tạp |
 
 ---
@@ -335,7 +350,9 @@ flowchart LR
 | Tên buổi/module cho EBA, PBM | Chờ file `session-management` |
 | 7 lớp BIE cũ 12 buổi đã chuyển BIE-12; vài lớp lệch số buổi so với quy định (BIH-20 có 22 buổi, PBM 11 buổi) | Cần chủ dự án rà |
 | Đăng nhập 2 lớp (2FA) trong app, chống CSRF theo Origin | Chưa làm; đã bật khuyến nghị 2FA cho tài khoản GitHub/Vercel/Supabase |
-| Vùng máy chủ | Tokyo; có thể chuyển Singapore (lợi khoảng 40–60 ms/lượt) — đang hoãn |
+| Vùng máy chủ | Database đã sang Seoul (14/10/2026), Vercel còn Tokyo `hnd1` → đề xuất đổi `vercel.json` sang `icn1` (chưa làm, chờ chủ dự án đồng ý) |
+| Lịch: bế giảng, giảng viên từng buổi, nghĩa chữ S/T trong "S78/T78" | Chờ chủ dự án gửi |
+| Thứ học (`days_of_week`) | Cột đã có; cần chủ dự án dán lại `sync-transactions.gs` mới thì lịch mới có buổi học |
 | Vai trò "phó admin" | Chưa có; hiện dùng cờ năng lực theo từng người |
 | Học viên không có tài khoản | Không có cổng cho học viên tự xem tiến độ |
 

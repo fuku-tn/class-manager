@@ -31,7 +31,7 @@ users ─< class_instructors >─ classes ─< sessions
 | `submissions` | `status` ∈ submitted/resubmit/missing, `challenge`, `note` |
 | `users`, `auth_sessions` | Tài khoản + phiên đăng nhập (băm SHA-256 của token) |
 | `curricula`, `curriculum_items` | Mẫu giáo trình (BIE-8…): mỗi dòng item = module/công cụ/giờ/nội dung của một buổi |
-| `classes` (mở rộng) | `short_code`, `program`, `delivery_mode`, `shift`, `end_date`, `next_short_code`, `curriculum_id` |
+| `classes` (mở rộng) | `short_code`, `program`, `delivery_mode`, `shift`, `end_date`, `next_short_code`, `curriculum_id`, `days_of_week` (cột DAYS OF WEEK) |
 | `students.gender`, `enrollments.registration_source`, `enrollments.carried_over` | Nguồn: Transactions. Không có cột tiền |
 
 Chỉ mục: ngoài khóa duy nhất còn `idx_enrollments_class/student`, `idx_attendance_session`, `idx_submissions_assignment`, `idx_class_instructors_user`, `idx_auth_sessions_user`, `idx_classes_curriculum`.
@@ -151,7 +151,7 @@ Biến môi trường: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` (hoặc `NEXT_
   create policy "đọc theo lớp được phân" on enrollments for select using (
     exists (select 1 from class_instructors ci where ci.class_id = enrollments.class_id and ci.user_id = auth.uid()));
   ```
-- Hiệu năng: mỗi truy vấn tới Supabase (vùng Tokyo) ~50-100ms → gom truy vấn (`Promise.all`, `unnest`, `returning`) thay vì lặp từng dòng.
+- Hiệu năng: mỗi truy vấn tới Supabase (vùng Seoul từ 14/10/2026; Vercel ở Tokyo) ~50-100ms → gom truy vấn (`Promise.all`, `unnest`, `returning`) thay vì lặp từng dòng.
 - Sao lưu: bật backup trong Supabase (gói Free chỉ có sao lưu hằng ngày hạn chế; PITR cần gói trả phí).
 - Lịch sử: bản SQLite cũ ở `legacy/` (xem [Archive.md](../../Archive.md)).
 

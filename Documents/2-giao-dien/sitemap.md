@@ -11,6 +11,7 @@ flowchart TD
   L["Đăng nhập<br/>(chưa có phiên)"] --> H
 
   H["Trang chủ<br/>#/"]
+  H --> SC["Lịch<br/>#/schedule"]
   H --> CL["Chọn lớp<br/>(thẻ lớp / bộ chọn trên thanh)"]
   CL --> C
 

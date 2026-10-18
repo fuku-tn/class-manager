@@ -6,7 +6,7 @@ Xem thêm: [sitemap.md](sitemap.md) · [user-flow.md](user-flow.md).
 **Ký hiệu:** `[Nút]` · `(____)` ô nhập · `[v]` danh sách thả · `▮` thanh/biểu đồ · `★` nhấn mạnh · `░` vùng mờ/nền.
 
 ## Mục lục
-0. Khung chung (thanh trên) · 1. Đăng nhập · 2. Trang chủ · 3. Dashboard · 4. Học viên · 5. Điểm danh · 6. Bài tập + Điểm · 7. Tốt nghiệp · 8. Nhắc bài · 9. Potential · 10. Lớp học · 11. Người dùng · 12. Nhập Excel · 13. Khảo sát · 14. Hộp thoại · 15. Điện thoại
+0. Khung chung (thanh trên) · 1. Đăng nhập · 2. Trang chủ · 2b. Lịch · 3. Dashboard · 4. Học viên · 5. Điểm danh · 6. Bài tập + Điểm · 7. Tốt nghiệp · 8. Nhắc bài · 9. Potential · 10. Lớp học · 11. Người dùng · 12. Nhập Excel · 13. Khảo sát · 14. Hộp thoại · 15. Điện thoại
 
 ---
 
@@ -14,7 +14,7 @@ Xem thêm: [sitemap.md](sitemap.md) · [user-flow.md](user-flow.md).
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────────────────────┐
-│ [LOGO] Starttrain     🏠 Trang chủ  ▦ Dashboard  👥 Học viên  📅 Điểm danh  📄 Bài tập        │
+│ [LOGO] Starttrain     🏠 Trang chủ  🗓 Lịch  ▦ Dashboard  👥 Học viên  📅 Điểm danh  📄 Bài tập │
 │        THE NEXT ANALYST  🎓 Tốt nghiệp  🔔 Nhắc bài  ➕ Potential     [BIE 101 ▾] 🛡 ⬇ 💬  ☀   (A) 🔑 ⎋ │
 ├──────────────────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                              │
@@ -22,7 +22,7 @@ Xem thêm: [sitemap.md](sitemap.md) · [user-flow.md](user-flow.md).
 │                                                                                              │
 └──────────────────────────────────────────────────────────────────────────────────────────────┘
  Các tab hiện theo quyền (xem sitemap §3). 🛡 Lớp học · ⬇ Nhập Excel · 💬 Khảo sát (admin).
- Dưới 1300px: chỉ biểu tượng. Dưới 900px: thanh tab xuống hàng riêng, cuộn ngang.
+ Thanh chật (tự đo): chỉ biểu tượng; rê chuột hiện chú thích nổi (tên mục + mô tả, theo theme). Dưới 900px: thanh tab xuống hàng riêng, cuộn ngang.
 ```
 
 ---
@@ -83,6 +83,33 @@ Xem thêm: [sitemap.md](sitemap.md) · [user-flow.md](user-flow.md).
 └──────────────────────────────────────────────────────────────────────────────┘
  Bấm thẻ lớp → Dashboard của lớp đó.
 ```
+
+---
+
+## 2b. Lịch (`#/schedule`)
+
+```
+┌ [Thanh trên] ───────────────────────────────────────────────────────────────────┐
+│ ‹ Tháng 10/2026 ›  (Hôm nay)   LỊCH KHAI GIẢNG & GIẢNG DẠY  [Mọi chương trình ▾] [🗓 CHỌN THÁNG ▾] │
+│ ■ Khai giảng  ■ Buổi học theo thứ học  · Bấm một ngày để xem chi tiết           │
+│ ┌──T2──┬──T3──┬──T4──┬──T5──┬──T6──┬──T7──┬──CN──┐                               │
+│ │    28│    29│    30│     1│     2│     3│     4│  ← ngày ngoài tháng làm mờ      │
+│ │      │      │      │•Tối  │      │•Sáng │•Sáng │                               │
+│ │      │      │      │ EBA… │      │ BIE… │ +1 lớp│                              │
+│ │ …    │      │ (14) │      │      │      │      │  ← hôm nay: số trong vòng vàng │
+│ └──────┴──────┴──────┴──────┴──────┴──────┴──────┘                               │
+│ 3 lớp học trong tháng chưa có thứ học: [EBA119] [BIH103] …                      │
+└──────────────────────────────────────────────────────────────────────────────────┘
+┌ Thứ 4, 14/10/2026 · 2 lớp ──────────────────────────────────────────────────────┐
+│ ┌ Tối      [KHAI GIẢNG] ┐ ┌ Chiều                ┐  ← bấm thẻ mở Dashboard lớp    │
+│ │ EBA 125               │ │ BIH 103              │                                │
+│ │ Excel for Business…   │ │ …                    │                                │
+│ │ 👥 Online · B2C        │ │ 👥 Offline · B2C     │                                │
+│ │ 🗓 Thứ học: T2, T4     │ │ GV: chờ phân công    │                                │
+│ └───────────────────────┘ └──────────────────────┘                                │
+└──────────────────────────────────────────────────────────────────────────────────┘
+```
+Điện thoại: ô ngày chỉ hiện chấm màu; chi tiết xem ở khung dưới.
 
 ---
 

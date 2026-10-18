@@ -30,12 +30,10 @@ Cập nhật file này mỗi khi chốt quyết định mới. Mục lỗi thờ
 
 ## Việc còn dở / ý tưởng
 
-- [ ] Thêm nút "Đổi mật khẩu" trên giao diện để giảng viên tự đổi mật khẩu cấp ban đầu.
 - [ ] Xác nhận lớp dùng mẫu BIE-12 theo sheet: BIE068, 075 (B075), 078, 081, 085, 090, 092, 102 (đã đổi theo tên sheet, thay quy tắc mặc định BIE-8).
-- [ ] Chương trình chưa có giáo trình (EBA, SIA/SCA, PBM, DDM, SQL...): 86 lớp chưa có buổi học → chưa điểm danh được. Cần giáo trình hoặc số buổi mặc định (Form gợi ý EBA 6, SIA 8, PBM 10).
+- [ ] Số buổi chuẩn còn thiếu: DDM, SQL, BSM, DBC, WKS (EBA 6, PBM 10, BIE 8/12 đã chốt 13/10/2026).
 - [x] 2026-10-10: gán **cả 124 lớp** cho 3 giảng viên (Thuận, Trung, Tuấn) theo yêu cầu chủ dự án. Lớp tạo/nhập mới về sau **không tự gán** — admin phân ở trang Người dùng (hoặc làm tự động nếu muốn).
 - [ ] Bài tập (HW/Capstone) chỉ có ở P101/P104; chưa có giao diện thêm bài tập cho lớp khác.
-- [ ] Bước tiếp: Form → đăng ký "chờ xác nhận" trong app; đồng bộ Sheet Transactions tự động (Apps Script đẩy hoặc service account đọc, chỉ các cột cho phép); Company.
 - [ ] Rà báo cáo trùng lặp (`data/bao-cao-trung-lap.csv`, chỉ máy bạn): 1 email 2 mã, 7 mã nhiều email, 2 SĐT 2 mã.
 - [ ] Thêm `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` vào Vercel (Production) để bật realtime, rồi Redeploy.
 - [ ] Kiểm tra bản Vercel sau mỗi lần đẩy (đặc biệt sau khi thêm CSP): đăng nhập, Home, điểm danh realtime, biểu đồ.
@@ -43,8 +41,11 @@ Cập nhật file này mỗi khi chốt quyết định mới. Mục lỗi thờ
 - [ ] Đổi mật khẩu tài khoản admin tạm (hỏi chủ dự án; không ghi mật khẩu vào repo) hoặc tạo admin riêng bằng `npm run create-admin`.
 - [ ] Chủ dự án xác nhận các giả định ở trên (đặc biệt #1, #4, #5).
 - [ ] Giao diện đã kiểm bằng Edge headless (13 bước, không vi phạm CSP); còn cần chủ dự án thử thao tác thật trên bản Vercel (bấm ô điểm danh nhiều người cùng lúc, hộp thoại, đổi sáng/tối).
-- [ ] Upload Excel trực tiếp trên web (hiện chỉ có CLI `npm run import`).
 - [ ] Thêm tab xem chi tiết 1 học viên (lịch sử điểm danh/HW qua các lớp).
+- [ ] **Chờ chủ dự án gửi:** ngày bế giảng; Sheet phân công giảng viên từng buổi; nghĩa chữ S/T trong "S78/T78"; quy trình xếp loại theo điểm (Quy định 003/2026).
+- [ ] Chủ dự án dán lại `scripts/google-apps-script/sync-transactions.gs` (có DAYS OF WEEK) vào Apps Script Sheet PERSONAL → lịch mới hiện buổi học (hiện mọi lớp `days_of_week` trống).
+- [ ] Đề xuất: đổi `vercel.json` `regions` từ `hnd1` (Tokyo) sang `icn1` (Seoul) cho cùng vùng database mới — chờ chủ dự án đồng ý.
+- [ ] Tùy chọn bảo mật còn lại: 2FA trong app, kiểm tra Origin chống CSRF, `npm audit` cho exceljs.
 
 ## Nhật ký những gì đã làm
 

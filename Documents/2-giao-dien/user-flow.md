@@ -14,6 +14,7 @@ Xem thêm: [sitemap.md](sitemap.md) · [wireframe.md](wireframe.md) · [../DESIG
 8. [Admin: xử lý cảnh báo và nhập dữ liệu](#8-admin-xử-lý-cảnh-báo-và-nhập-dữ-liệu)
 9. [Admin: quản lý người dùng và quyền](#9-admin-quản-lý-người-dùng-và-quyền)
 10. [Khách: chỉ xem](#10-khách-chỉ-xem)
+11. [Xem lịch khai giảng và giảng dạy](#11-xem-lịch-khai-giảng-và-giảng-dạy)
 
 ---
 
@@ -83,13 +84,14 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A[Tab Bài tập] --> B[Bảng học viên × bài]
+  A[Tab Bài tập] --> F{Lớp có điểm?}
+  F -- Có --> G["Ô HW hiện dấu trạng thái + điểm · thẻ Điểm TB cả lớp · cột Điểm TB"]
+  F -- Chưa --> B[Bảng học viên × bài, chỉ trạng thái]
+  G --> M["Chọn: Trạng thái + điểm / Chỉ điểm / Chỉ trạng thái"]
+  G --> S["Bấm tiêu đề Điểm TB → sắp cao→thấp / thấp→cao / theo tên"]
+  G --> C
   B --> C[Bấm ô → Đã nộp / Nộp lại / Thiếu / ★ Challenge / ghi chú]
   C --> D[Tiến độ HW % của học viên tự cập nhật]
-  A --> E[Mở mục 'Điểm bài tập']
-  E --> F{Lớp có điểm?}
-  F -- Có --> G[Xem điểm từng HW, Module, Điểm TB học viên, TB lớp]
-  F -- Chưa --> H["Thông báo: điểm đồng bộ từ Google Sheet bảng điểm"]
 ```
 
 Điểm đến từ **Google Sheet bảng điểm** (tự đồng bộ), giảng viên **không nhập tay** trên web. Điểm không làm đổi trạng thái nộp bài.
@@ -210,3 +212,22 @@ flowchart LR
   B --> C[Chỉ xem: nút ghi bị ẩn · máy chủ từ chối mọi thao tác ghi]
   B -. không có .-> D["Nhắc bài · Potential · Điểm · Quản trị"]
 ```
+
+---
+
+## 11. Xem lịch khai giảng và giảng dạy
+
+**Ai:** mọi tài khoản (mỗi người chỉ thấy lớp mình có quyền) · **Mục tiêu:** biết hôm nào lớp nào khai giảng, hôm nào lớp nào học.
+
+```mermaid
+flowchart TD
+  A[Thanh trên → 🗓 Lịch] --> B[Lịch tháng hiện tại, hôm nay tô vàng]
+  B --> C["‹ › chuyển tháng · Chọn tháng (kèm số lớp khai giảng) · lọc chương trình"]
+  B --> D[Bấm một ngày]
+  D --> E["Khung dưới: thẻ từng lớp (ca, chương trình, hình thức, B2C/B2B, thứ học)"]
+  E --> F[Bấm thẻ → Dashboard lớp]
+  B --> G{Lớp chưa có thứ học?}
+  G -- Có --> H["Chỉ hiện ngày khai giảng; tên lớp liệt kê dưới lịch"]
+```
+
+Bế giảng và giảng viên từng buổi: chờ chủ dự án gửi dữ liệu.
