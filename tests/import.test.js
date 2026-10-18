@@ -211,3 +211,25 @@ test('nhập: báo lỗi rõ khi không có sheet điểm danh nào', async () =
   await assert.rejects(importExcel(db, file), /Không tìm thấy sheet điểm danh/);
   await db.close();
 });
+
+test('nhập: --classes chỉ nhập lớp được chọn; BIH073 lấy PROJECT 1 làm Capstone; BIE/BIH không tạo cột HW6+ trống', async () => {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('BIH');
+  ws.getRow(5).values = ['STUDENT ID', 'FULL NAME', 'COURSE ID', 'SESSION 1', 'NOTE SS1', 'HOMEWORK 1', 'HOMEWORK 6', 'PROJECT 1', 'CAPSTONE PROJECT'];
+  ws.getRow(6).values = ['P.731', 'Học viên 73', 'P2.BIH.P073.HY.EE.300625', 'X', null, 'X', null, 'X', null];
+  ws.getRow(7).values = ['P.732', 'Học viên 73b', 'P2.BIH.P073.HY.EE.300625', 'X', null, null, null, null, null];
+  ws.getRow(8).values = ['P.821', 'Học viên 82', 'P2.BIH.P082.HY.EE.010725', 'X', null, 'X', null, 'X', 'X'];
+  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'att-')), 'bih.xlsx');
+  await wb.xlsx.writeFile(file);
+  const db = await openDb({ memory: true });
+  await db.run("insert into classes (code, name, short_code, program) values ('P2.BIH.P073.HY.EE.300625','BIH073','BIH073','BIH'), ('P2.BIH.P082.HY.EE.010725','BIH082','BIH082','BIH')");
+  const r = await importExcel(db, file, { classes: ['BIH073'] });
+  assert.deepEqual(r.classes.map((c) => c.class_code), ['P2.BIH.P073.HY.EE.300625']);       // BIH082 không bị đụng
+  assert.equal((await db.one("select count(*)::int n from enrollments e join classes c on c.id = e.class_id where c.short_code = 'BIH082'")).n, 0);
+  const asg = await db.all("select a.kind, a.seq from assignments a join classes c on c.id = a.class_id where c.short_code = 'BIH073' order by 1, 2");
+  assert.deepEqual(asg, [{ kind: 'capstone', seq: 1 }, { kind: 'hw', seq: 1 }]);              // không có HW6 trống
+  const cap = await db.all(`select s.student_code, b.status from submissions b join assignments a on a.id = b.assignment_id
+    join enrollments e on e.id = b.enrollment_id join students s on s.id = e.student_id where a.kind = 'capstone' order by 1`);
+  assert.deepEqual(cap, [{ student_code: 'P.731', status: 'submitted' }, { student_code: 'P.732', status: 'missing' }]);
+  await db.close();
+});

@@ -1,4 +1,4 @@
-// Dùng: npm run import -- <file.xlsx> [--dry-run] [--sheets "BIE-8,BIE-12"]
+// Dùng: npm run import -- <file.xlsx> [--dry-run] [--sheets "BIE-8,BIE-12"] [--classes "BIH073,BIE101"]
 // Mặc định: mọi sheet đang HIỆN có cột SESSION n (bỏ qua sheet ẩn). --dry-run: chạy thử rồi hoàn tác.
 // Quy tắc ô: X = đi học · O = vắng có phép · trống = vắng. KHÔNG đọc cột voucher/tiền.
 const path = require('node:path');
@@ -9,7 +9,9 @@ const args = process.argv.slice(2);
 const dryRun = args.includes('--dry-run');
 const si = args.indexOf('--sheets');
 const sheets = si >= 0 ? String(args[si + 1] || '').split(',').map((s) => s.trim()).filter(Boolean) : null;
-const file = args.find((a, i) => !a.startsWith('--') && args[i - 1] !== '--sheets');
+const ci = args.indexOf('--classes');
+const classes = ci >= 0 ? String(args[ci + 1] || '').split(',').map((s) => s.trim().toUpperCase()).filter(Boolean) : null;
+const file = args.find((a, i) => !a.startsWith('--') && args[i - 1] !== '--sheets' && args[i - 1] !== '--classes');
 if (!file) {
   console.error('Dùng: npm run import -- <file.xlsx> [--dry-run] [--sheets "BIE-8,BIE-12"]');
   process.exit(1);
@@ -17,7 +19,7 @@ if (!file) {
 (async () => {
   const db = await openDb();
   try {
-    const r = await importExcel(db, path.resolve(file), { dryRun, sheets });
+    const r = await importExcel(db, path.resolve(file), { dryRun, sheets, classes });
     const pad = (v, n) => String(v).padEnd(n);
     console.log(`${pad('Sheet', 8)}${pad('Lớp', 28)}${pad('HV', 5)}${pad('Buổi', 6)}${pad('Có mặt', 8)}${pad('Trễ', 5)}${pad('Có phép', 9)}${pad('Vắng', 6)}${pad('Giữ từ app', 11)}Ghi chú`);
     const total = { students: 0, new_students: 0, present: 0, late: 0, excused: 0, absent: 0, submissions: 0, kept_from_app: 0, sessions_created: 0 };

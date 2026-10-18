@@ -12,7 +12,9 @@ const ExcelJS = require('exceljs');
 const { logEvents } = require('./history');
 
 const ALLOWED_FIXED = ['STUDENT ID', 'CUSTOMER ID', 'FULL NAME', 'EMAIL', 'PHONE', 'COURSE ID', 'MODE', 'COURSE STATUS', 'CERTIFICATE STATUS', 'FORM'];
-const ALLOWED_PATTERNS = [/^SESSION \d+$/, /^NOTE SS\d+$/, /^HOMEWORK \d+$/, /^NOTE HW\d+$/, /^CAPSTONE PROJECT$/, /^NOTE CP$/];
+const ALLOWED_PATTERNS = [/^SESSION \d+$/, /^NOTE SS\d+$/, /^HOMEWORK \d+$/, /^NOTE HW\d+$/, /^CAPSTONE PROJECT$/, /^NOTE CP$/, /^PROJECT \d+$/, /^NOTE PROJECT \d+$/];
+// Lớp cũ mà cột Capstone nằm ở cột khác (chủ dự án chốt 18/10/2026): BIH073 — "PROJECT 1" lúc đó tương đương Capstone Project.
+const CAPSTONE_COLUMN = { BIH073: ['PROJECT 1', 'NOTE PROJECT 1'] };
 const isAllowedHeader = (k) => ALLOWED_FIXED.includes(k) || ALLOWED_PATTERNS.some((re) => re.test(k));
 const STUDENT_ID_RE = /^[A-Za-z]\.\d+$/; // P.13027, B.00312
 
@@ -107,7 +109,7 @@ async function importClass(t, { code, sheet, col, rows: allRows }, ctx) {
 
   // Lớp (đã có từ sheet Course) và số buổi theo giáo trình
   const findClass = (field, value) => t.one(
-    `select c.id, c.code, c.curriculum_id, cu.session_count from classes c left join curricula cu on cu.id = c.curriculum_id where c.${field} = $1`, [value]);
+    `select c.id, c.code, c.short_code, c.curriculum_id, cu.session_count from classes c left join curricula cu on cu.id = c.curriculum_id where c.${field} = $1`, [value]);
   let cls = await findClass('code', code);
   if (!cls) {
     // Mã đầy đủ lệch (vd P088 ↔ B088): khớp theo mã ngắn BIE088
@@ -166,10 +168,14 @@ async function importClass(t, { code, sheet, col, rows: allRows }, ctx) {
 
   // Bài tập
   const hwNos = Object.keys(col).map((k) => /^HOMEWORK (\d+)$/.exec(k)?.[1]).filter(Boolean).map(Number).sort((a, b) => a - b);
-  const hasCapstone = !!col['CAPSTONE PROJECT'];
+  const [capKey, capNote] = CAPSTONE_COLUMN[cls.short_code] ?? ['CAPSTONE PROJECT', 'NOTE CP'];
+  const hasCapstone = !!col[capKey];
   const assignmentId = {};
-  const asg = hwNos.map((n) => ({ key: `HOMEWORK ${n}`, kind: 'hw', seq: n, title: `HW ${n}` }));
-  if (hasCapstone) asg.push({ key: 'CAPSTONE PROJECT', kind: 'capstone', seq: 1, title: 'Capstone Project' });
+  // BIE, BIH chỉ có HW1–HW5: cột HW6+ hoàn toàn trống thì không tạo bài (tránh cột thừa); có tick thì vẫn nhập.
+  const fiveHw = ['BIE', 'BIH'].includes(String(code.split('.')[1] ?? '').toUpperCase());
+  const asg = hwNos.filter((n) => !(fiveHw && n > 5 && !rows.some((x) => isX(x.get(`HOMEWORK ${n}`)))))
+    .map((n) => ({ key: `HOMEWORK ${n}`, kind: 'hw', seq: n, title: `HW ${n}` }));
+  if (hasCapstone) asg.push({ key: capKey, kind: 'capstone', seq: 1, title: 'Capstone Project' });
   if (asg.length) {
     const got = await t.all(
       `insert into assignments (class_id, kind, seq, title, collected)
@@ -249,8 +255,8 @@ async function importClass(t, { code, sheet, col, rows: allRows }, ctx) {
 
   // Bài tập (X = đã nộp, trống = thiếu; chỉ tính bài đã có người nộp)
   const sub = { e: [], a: [], status: [], challenge: [], note: [] };
-  const subCols = hwNos.map((n) => [`HOMEWORK ${n}`, `NOTE HW${n}`]);
-  if (hasCapstone) subCols.push(['CAPSTONE PROJECT', 'NOTE CP']);
+  const subCols = asg.filter((a) => a.kind === 'hw').map((a) => [a.key, `NOTE HW${a.seq}`]);
+  if (hasCapstone) subCols.push([capKey, capNote]);
   for (const [valName, noteName] of subCols) {
     if (!rows.some((x) => isX(x.get(valName)))) continue;
     for (const x of rows) {
@@ -274,10 +280,13 @@ async function importClass(t, { code, sheet, col, rows: allRows }, ctx) {
   return summary;
 }
 
-// opts: { dryRun, sheets: ['BIE-8', ...] } — mặc định: mọi sheet đang HIỆN có cột SESSION (bỏ sheet ẩn = bản cũ)
+// opts: { dryRun, sheets: ['BIE-8', ...], classes: ['BIH073', ...] } — mặc định: mọi sheet đang HIỆN có cột SESSION (bỏ sheet ẩn = bản cũ), mọi lớp
 const CONCURRENCY = 3; // bằng số kết nối tối thiểu của pool (Vercel: 3)
 
-async function importExcel(db, filePath, { dryRun = false, sheets = null } = {}) {
+// Mã lớp đầy đủ → mã ngắn: P2.BIH.P073.HY.EE.130525 → BIH073
+const shortOfCode = (code) => { const p = String(code).split('.'); return p.length >= 3 ? `${p[1]}${p[2].replace(/^[A-Za-z]/, '')}`.toUpperCase() : null; };
+
+async function importExcel(db, filePath, { dryRun = false, sheets = null, classes: onlyClasses = null } = {}) {
   const wb = new ExcelJS.Workbook();
   if (Buffer.isBuffer(filePath)) await wb.xlsx.load(filePath); else await wb.xlsx.readFile(filePath); // Buffer: file tải lên từ web
   const warnings = [];
@@ -294,6 +303,7 @@ async function importExcel(db, filePath, { dryRun = false, sheets = null } = {})
     for (const x of table.rows) {
       const code = txt(x.get('COURSE ID'));
       if (!code) { warnings.push(`[${ws.name}] Dòng ${x.r}: thiếu COURSE ID, bỏ qua`); continue; }
+      if (onlyClasses && !onlyClasses.includes(shortOfCode(code))) continue;   // chỉ nhập các lớp được chọn
       let g = groups.get(code);
       if (!g) { g = { code, sheet: ws.name, col: table.col, rows: [] }; groups.set(code, g); }
       if (g.sheet !== ws.name) { warnings.push(`[${ws.name}] Lớp ${code} cũng xuất hiện ở sheet ${g.sheet} — bỏ dòng ${x.r}`); continue; }

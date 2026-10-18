@@ -26,7 +26,7 @@ npm install
 # .env cần DATABASE_URL (Supabase > Connect > Session pooler, cổng 5432) — xem Documents/3-ky-thuat/supabase-guide.md
 npm run create-admin -- email "Họ tên" matkhau   # tạo/đặt lại admin
 npm run create-guest -- email "Họ tên" matkhau   # tạo/đặt lại tài khoản KHÁCH (chỉ xem)
-npm run import -- private-data/excel/danh-sach-hoc-vien-mau.xlsx [--dry-run]   # điểm danh + bài tập từ workbook nhiều sheet (chỉ sheet đang HIỆN); X=đi học, O=vắng có phép, trống=vắng
+npm run import -- private-data/excel/danh-sach-hoc-vien-mau.xlsx [--dry-run] [--classes BIH073,BIE101]   # điểm danh + bài tập từ workbook nhiều sheet (chỉ sheet đang HIỆN); X=đi học, O=vắng có phép, trống=vắng
 npm run import-tx -- private-data/excel/Transacitons.xlsx private-data/excel/session-management.xlsx [--dry-run]   # lớp, giáo trình, học viên, ghi danh (KHÔNG đọc cột tiền)
 npm run import-feedback -- file.xlsx [--dry-run]   # khảo sát sau khóa (sheet FEEDBACK FORM): bỏ họ tên/email/SĐT, chữ tự do, câu hỏi học phí
 # Hoặc nhập qua web: đăng nhập admin → mục "Nhập Excel" (#/import): Chạy thử → Nhập thật; xong thì màn hình đang mở tự cập nhật
