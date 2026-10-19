@@ -243,7 +243,7 @@ test('tab COURSE: đọc cột DAYS OF WEEK (thứ học), không đọc cột t
   const hit = await t.db.one('select count(*)::int n from classes x where to_jsonb(x)::text like $1', [`%${MONEY}%`]);
   assert.equal(hit.n, 0);
   const { formatDays } = await import('../public/js/class-filter.mjs');
-  assert.deepEqual(['24', '78', '35', '8', 'S78', '', null].map(formatDays), ['T2, T4', 'T7, CN', 'T3, T5', 'CN', 'T7, CN (S)', '', '']);
+  assert.deepEqual(['24', '78', '35', '8', 'S78', '', null].map(formatDays), ['T2, T4', 'T7, CN', 'T3, T5', 'CN', 'T7, CN (sáng)', '', '']);
 });
 
 test('Lịch tuần: khai giảng theo start_date, buổi học theo thứ học trong khoảng start..end', async () => {

@@ -15,14 +15,30 @@ export const PROGRAM_NAMES = {
   DDM: 'Data-Driven Marketing', SQL: 'SQL', WKS: 'Workshop', BSM: 'BSM', DBC: 'DBC',
 };
 
-// Thứ học từ cột DAYS OF WEEK: "24" → "T2, T4"; "78" → "T7, CN" (8 = Chủ nhật); chữ cái đứng trước (vd "S78") giữ nguyên ở cuối.
+// Thứ học từ cột DAYS OF WEEK: "24" → "T2, T4"; "78" → "T7, CN" (8 = Chủ nhật); chữ S/T đứng trước: "S78" → "T7, CN (sáng)", "T78" → "T7, CN (tối)".
 export function formatDays(raw) {
   const s = String(raw ?? '').trim().toUpperCase();
   if (!s) return '';
   const digits = [...s.replace(/[^2-8]/g, '')];
   const prefix = s.replace(/[0-9\s,;.-]/g, '');
   const days = [...new Set(digits)].sort().map((d) => (d === '8' ? 'CN' : `T${d}`));
-  return days.length ? days.join(', ') + (prefix ? ` (${prefix})` : '') : s;
+  const note = prefix === 'S' ? 'sáng' : prefix === 'T' ? 'tối' : prefix;
+  return days.length ? days.join(', ') + (note ? ` (${note})` : '') : s;
+}
+
+// Ca khai giảng của lớp (chủ dự án chốt 19/10/2026), theo thứ tự ưu tiên:
+//  1. chữ đứng trước thứ học trong cột DAYS OF WEEK: S78 = sáng, T78 = tối;
+//  2. lớp chỉ học ngày thường (24, 35, 46, 246…) = tối;
+//  3. còn lại (7, 8, 78 không có chữ): theo "Sub 4" của mã lớp (classes.shift): MM sáng · AA chiều · EE tối · MA cả ngày.
+// Trả { shift: 'morning'|'afternoon'|'evening'|'full_day'|null, source: 'days_letter'|'weekdays'|'sub4'|null }.
+export function openingShift(c) {
+  const s = String(c?.days_of_week ?? '').trim().toUpperCase();
+  const letter = /^[A-Z]/.exec(s)?.[0];
+  if (letter === 'S') return { shift: 'morning', source: 'days_letter' };
+  if (letter === 'T') return { shift: 'evening', source: 'days_letter' };
+  const digits = s.replace(/[^0-9]/g, '');
+  if (digits && /^[2-6]+$/.test(digits)) return { shift: 'evening', source: 'weekdays' };
+  return c?.shift ? { shift: c.shift, source: 'sub4' } : { shift: null, source: null };
 }
 
 // Thứ học dạng số của Date.getUTCDay() (0 = CN … 6 = T7): "24" → {1, 3}; "78" → {6, 0}.
