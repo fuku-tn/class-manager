@@ -152,22 +152,22 @@ a:hover { color: var(--gold-2); }
 .az-layout > .table-wrap { flex: 1 1 auto; min-width: 0; position: relative; }
 /* Thanh chữ cái: cột kính mảnh, chữ nhỏ giãn chữ; chữ đang chọn có "viên" vàng trượt tới (az-thumb) */
 .az-strip { --az-gap: 2px; position: relative; flex: none; display: flex; flex-direction: column; justify-content: center; gap: var(--az-gap);
-  width: 2.15rem; padding: .45rem .25rem; overflow-y: auto; scrollbar-width: none; isolation: isolate;
+  width: 3.1rem; padding: .5rem .3rem; overflow-y: auto; scrollbar-width: none; isolation: isolate; contain: size layout;
   border-radius: 999px; border: 1px solid color-mix(in srgb, var(--gold) 18%, var(--border));
   background: linear-gradient(180deg, color-mix(in srgb, var(--gold) 5%, var(--glass)), var(--glass));
   box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 6%, transparent), 0 6px 20px -12px rgba(0, 0, 0, .45); }
 .az-strip::-webkit-scrollbar { display: none; }
 .az-strip[hidden] { display: none; }
-.az-thumb { position: absolute; z-index: -1; left: .25rem; right: .25rem; top: 0; height: 0; opacity: 0; border-radius: 999px; pointer-events: none;
+.az-thumb { position: absolute; z-index: -1; left: .3rem; right: .3rem; top: 0; height: 0; opacity: 0; border-radius: 999px; pointer-events: none;
   background: linear-gradient(160deg, var(--gold-2), var(--gold) 70%);
   box-shadow: 0 4px 14px -4px color-mix(in srgb, var(--gold) 70%, transparent), inset 0 1px 0 color-mix(in srgb, #fff 35%, transparent);
   transition: top .38s cubic-bezier(.22, 1, .36, 1), left .38s cubic-bezier(.22, 1, .36, 1), height .38s, width .38s, opacity .25s; }
 .az-thumb.on { opacity: 1; }
-.az-btn { position: relative; flex: none; display: grid; place-items: center; width: 100%; height: 1.55rem; padding: 0; border: 0; border-radius: 999px;
-  background: transparent; color: var(--muted); font: inherit; font-size: .7rem; font-weight: 600; letter-spacing: .04em; cursor: pointer;
+.az-btn { position: relative; flex: none; display: grid; place-items: center; width: 100%; height: var(--az-h, 2.2rem); padding: 0; border: 0; border-radius: 999px;
+  background: transparent; color: var(--muted); font: inherit; font-size: .95rem; font-weight: 600; letter-spacing: .02em; cursor: pointer;
   transition: color .2s, transform .2s cubic-bezier(.22, 1, .36, 1); }
-.az-btn:hover, .az-btn:active { background: transparent; box-shadow: none; color: var(--gold); transform: scale(1.22); }
-.az-btn.on, .az-btn.on:hover { color: var(--on-gold); font-weight: 750; transform: none; }
+.az-btn:hover, .az-btn:active { background: transparent; box-shadow: none; color: var(--gold); transform: scale(1.18); }
+.az-btn.on, .az-btn.on:hover { color: var(--on-gold); font-weight: 800; transform: none; }
 .az-btn:focus-visible { outline: 1.5px solid var(--gold); outline-offset: 1px; }
 /* Dòng được nhảy tới: một vệt sáng mảnh, nhẹ quét từ trái sang phải rồi tắt dần + đường viền vàng mảnh bên trái */
 .az-flash { --az-tint: color-mix(in srgb, var(--gold) 16%, transparent); --az-sheen: color-mix(in srgb, var(--gold-2) 30%, transparent);
@@ -189,7 +189,8 @@ a:hover { color: var(--gold-2); }
   .az-layout { flex-direction: column; }
   .az-strip { flex-direction: row; justify-content: flex-start; width: auto; padding: .25rem .35rem; overflow-x: auto; overflow-y: hidden; }
   .az-thumb { top: .25rem; bottom: .25rem; height: auto; left: 0; }
-  .az-btn { width: 1.75rem; height: 1.75rem; }
+  .az-btn { width: 2.2rem; height: 2.2rem; flex: none; }
+  .az-strip { contain: none; }
 }
 /* ---------- Trang Lịch (dạng tuần) ---------- */
 .cal { background: var(--glass); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.1rem clamp(.8rem, 2vw, 1.4rem) 1.2rem; box-shadow: var(--shadow); }

@@ -12,6 +12,16 @@ export function createAzIndex({ wrap, body }) {
   const thumb = h('span', { class: 'az-thumb', 'aria-hidden': 'true' });   // "viên" vàng trượt tới chữ đang chọn
   let selected = null;
 
+  // Cỡ nút theo chiều cao thanh: càng ít chữ nút càng to (2.2–2.6rem), nhiều chữ thì co lại nhưng không nhỏ hơn 1.7rem; hết chỗ thì thanh tự cuộn
+  function sizeButtons() {
+    const n = strip.querySelectorAll('.az-btn').length;
+    if (!n || getComputedStyle(strip).flexDirection !== 'column') { strip.style.removeProperty('--az-h'); return; }
+    const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    const inner = strip.clientHeight - parseFloat(getComputedStyle(strip).paddingTop) * 2;
+    const per = (inner - (n - 1) * 2) / n;
+    strip.style.setProperty('--az-h', `${Math.round(Math.min(2.6 * rem, Math.max(1.7 * rem, per)))}px`);
+  }
+
   // Đặt viên vàng đúng vị trí nút đang chọn (dọc trên máy tính, ngang trên điện thoại)
   function placeThumb() {
     const btn = strip.querySelector('.az-btn.on');
@@ -60,7 +70,7 @@ export function createAzIndex({ wrap, body }) {
       'data-letter': l, tabindex: l === selected || (!selected && i === 0) ? 0 : -1, title: `Họ bắt đầu bằng ${l}`,
       onclick: () => select(l),
     }, l)));
-    requestAnimationFrame(placeThumb);
+    requestAnimationFrame(() => { sizeButtons(); placeThumb(); });
   }
 
   // Mũi tên lên/xuống chuyển chữ (chuẩn nhóm radio)
@@ -73,6 +83,8 @@ export function createAzIndex({ wrap, body }) {
     next.focus(); select(next.dataset.letter);
   });
 
-  window.addEventListener('resize', () => { if (strip.isConnected) placeThumb(); });
+  // Bảng đổi cao (vào trang, đổi cỡ cửa sổ) thì chỉnh lại cỡ nút và vị trí viên vàng
+  if (typeof ResizeObserver !== 'undefined') new ResizeObserver(() => { sizeButtons(); placeThumb(); }).observe(strip);
+  window.addEventListener('resize', () => { if (strip.isConnected) { sizeButtons(); placeThumb(); } });
   return { el: strip, update };
 }
