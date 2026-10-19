@@ -81,6 +81,15 @@ export function sortAssignments(list, cls) {
   });
 }
 
+// Chữ cái đầu của HỌ (từ đầu tiên của họ tên theo thứ tự Việt Nam): bỏ dấu, riêng Đ là chữ riêng; ký tự lạ → '#'.
+export function surnameInitial(fullName) {
+  const c = String(fullName ?? '').trim().normalize('NFC').split(/\s+/)[0]?.[0];
+  if (!c) return '#';
+  if (c === 'đ' || c === 'Đ') return 'Đ';
+  const base = c.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase();
+  return /^[A-Z]$/.test(base) ? base : '#';
+}
+
 // Bỏ dấu + chữ thường để tìm "bie101", "thang 10" không cần gõ dấu.
 export function norm(s) {
   return String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/gi, 'd').toLowerCase();

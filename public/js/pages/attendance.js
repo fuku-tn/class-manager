@@ -2,7 +2,8 @@ import { get, put, post, del } from '../api.js';
 import { h, toast, pct, formModal, confirmModal } from '../ui.js';
 import { startLive, LIVE_LABEL } from '../live.js';
 import { SORTS, isSortKey, sortRows } from '../student-sort.mjs';
-import { classDisplayName, norm } from '../class-filter.mjs';
+import { classDisplayName, norm, surnameInitial } from '../class-filter.mjs';
+import { createAzIndex } from '../azindex.js';
 
 const STATUSES = ['present', 'late', 'absent', 'excused'];
 const SHORT = { present: '✓', late: 'T', absent: 'V', excused: 'P' };
@@ -35,6 +36,8 @@ export async function renderAttendance({ cls, state }) {
   sortSelect.value = sortKey;
   const body = h('tbody');
   const head = h('thead');
+  const tableWrap = h('div', { class: 'table-wrap' }, h('table', { class: 'table-att' }, head, body));
+  const az = createAzIndex({ wrap: tableWrap, body });   // thanh chữ cái: nhảy tới học viên theo họ
   const liveBadge = h('span', { class: 'live connecting', title: 'Điểm danh tự cập nhật khi có người khác thay đổi' }, LIVE_LABEL.connecting);
 
   const key = (enrollmentId, sessionId) => `${enrollmentId}:${sessionId}`;
@@ -210,10 +213,11 @@ export async function renderAttendance({ cls, state }) {
     body.replaceChildren(...list.map((row) => {
       const rate = h('td', { class: 'num' }, pct(row.attendance_rate));
       rateCells.set(row.enrollment_id, rate);
-      return h('tr', { class: row.course_status === 'active' ? '' : 'inactive' },
+      return h('tr', { class: row.course_status === 'active' ? '' : 'inactive', 'data-initial': surnameInitial(row.full_name) },
         h('td', { class: 'sticky' }, row.full_name, h('div', { class: 'muted small' }, row.student_code + (row.course_status !== 'active' ? ` · ${row.course_status}` : ''))),
         data.sessions.map((s) => makeCell(row, s)), rate);
     }));
+    az.update();
   }
 
   async function reload() {
@@ -262,7 +266,7 @@ export async function renderAttendance({ cls, state }) {
       ...Object.entries(LABEL).map(([k, v]) => h('span', {}, h('span', { class: `cell ${k}` }, h('span', { class: 'cell-sym' }, SHORT[k])), ` ${v}`)),
       h('span', { class: 'muted' }, `${readOnly ? '· Tài khoản khách chỉ xem ' : '· Chọn "Ghi chú…" để ghi chú '}· Số dưới tên buổi = hiện diện/sĩ số · Rê chuột vào ô để xem ai đã điểm danh · Tỉ lệ = (có mặt + trễ) / (buổi đã diễn ra − có phép)`)),
     h('div', { class: 'toolbar' }, search, h('label', { class: 'sort-label' }, 'Sắp xếp ', sortSelect)),
-    h('div', { class: 'table-wrap' }, h('table', { class: 'table-att' }, head, body)));
+    h('div', { class: 'az-layout' }, az.el, tableWrap));
 
   startLive({
     base,

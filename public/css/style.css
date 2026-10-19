@@ -147,6 +147,28 @@ a:hover { color: var(--gold-2); }
 .cal-empty-tab p { max-width: 34rem; margin: 0; }
 .cal-empty-icon { display: grid; place-items: center; width: 3.4rem; height: 3.4rem; border-radius: 50%; background: var(--gold-soft); color: var(--gold); }
 .cal-empty-icon svg { width: 1.6rem; height: 1.6rem; }
+/* ---------- Thanh chữ cái A–Z bên trái bảng điểm danh (azindex.js) ---------- */
+.az-layout { display: flex; gap: .6rem; align-items: stretch; }
+.az-layout > .table-wrap { flex: 1 1 auto; min-width: 0; position: relative; }
+.az-strip { flex: none; display: flex; flex-direction: column; justify-content: space-evenly; gap: 2px; width: 2.1rem; padding: .35rem .2rem; overflow-y: auto; scrollbar-width: none;
+  border: 1px solid var(--border); border-radius: 999px; background: var(--glass); }
+.az-strip[hidden] { display: none; }
+.az-btn { flex: none; display: grid; place-items: center; width: 100%; aspect-ratio: 1; min-height: 1.5rem; padding: 0; border: 0; border-radius: 50%; background: transparent;
+  color: var(--muted); font: inherit; font-size: .74rem; font-weight: 650; cursor: pointer; transition: background .15s, color .15s, transform .15s; }
+.az-btn:hover { background: var(--glass-hover); color: var(--text); }
+.az-btn.on { background: var(--gold); color: var(--on-gold); font-weight: 800; transform: scale(1.12); box-shadow: 0 0 0 3px var(--gold-soft); }
+.az-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+/* Dòng được nhảy tới: nháy sáng, ánh sáng tắt dần từ trái sang phải */
+.az-flash { position: absolute; z-index: 1; pointer-events: none; border-radius: 8px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--gold) 70%, transparent), color-mix(in srgb, var(--gold) 38%, transparent) 55%, color-mix(in srgb, var(--gold) 14%, transparent));
+  box-shadow: 0 0 18px 2px var(--gold-soft); animation: az-flash 1.7s ease-in forwards; }
+@keyframes az-flash { 0% { clip-path: inset(0 0 0 0); opacity: 0; } 10% { opacity: 1; } 28% { clip-path: inset(0 0 0 0); opacity: 1; } 100% { clip-path: inset(0 0 0 100%); opacity: .85; } }
+@media (prefers-reduced-motion: reduce) { .az-flash { animation: az-flash-still 1.4s ease-out forwards; } @keyframes az-flash-still { 0% { opacity: 1; } 100% { opacity: 0; } } }
+@media (max-width: 720px) {
+  .az-layout { flex-direction: column; }
+  .az-strip { flex-direction: row; width: auto; padding: .2rem .35rem; overflow-x: auto; overflow-y: hidden; border-radius: var(--radius-sm); }
+  .az-btn { width: 1.7rem; aspect-ratio: 1; }
+}
 /* ---------- Trang Lịch (dạng tuần) ---------- */
 .cal { background: var(--glass); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.1rem clamp(.8rem, 2vw, 1.4rem) 1.2rem; box-shadow: var(--shadow); }
 .cal-top { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: .75rem; }
