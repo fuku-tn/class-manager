@@ -1,7 +1,7 @@
 // Học viên, điểm danh, bài tập của một lớp. Mount tại /api/classes/:classId
 const express = require('express');
 const { requireAdmin, requireClassAccess, canViewPotential } = require('../auth');
-const { loadClassData, computeEnrollmentStats, sessionSummaries, averageScore } = require('../services/stats');
+const { compareByName, loadClassData, computeEnrollmentStats, sessionSummaries, averageScore } = require('../services/stats');
 const realtime = require('../services/realtime');
 const { logEvents, latestEvents } = require('../services/history');
 const { tally } = require('../services/formProfile');
@@ -418,10 +418,11 @@ module.exports = (db) => {
     const [assignments, enrollments, scores] = await Promise.all([
       db.all("select id, kind, seq, title from assignments where class_id = $1 order by case kind when 'hw' then 0 when 'mini' then 1 else 2 end, seq", [req.cls.id]),
       db.all(`select e.id, e.course_status, s.student_code, s.full_name from enrollments e join students s on s.id = e.student_id
-               where e.class_id = $1 order by lower(s.full_name), s.id`, [req.cls.id]),
+               where e.class_id = $1`, [req.cls.id]),
       db.all(`select hs.enrollment_id, hs.assignment_id, hs.score::float8 as score, hs.module from homework_scores hs
                 join enrollments e on e.id = hs.enrollment_id where e.class_id = $1`, [req.cls.id]),
     ]);
+    enrollments.sort(compareByName);   // thứ tự chữ cái tiếng Việt (Đ sau D)
     const byEnr = new Map();
     for (const x of scores) {
       if (!byEnr.has(x.enrollment_id)) byEnr.set(x.enrollment_id, {});

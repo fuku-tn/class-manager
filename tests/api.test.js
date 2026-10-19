@@ -125,3 +125,12 @@ test('XSS: tên chứa HTML được lưu nguyên văn dưới dạng text', asy
   const row = (await admin.get(`/api/classes/${classId}/students`)).body.find((s) => s.student_code === 'XSS1');
   assert.equal(row.full_name, name); // phía frontend dựng bằng textContent nên không thực thi
 });
+
+test('danh sách học viên theo họ tên tiếng Việt: Đ ngay sau D (điểm danh)', async () => {
+  const c = await admin.post('/api/classes', { code: 'VI.SORT.01', session_count: 1, hw_count: 0 });
+  for (const [code, name] of [['VS5', 'Võ Thị Hạnh'], ['VS1', 'Đặng Lạc Diệp'], ['VS2', 'Dương Văn Bình'], ['VS3', 'Châu Bích Hoa'], ['VS4', 'Hồ Quốc Tuấn']]) {
+    await admin.post(`/api/classes/${c.body.id}/students`, { student_code: code, full_name: name });
+  }
+  const r = await admin.get(`/api/classes/${c.body.id}/attendance`);
+  assert.deepEqual(r.body.rows.map((x) => x.full_name), ['Châu Bích Hoa', 'Dương Văn Bình', 'Đặng Lạc Diệp', 'Hồ Quốc Tuấn', 'Võ Thị Hạnh']);
+});

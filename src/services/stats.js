@@ -54,6 +54,10 @@ function npsScore(values) {
   return Math.round(((promoters - detractors) / v.length) * 100);
 }
 
+// Thứ tự họ tên theo bảng chữ cái tiếng Việt (Đ ngay sau D; database xếp theo mã ký tự nên Đ rơi xuống cuối).
+const viCollator = new Intl.Collator('vi', { sensitivity: 'base', numeric: true });
+const compareByName = (a, b) => viCollator.compare(a.full_name ?? '', b.full_name ?? '') || viCollator.compare(a.student_code ?? '', b.student_code ?? '');
+
 const KIND_ORDER = { hw: 0, mini: 1, capstone: 2 };   // thứ tự cột bài: HW → Mini Project → Capstone
 async function loadClassData(db, classId) {
   const [sessions, assignments, enrollments, attendance, submissions] = await Promise.all([
@@ -69,6 +73,7 @@ async function loadClassData(db, classId) {
     db.all(`select b.*, u.name as updated_by_name from submissions b join assignments a on a.id = b.assignment_id
       left join users u on u.id = b.updated_by where a.class_id = $1`, [classId]),
   ]);
+  enrollments.sort(compareByName);
   assignments.sort((a, b) => (KIND_ORDER[a.kind] ?? 9) - (KIND_ORDER[b.kind] ?? 9) || a.seq - b.seq); // HW → Mini Project → Capstone
   return { sessions, assignments, enrollments, attendance, submissions };
 }
@@ -208,4 +213,4 @@ async function buildDashboard(db, cls, { withScores = false } = {}) {
   };
 }
 
-module.exports = { loadClassData, computeEnrollmentStats, sessionSummaries, buildDashboard, attendanceRate, averageScore, npsScore, homeworkProgress, classHomeworkStats, ATTENDANCE_THRESHOLD };
+module.exports = { compareByName, loadClassData, computeEnrollmentStats, sessionSummaries, buildDashboard, attendanceRate, averageScore, npsScore, homeworkProgress, classHomeworkStats, ATTENDANCE_THRESHOLD };

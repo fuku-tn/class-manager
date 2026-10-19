@@ -29,13 +29,21 @@ test('student-sort: tỉ lệ trống luôn ở cuối, vắng nhiều nhất, t
   assert.deepEqual(sortRows(rows, 'status').map((r) => r.course_status), ['active', 'active', 'deferred', 'dropped']);
 });
 
-test('student-sort: không đổi mảng gốc; mặc định/khóa lạ giữ thứ tự; danh sách khóa hợp lệ', () => {
+test('student-sort: không đổi mảng gốc; mặc định/khóa lạ = theo họ tên tiếng Việt; danh sách khóa hợp lệ', () => {
   const before = rows.map((r) => r.student_code).join();
   sortRows(rows, 'rate_asc');
   assert.equal(rows.map((r) => r.student_code).join(), before);
-  assert.deepEqual(sortRows(rows, 'default'), rows);
-  assert.deepEqual(sortRows(rows, 'khong-co'), rows);
+  assert.deepEqual(sortRows(rows, 'default'), sortRows(rows, 'name_asc'));
+  assert.deepEqual(sortRows(rows, 'khong-co'), sortRows(rows, 'name_asc'));
   assert.ok(isSortKey('rate_asc') && !isSortKey('x'));
   assert.equal(SORT_KEYS.length, SORTS.length);
   assert.ok(SORTS.length >= 8, 'nhiều cách sắp xếp');
+});
+
+test('student-sort: Đ đứng ngay sau D (không rơi xuống cuối), mặc định cũng vậy', () => {
+  const list = ['Võ Thị Hạnh', 'Đặng Lạc Diệp', 'Dương Văn Bình', 'Châu Bích Hoa', 'Đinh Mai Khang', 'Hồ Quốc Tuấn', 'Ân Hoàng', 'An Bình', 'Đỗ Ngọc Lý']
+    .map((full_name, i) => ({ full_name, student_code: `P.${i}` }));
+  const want = ['An Bình', 'Ân Hoàng', 'Châu Bích Hoa', 'Dương Văn Bình', 'Đặng Lạc Diệp', 'Đinh Mai Khang', 'Đỗ Ngọc Lý', 'Hồ Quốc Tuấn', 'Võ Thị Hạnh'];
+  assert.deepEqual(sortRows(list, 'default').map((r) => r.full_name), want);
+  assert.deepEqual(sortRows(list, 'name_asc').map((r) => r.full_name), want);
 });

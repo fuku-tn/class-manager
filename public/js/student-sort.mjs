@@ -49,8 +49,8 @@ const COMPARATORS = {
   status: (a, b) => (STATUS_ORDER[a.course_status] ?? 9) - (STATUS_ORDER[b.course_status] ?? 9) || byName(a, b),
 };
 
-// Trả về mảng mới; không đổi mảng gốc. Khóa lạ hoặc "default" → giữ nguyên thứ tự máy chủ.
+// Trả về mảng mới; không đổi mảng gốc. "Mặc định" và khóa lạ → theo họ tên theo bảng chữ cái tiếng Việt (Đ ngay sau D).
 export function sortRows(rows, key) {
-  const cmp = COMPARATORS[key];
+  const cmp = COMPARATORS[key] ?? byName;
   return cmp ? [...rows].sort(cmp) : [...rows];
 }
