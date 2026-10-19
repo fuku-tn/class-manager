@@ -81,8 +81,7 @@ function openingCalendar(state) {
     h('div', { class: 'cal-ev-title' }, classDisplayName(c)),
     h('div', { class: 'cal-ev-sub' }, PROGRAM_NAMES[c.program] ?? c.program ?? ''),
     h('div', { class: 'cal-ev-meta' }, icon('students'), `${c.delivery_mode ?? '—'} · ${segLabel(c)}`),
-    c.days_of_week ? h('div', { class: 'cal-ev-meta' }, icon('calendar'), `Thứ học: ${formatDays(c.days_of_week)}`) : null,
-    h('div', { class: 'cal-ev-meta muted' }, 'Bế giảng: chờ cập nhật'));
+    c.days_of_week ? h('div', { class: 'cal-ev-meta' }, icon('calendar'), `Thứ học: ${formatDays(c.days_of_week)}`) : null);
 
   function paintDetail() {
     const evs = eventsOn(selected);
@@ -136,7 +135,7 @@ function openingCalendar(state) {
         h('div', { class: 'cal-tools' }, progSel, h('div', { class: 'cal-pick-wrap' }, pickBtn, pop))),
       h('div', { class: 'cal-legend muted small' },
         SHIFT_KEYS.map((k) => h('span', {}, h('i', { class: `lg sh-${k}` }), SHIFT_LABEL[k])),
-        h('span', {}, 'Bấm một ngày để xem chi tiết · Bế giảng: chờ cập nhật')),
+        h('span', {}, 'Bấm một ngày để xem chi tiết')),
       grid),
     h('section', { class: 'cal cal-day-panel' }, detail));
   paint();
