@@ -9,6 +9,7 @@ import { renderGraduation } from './pages/graduation.js';
 import { renderRemind } from './pages/remind.js';
 import { renderPotential } from './pages/potential.js';
 import { renderSchedule } from './pages/schedule.js';
+import { createMakeupNotice } from './makeup.js';
 import { renderClasses } from './pages/classes.js';
 import { renderUsers } from './pages/users.js';
 import { renderImport } from './pages/import.js';
@@ -64,6 +65,7 @@ function buildShell() {
     h('a', { class: 'nav-link', 'data-key': 'import', href: '#/import', title: 'Nhập dữ liệu từ Excel' }, icon('import'), h('span', {}, 'Nhập Excel')),
     h('a', { class: 'nav-link', 'data-key': 'feedback', href: '#/feedback', title: 'Khảo sát sau khóa' }, icon('feedback'), h('span', {}, 'Khảo sát')),
   ] : [];
+  const makeup = createMakeupNotice();   // "Học bù": học viên lớp khác đến bù buổi ở lớp đang xem
   const themeBtn = h('button', { class: 'icon-btn', title: 'Đổi giao diện sáng/tối', 'aria-label': 'Đổi giao diện sáng/tối' });
   const paintTheme = () => themeBtn.replaceChildren(icon(document.documentElement.dataset.theme === 'light' ? 'moon' : 'sun'));
   themeBtn.addEventListener('click', () => { applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light'); paintTheme(); route(); }); // vẽ lại để biểu đồ lấy màu mới
@@ -78,6 +80,7 @@ function buildShell() {
         h('span', { class: 'brand-name' }, BRAND.name), h('span', { class: 'brand-tag' }, BRAND.tagline))),
       h('nav', { class: 'top-nav', 'aria-label': 'Điều hướng' }, homeLink, scheduleLink, navLinks),
       h('div', { class: 'top-right' },
+        makeup.el,
         picker.el,
         h('nav', { class: 'admin-links', 'aria-label': 'Quản trị' }, adminLinks),
         themeBtn,
@@ -89,7 +92,7 @@ function buildShell() {
             onclick: async () => { await post('/api/auth/logout'); state.user = null; shell = null; route(); } }, icon('logout'))))),
     h('main', { class: 'content' }, view));
   tooltips(root.querySelector('.topbar'));
-  shell = { root, view, picker, homeLink, scheduleLink, navLinks, adminLinks, progress, active: null };
+  shell = { root, view, picker, makeup, homeLink, scheduleLink, navLinks, adminLinks, progress, active: null };
 }
 
 // Tự đổi mật khẩu (các phiên khác của tài khoản này bị đăng xuất).
@@ -214,6 +217,9 @@ async function route() {
       result = await transitionTo(() => render({ ...viewCtx, cls }));
     }
   }
+  // Thông báo học bù chỉ hiện khi đang xem trang của một lớp
+  const inClass = !['home', 'schedule', 'classes', 'feedback', 'import', 'users'].includes(parts[0] ?? 'home') && parts.length > 0;
+  shell?.makeup.show(inClass ? state.classes.find((c) => String(c.id) === store.get('classId')) ?? null : null);
   if (result === 'unauth') { state.user = null; shell = null; route(); }
   shell?.view.classList.toggle('fit', fitNow);
   requestAnimationFrame(fitView);

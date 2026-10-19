@@ -7,6 +7,7 @@ const { logEvents, latestEvents } = require('../services/history');
 const { tally } = require('../services/formProfile');
 const feedback = require('../services/feedback');
 const grad = require('../services/graduation');
+const { makeupsFor } = require('../services/makeup');
 const { TIMING_SQL, PHASE_DATES_SQL } = require('../services/timing');
 
 const MODES = ['Online', 'Offline', 'Hybrid'];
@@ -180,6 +181,9 @@ module.exports = (db) => {
   }
 
   router.get('/graduation', async (req, res) => { res.json(await gradPayload(req.cls)); });
+
+  // Học bù: học viên lớp khác được ghi chú điểm danh "Bù <mã lớp này>" (vd "Bù EBA122") — để lớp này biết có ai đến học bù buổi nào.
+  router.get('/makeups', async (req, res) => { res.json(await makeupsFor(db, req.cls)); });
 
   // ---------- Potential: học viên trong sheet PERSONAL nhưng không có tên trong danh sách/điểm danh ----------
   // (Chưa thanh toán, hoặc đã bị xóa khỏi Sheet). Chỉ admin và tài khoản được bật can_view_potential (hiện: Đoàn Ly).
