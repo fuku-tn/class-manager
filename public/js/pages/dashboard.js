@@ -90,8 +90,8 @@ export async function renderDashboard({ cls, state }) {
         h('p', {}, `${t.active} học viên đang học · ${t.held_sessions}/${t.total_sessions} buổi đã diễn ra. Điểm danh, bài tập và cảnh báo được tổng hợp tự động.`),
         cls.last_session_date ? h('p', { class: 'muted small phase-line' },
           cls.grading_until === cls.last_session_date
-            ? `${['upcoming', 'running'].includes(cls.timing) ? 'Buổi cuối dự kiến' : 'Buổi cuối'} ${fmtDate(cls.last_session_date)} · Lớp B2B kết thúc trong ngày buổi cuối`
-            : `${['upcoming', 'running'].includes(cls.timing) ? 'Buổi cuối dự kiến' : 'Buổi cuối'} ${fmtDate(cls.last_session_date)} · Nộp & chấm bài đến ${fmtDate(cls.grading_until)} · Công bố tốt nghiệp ${fmtDate(cls.graduation_on)}`) : null),
+            ? `${['upcoming', 'running'].includes(cls.timing) ? 'Dự kiến kết thúc' : 'Ngày kết thúc'} ${fmtDate(cls.last_session_date)} · Lớp B2B kết thúc trong ngày này`
+            : `${['upcoming', 'running'].includes(cls.timing) ? 'Dự kiến kết thúc' : 'Ngày kết thúc'} ${fmtDate(cls.last_session_date)} · Nộp & chấm bài đến ${fmtDate(cls.grading_until)} · Công bố tốt nghiệp ${fmtDate(cls.graduation_on)}`) : null),
       h('div', { class: 'hero-card' },
         h('div', { class: 'label' }, 'Chuyên cần trung bình'),
         h('div', { class: 'big' }, pct(t.avg_attendance_rate)),

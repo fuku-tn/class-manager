@@ -211,8 +211,8 @@ export async function renderGraduation({ cls, state }) {
       h('span', { class: `badge ${{ running: 'ok', grading: 'warn', graduation: 'warn' }[c0.timing] ?? ''}` }, TIMING_LABEL[c0.timing] ?? '')),
     c0.last_session_date ? h('p', { class: 'muted small' },
       c0.grading_until === c0.last_session_date
-        ? `${['upcoming', 'running'].includes(c0.timing) ? 'Buổi cuối dự kiến' : 'Buổi cuối'} ${fmtDate(c0.last_session_date)} · Lớp B2B kết thúc trong ngày buổi cuối`
-        : `${['upcoming', 'running'].includes(c0.timing) ? 'Buổi cuối dự kiến' : 'Buổi cuối'} ${fmtDate(c0.last_session_date)} · Nộp & chấm bài đến ${fmtDate(c0.grading_until)} · Công bố tốt nghiệp ${fmtDate(c0.graduation_on)}`) : null,
+        ? `${['upcoming', 'running'].includes(c0.timing) ? 'Dự kiến kết thúc' : 'Ngày kết thúc'} ${fmtDate(c0.last_session_date)} · Lớp B2B kết thúc trong ngày này`
+        : `${['upcoming', 'running'].includes(c0.timing) ? 'Dự kiến kết thúc' : 'Ngày kết thúc'} ${fmtDate(c0.last_session_date)} · Nộp & chấm bài đến ${fmtDate(c0.grading_until)} · Công bố tốt nghiệp ${fmtDate(c0.graduation_on)}`) : null,
     bannerEl, rulesEl, summaryEl, actionsEl,
     h('div', { class: 'table-wrap' }, h('table', {}, headEl, body)));
 }
