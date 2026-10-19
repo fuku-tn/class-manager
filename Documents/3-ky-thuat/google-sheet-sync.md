@@ -84,6 +84,20 @@ Nguồn điểm HW **duy nhất** là file Excel `Chấm điểm.xlsx`, bảng (
 - **Học viên phải có trong lớp** của app (qua đồng bộ đăng ký) thì điểm mới hiện.
 - Xem điểm: trang **Học viên** (cột Điểm TB) và trang **Bài tập** (điểm ngay trong ô, cột Điểm TB) — admin + giảng viên của lớp; khách không thấy.
 
+## Lịch giảng dạy (bảng "Calendar" trên Google Sheet, script riêng)
+Bảng **Calendar** (Google Sheets table) có các cột `Ngày · Buổi · Khóa · Nội dung · Số buổi · Hình thức · Loại · Ghi chú` (+ tùy chọn `Giảng viên`). Script `scripts/google-apps-script/sync-schedule.gs` gửi bảng tới `POST /api/sync/schedule` (mã `SYNC_TOKEN`), web lưu ở bảng `teaching_schedule` và hiện ở **Lịch → tab Lịch giảng dạy**.
+
+**Cài đặt (một lần):**
+1. Mở Google Sheet có bảng Calendar → Tiện ích mở rộng → Apps Script → tạo file `.gs` mới, dán toàn bộ `sync-schedule.gs` (dùng chung dự án với script đăng ký được: hai script dùng tên khác nhau).
+2. Project Settings → Script properties, thêm `SCHEDULE_URL` = `https://<tên-miền-web>/api/sync/schedule` và `SYNC_TOKEN` (cùng mã với Sheet đăng ký; nếu dán chung dự án thì đã có sẵn).
+3. Chạy hàm `setupSchedule()` một lần, cấp quyền. Từ đó 5 phút kiểm tra một lần, chỉ gửi khi bảng đổi. Tạm dừng: `stopSchedule()`.
+
+- Cột `Buổi`: **S** sáng · **C** chiều · **T** tối (cũng nhận Sáng/Chiều/Tối/Cả ngày). `Khóa` ghi ngắn `BIH98` cũng được (→ BIH098). `Ghi chú` "Khai giảng"/"Bế giảng" được đánh dấu trên lịch.
+- **Sheet là bản chuẩn:** mỗi lượt thay toàn bộ lịch; sửa/xóa dòng thì web đổi theo. **Chốt chặn:** lượt mới ít hơn 50% số dòng đang có (khi đã có ≥ 20 dòng) bị từ chối (409), giữ lịch cũ.
+- Dòng sai ngày / thiếu khóa bị bỏ qua và được đếm; khóa chưa có trong app vẫn lưu nhưng **chỉ admin thấy**. Kết quả (và ví dụ dòng lỗi) xem ở Apps Script → Executions.
+- Mỗi người chỉ thấy lịch của lớp mình được xem (admin thấy hết).
+- Chỉ đọc đúng các cột trong `SCHEDULE_COLUMNS` (`src/services/importSchedule.js` ↔ `SCHEDULE_ALLOWED` trong `.gs`, test kiểm khớp). Không có dữ liệu học viên hay tiền.
+
 ## An toàn
 - **Không lấy tiền:** script chỉ đọc đúng các cột cho phép (`ALLOWED_TX`, `ALLOWED_COURSE`) theo tên tiêu đề, từng cột một; cột khác không bao giờ được đọc. Máy chủ lọc lại một lần nữa và bỏ mọi cột lạ. Test kiểm danh sách trong script khớp với máy chủ.
 - **Xác thực:** header `X-Sync-Token` so sánh bằng so sánh thời gian hằng; sai quá 20 lần/15 phút → khóa tạm. Chưa đặt `SYNC_TOKEN` thì địa chỉ này trả 503 (tắt).

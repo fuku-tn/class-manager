@@ -7,6 +7,7 @@ const realtime = require('../services/realtime');
 const { ALLOWED_TX, ALLOWED_COURSE } = require('../services/importTransactions');
 const { FORM_COLUMNS, applyForms } = require('../services/formProfile');
 const { importPoints, POINT_SYNC_COLUMNS } = require('../services/importPoints');
+const { importSchedule } = require('../services/importSchedule');
 
 // Tab COURSE của Google Sheet dùng tên cột "START DATE"/"EXPECTED END DATE" (Excel/Power Query đổi thành STARTDATE/ENDDATE).
 const COURSE_ALIASES = { 'START DATE': 'STARTDATE', 'EXPECTED END DATE': 'ENDDATE' };
@@ -178,6 +179,28 @@ module.exports = (db) => {
       throw e;
     } finally {
       busyPoints = false;
+    }
+  });
+
+  // Lịch giảng dạy từ bảng "Calendar" (Ngày, Buổi, Khóa, Nội dung, Số buổi, Hình thức, Loại, Ghi chú). Sheet là bản chuẩn: thay toàn bộ lịch.
+  let busySchedule = false;
+  router.post('/schedule', async (req, res) => {
+    checkToken(req);
+    if (busySchedule) return res.status(409).json({ error: 'Đang xử lý một lượt đồng bộ lịch khác' });
+    busySchedule = true;
+    try {
+      const table = req.body?.schedule;
+      if (!table || !Array.isArray(table.headers) || !Array.isArray(table.rows)) throw httpError(400, 'Dữ liệu đồng bộ không đúng định dạng');
+      if (table.headers.length > MAX_COLS || table.rows.length > MAX_ROWS) throw httpError(413, 'Dữ liệu đồng bộ quá lớn');
+      const { class_ids = [], ...brief } = await importSchedule(db, table);
+      await realtime.publishMany(class_ids.map((classId) => ({ classId, payload: { kind: 'schedule' } })));
+      await log(true, brief, null, 'google-sheet-schedule');
+      res.json({ ok: true, ...brief });
+    } catch (e) {
+      await log(false, null, e.message, 'google-sheet-schedule').catch(() => {});
+      throw e;
+    } finally {
+      busySchedule = false;
     }
   });
 

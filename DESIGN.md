@@ -1,7 +1,7 @@
 # DESIGN — Class Manager (Starttrain)
 
 Tài liệu thiết kế của webapp quản lý lớp học: **vì sao** hệ thống được dựng như vậy, dữ liệu chảy thế nào, quy tắc nào là bất biến.
-Cập nhật theo trạng thái ngày **18/10/2026** (177 test). Chi tiết cài đặt từng phần xem [Documents/3-ky-thuat/code-guide.md](Documents/3-ky-thuat/code-guide.md); nhật ký quyết định theo ngày xem [memory.md](memory.md).
+Cập nhật theo trạng thái ngày **18/10/2026** (182 test). Chi tiết cài đặt từng phần xem [Documents/3-ky-thuat/code-guide.md](Documents/3-ky-thuat/code-guide.md); nhật ký quyết định theo ngày xem [memory.md](memory.md).
 
 ---
 
@@ -183,13 +183,14 @@ stateDiagram-v2
 Đổi nhãn (Đã cọc → Đã thanh toán…) ghi sự kiện `sheet_status`. Chỉ **nhãn** được lưu, tuyệt đối không có số tiền. Người đã có kết quả tốt nghiệp/chứng chỉ không bị tự xóa.
 
 ### 5.6 Lịch (`#/schedule`, `openingShift` trong `class-filter.mjs`)
-Trang Lịch có 2 tab. **Lịch khai giảng** (mọi tài khoản; mỗi người chỉ thấy lớp mình có quyền): lịch tháng, bấm ngày xem thẻ chi tiết. **Lịch giảng dạy**: tab giữ chỗ — chưa có dữ liệu (chờ Sheet phân công giảng viên từng buổi).
+Trang Lịch có 2 tab. **Lịch khai giảng** (mọi tài khoản; mỗi người chỉ thấy lớp mình có quyền): lịch tháng, bấm ngày xem thẻ chi tiết. **Lịch giảng dạy**: từng buổi từ bảng **Calendar** trên Google Sheet (ngày, ca S/C/T, khóa, nội dung, số buổi, hình thức, loại, ghi chú Khai giảng/Bế giảng; giảng viên khi Sheet có cột "Giảng viên"), đồng bộ bằng Apps Script `sync-schedule.gs`; Sheet là bản chuẩn, mỗi lượt thay toàn bộ (chốt chặn 50%).
 
 | Thông tin | Nguồn / quy tắc |
 |---|---|
 | Ngày khai giảng | cột `START DATE` (sheet COURSE) = `classes.start_date` |
 | Ca khai giảng (chủ dự án chốt 19/10/2026), theo thứ tự ưu tiên | (1) chữ đứng trước thứ học trong `DAYS OF WEEK`: **S78 = sáng, T78 = tối**; (2) lớp chỉ học ngày thường (24, 35, 46, 246…) = **tối**; (3) còn lại (7, 8, 78 không chữ) theo **Sub 4** của mã lớp: MM sáng · AA chiều · EE tối · MA cả ngày |
-| Bế giảng · giảng viên từng buổi | chưa có dữ liệu |
+| Bế giảng | ghi chú "Bế giảng" trong bảng Calendar (chỉ hiện ở Lịch giảng dạy) |
+| Giảng viên từng buổi | cột tùy chọn "Giảng viên" của bảng Calendar; chưa có thì ghi "chờ phân công" |
 
 `days_of_week` chỉ đến từ Apps Script `sync-transactions.gs` (cần dán bản mới vào Sheet PERSONAL); lớp chưa có thứ học thì ca lấy theo Sub 4.
 
@@ -320,7 +321,7 @@ flowchart LR
 
 ## 11. Kiểm thử
 
-177 test chạy trên Postgres trong bộ nhớ, **không** động tới Supabase. Nhóm chính: đăng nhập/phân quyền, điểm danh/bài tập và xung đột `expected`, đồng bộ Sheet (cột cho phép, chốt chặn, Potential, STATUS), điểm, tốt nghiệp, giai đoạn lớp, nhắc bài (quyền, ẩn danh), bảo mật đăng nhập, header CSP, nhập Excel không lọt cột tiền, sao lưu/khôi phục CSV, lịch (khai giảng/buổi học theo thứ học). Mỗi quy tắc bất biến ở mục 2 có ít nhất một test chặn hồi quy.
+182 test chạy trên Postgres trong bộ nhớ, **không** động tới Supabase. Nhóm chính: đăng nhập/phân quyền, điểm danh/bài tập và xung đột `expected`, đồng bộ Sheet (cột cho phép, chốt chặn, Potential, STATUS), điểm, tốt nghiệp, giai đoạn lớp, nhắc bài (quyền, ẩn danh), bảo mật đăng nhập, header CSP, nhập Excel không lọt cột tiền, sao lưu/khôi phục CSV, lịch (khai giảng/buổi học theo thứ học). Mỗi quy tắc bất biến ở mục 2 có ít nhất một test chặn hồi quy.
 
 ---
 

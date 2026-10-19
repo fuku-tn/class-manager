@@ -131,6 +131,15 @@ a:hover { color: var(--gold-2); }
 .sh-afternoon { --sc: var(--ok); }
 .sh-evening { --sc: var(--cat-2); }
 .sh-full_day { --sc: var(--gold); }
+/* Lịch giảng dạy: ghi chú Khai giảng / Bế giảng */
+.cal-pill.note-open { box-shadow: inset 3px 0 0 var(--ok); }
+.cal-pill.note-close { box-shadow: inset 3px 0 0 var(--bad); }
+.cal-tag.note-open { background: var(--ok); color: var(--solid); }
+.cal-tag.note-close { background: var(--bad); color: var(--solid); }
+.lg-bar { display: inline-block; width: 3px; height: 12px; border-radius: 2px; background: var(--muted); }
+.lg-bar.note-open { background: var(--ok); }
+.lg-bar.note-close { background: var(--bad); }
+.cal-empty-note { margin: .8rem 0 0; }
 .cal-tabs { margin: 0 0 .9rem; padding: .2rem; width: fit-content; border: 1px solid var(--border); border-radius: 999px; background: var(--glass); }
 .cal-tabs .chip { padding: .35rem 1rem; font-size: .86rem; }
 .cal-empty-tab { display: grid; justify-items: center; gap: .4rem; padding: 3.5rem 1rem; text-align: center; }
