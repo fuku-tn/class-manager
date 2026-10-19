@@ -94,11 +94,17 @@ a:hover { color: var(--gold-2); }
 .tip b:only-child, .tip span:only-child { color: var(--text); font-size: .8rem; }
 
 /* ---------- Thông báo "Học bù" trên thanh trên (makeup.js) ---------- */
-.makeup { position: relative; }
+.makeup { position: relative; z-index: 50; margin-left: auto; align-self: center; }
 .makeup[hidden] { display: none; }
+/* hàng chứa nút (có transform khi vào trang) tạo lớp xếp chồng riêng: nâng lên để hộp thông báo nằm trên bảng */
+.toolbar:has(> .makeup), .page-head:has(> .makeup) { position: relative; z-index: 50; }
+.view > .makeup { width: fit-content; margin: 0 0 .8rem auto; }
 .makeup-btn { display: inline-flex; align-items: center; gap: .4rem; padding: .38rem .8rem; border-radius: 999px; border: 1px solid var(--warn);
   background: var(--warn-bg); color: var(--warn); font: inherit; font-size: .82rem; font-weight: 650; cursor: pointer; white-space: nowrap; }
 .makeup-btn svg { width: 16px; height: 16px; }
+.makeup-bell { display: inline-flex; transform-origin: 50% 8%; }
+.makeup-btn.blink .makeup-bell { animation: makeup-ring 1.1s ease-in-out infinite; }
+@keyframes makeup-ring { 0%, 55%, 100% { transform: rotate(0); } 10% { transform: rotate(18deg); } 20% { transform: rotate(-16deg); } 30% { transform: rotate(12deg); } 40% { transform: rotate(-8deg); } 50% { transform: rotate(4deg); } }
 .makeup-count { display: inline-grid; place-items: center; min-width: 1.35rem; height: 1.35rem; padding: 0 .3rem; border-radius: 999px; background: var(--warn); color: var(--solid); font-size: .74rem; }
 .makeup-btn:hover { filter: brightness(1.1); }
 .makeup-btn.blink { animation: makeup-blink 1.1s ease-in-out infinite; }
@@ -106,7 +112,7 @@ a:hover { color: var(--gold-2); }
   0%, 100% { box-shadow: 0 0 0 0 var(--warn); opacity: 1; }
   50% { box-shadow: 0 0 0 6px transparent; opacity: .45; }
 }
-@media (prefers-reduced-motion: reduce) { .makeup-btn.blink { animation: none; outline: 2px solid var(--warn); outline-offset: 2px; } }
+@media (prefers-reduced-motion: reduce) { .makeup-btn.blink .makeup-bell { animation: none; } .makeup-btn.blink { animation: none; outline: 2px solid var(--warn); outline-offset: 2px; } }
 .topbar.compact .makeup-label { display: none; }
 .makeup-pop { position: absolute; right: 0; top: calc(100% + .5rem); z-index: 60; width: min(26rem, 92vw); max-height: 70vh; overflow: auto;
   background: var(--solid); border: 1px solid var(--border); border-top: 2px solid var(--warn); border-radius: var(--radius-sm); box-shadow: var(--shadow-lg); padding: .8rem .9rem; }

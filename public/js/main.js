@@ -80,7 +80,6 @@ function buildShell() {
         h('span', { class: 'brand-name' }, BRAND.name), h('span', { class: 'brand-tag' }, BRAND.tagline))),
       h('nav', { class: 'top-nav', 'aria-label': 'Điều hướng' }, homeLink, scheduleLink, navLinks),
       h('div', { class: 'top-right' },
-        makeup.el,
         picker.el,
         h('nav', { class: 'admin-links', 'aria-label': 'Quản trị' }, adminLinks),
         themeBtn,
@@ -220,6 +219,13 @@ async function route() {
   // Thông báo học bù chỉ hiện khi đang xem trang của một lớp
   const inClass = !['home', 'schedule', 'classes', 'feedback', 'import', 'users'].includes(parts[0] ?? 'home') && parts.length > 0;
   shell?.makeup.show(inClass ? state.classes.find((c) => String(c.id) === store.get('classId')) ?? null : null);
+  // Thông báo học bù nằm trong trang: cuối hàng công cụ (tìm kiếm/sắp xếp) bên phải; trang không có hàng công cụ thì ở cuối dòng tiêu đề
+  if (shell) {
+    const host = inClass ? shell.view.querySelector('.toolbar') ?? shell.view.querySelector('.page-head') : null;
+    if (host) host.append(shell.makeup.el);
+    else if (inClass) shell.view.prepend(shell.makeup.el);   // trang không có hàng công cụ (vd Dashboard): đầu trang, sát phải
+    else shell.makeup.el.remove();
+  }
   if (result === 'unauth') { state.user = null; shell = null; route(); }
   shell?.view.classList.toggle('fit', fitNow);
   requestAnimationFrame(fitView);

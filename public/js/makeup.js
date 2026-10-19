@@ -15,7 +15,7 @@ const fmtWhen = (iso) => { const d = new Date(iso); return Number.isNaN(d.getTim
 export function createMakeupNotice() {
   const count = h('b', { class: 'makeup-count' });
   const btn = h('button', { type: 'button', class: 'makeup-btn', 'aria-haspopup': 'dialog', title: 'Học viên lớp khác đến học bù' },
-    icon('makeup'), h('span', { class: 'makeup-label' }, 'Học bù'), count);
+    h('span', { class: 'makeup-bell' }, icon('bell')), h('span', { class: 'makeup-label' }, 'Học bù'), count);
   const pop = h('div', { class: 'makeup-pop', role: 'dialog', 'aria-label': 'Học viên học bù', hidden: true });
   const el = h('div', { class: 'makeup', hidden: true }, btn, pop);
   let cls = null; let list = []; let timer = null; let seq = 0;
