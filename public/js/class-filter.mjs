@@ -41,29 +41,12 @@ export function openingShift(c) {
   return c?.shift ? { shift: c.shift, source: 'sub4' } : { shift: null, source: null };
 }
 
-// Thứ học dạng số của Date.getUTCDay() (0 = CN … 6 = T7): "24" → {1, 3}; "78" → {6, 0}.
-export function weekdaysOf(raw) {
-  const set = new Set();
-  for (const ch of String(raw ?? '')) if (ch >= '2' && ch <= '8') set.add(ch === '8' ? 0 : Number(ch) - 1);
-  return set;
-}
-
-// Sự kiện của lớp vào ngày `day` (yyyy-mm-dd) trên trang Lịch: 'open' = khai giảng (start_date),
-// 'teach' = buổi học (sau khai giảng, chưa quá end_date, đúng thứ học); null nếu không có.
-export function classEventOn(c, day) {
-  if (!c.start_date) return null;
-  if (c.start_date === day) return 'open';
-  if (c.start_date > day || (c.end_date && day > c.end_date)) return null;
-  const [y, m, d] = day.split('-').map(Number);
-  return weekdaysOf(c.days_of_week).has(new Date(Date.UTC(y, m - 1, d)).getUTCDay()) ? 'teach' : null;
-}
-
 // Bài tương đương theo chương trình: BIH có HW1–HW4, Mini Project 1–3, Capstone; "Mini Project 3" chính là HW5
 // (giữ tick nộp HW5, tính % HW và tốt nghiệp như HW5, chỉ đổi tên hiển thị). Phải khớp ASSIGNMENT_ALIASES trong src/services/importPoints.js.
 export const ASSIGNMENT_ALIASES = { BIH: { 'hw:5': { kind: 'mini', seq: 3 } } };
 const programOf = (cls) => String(cls?.program || /^([A-Za-z]+)/.exec(String(cls?.short_code ?? ''))?.[1] || '').toUpperCase();
 // Bài hiển thị: { kind, seq } sau khi đổi theo chương trình (vd BIH hw5 -> mini 3)
-export function displayAssignment(a, cls) {
+function displayAssignment(a, cls) {
   return ASSIGNMENT_ALIASES[programOf(cls)]?.[`${a.kind}:${a.seq}`] ?? { kind: a.kind, seq: a.seq };
 }
 // Tên ngắn trên tiêu đề cột: HW2 · MP1 · Capstone (short = true: CP cho biểu đồ)
@@ -121,7 +104,7 @@ function haystack(c) {
 }
 
 // Mỗi từ khóa phải xuất hiện (AND), không phân biệt dấu/hoa thường.
-export function matchesQuery(c, q) {
+function matchesQuery(c, q) {
   const words = norm(q).split(/\s+/).filter(Boolean);
   if (!words.length) return true;
   const hay = haystack(c);

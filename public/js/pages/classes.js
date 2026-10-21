@@ -1,6 +1,6 @@
 import { post } from '../api.js';
 import { h, toast, formModal } from '../ui.js';
-import { filterClasses, sortClasses, programsOf, countByTiming, timingChipKeys, countBySegment, segmentFlags, SEGMENT_LABEL, TIMING_LABEL, TIMING_ORDER, SHIFT_LABEL, fmtDate, classLabel } from '../class-filter.mjs';
+import { filterClasses, sortClasses, programsOf, countByTiming, timingChipKeys, countBySegment, segmentFlags, SEGMENT_LABEL, TIMING_LABEL, SHIFT_LABEL, fmtDate, classLabel } from '../class-filter.mjs';
 
 export async function renderClasses({ state, refreshClasses, navigate }) {
   const f = { q: '', timing: 'all', program: '', segment: '' };

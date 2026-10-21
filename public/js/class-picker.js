@@ -3,7 +3,7 @@
 import { h, icon } from './ui.js';
 import {
   filterClasses, pickerFilter, sortClasses, programsOf, countByTiming, countBySegment, defaultTiming, timingChipKeys, classLabel, fmtDate,
-  TIMING_LABEL, TIMING_ORDER, SHIFT_LABEL, PROGRAM_NAMES, SEGMENT_LABEL,
+  TIMING_LABEL, SHIFT_LABEL, PROGRAM_NAMES, SEGMENT_LABEL,
 } from './class-filter.mjs';
 
 const MAX_ROWS = 60;

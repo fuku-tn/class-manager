@@ -105,7 +105,7 @@ export function downloadCsv(filename, rows) {
 // ---------- Thương hiệu & biểu tượng (SVG dựng bằng DOM, không innerHTML) ----------
 export const BRAND = { name: 'Starttrain', tagline: 'The Next Analyst' };
 
-export function svg(tag, attrs = {}, ...children) {
+function svg(tag, attrs = {}, ...children) {
   const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
   for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
   el.append(...children);
