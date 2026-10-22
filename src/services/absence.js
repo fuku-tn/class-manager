@@ -67,7 +67,7 @@ function parseAbsenceDates(subject, body, receivedAt) {
 
 // messages: [{ id, from, replyTo, subject, body, received }]. Trả số liệu + classIds cần làm mới màn hình.
 async function importAbsences(db, messages) {
-  const brief = { received: messages.length, not_absence: 0, no_sender: 0, no_date: 0, unmatched: 0, ambiguous: 0, matched: 0, added: 0, duplicates: 0, class_ids: [], unmatched_ids: [] };
+  const brief = { received: messages.length, not_absence: 0, no_sender: 0, no_date: 0, unmatched: 0, matched: 0, added: 0, duplicates: 0, class_ids: [], unmatched_ids: [] };
   const classIds = new Set();
   await db.tx(async (t) => {
     for (const m of messages) {
@@ -76,17 +76,22 @@ async function importAbsences(db, messages) {
       if (!sender) { brief.no_sender++; brief.unmatched_ids.push(m.id); continue; }
       const dates = parseAbsenceDates(m.subject, m.body, m.received);
       if (!dates.length) { brief.no_date++; brief.unmatched_ids.push(m.id); continue; }
-      const found = await t.all('select id from students where lower(email) = $1', [sender]);
-      if (found.length !== 1) { brief[found.length ? 'ambiguous' : 'unmatched']++; brief.unmatched_ids.push(m.id); continue; }
+      // Một email có thể gắn với nhiều mã học viên (cùng một người, hoặc hai người dùng chung): lấy các mã đang học lớp nào đó.
+      // Đơn chỉ hiện ở lớp mà học viên đang học và vẫn cần người xác nhận nên ghi cho tất cả là an toàn.
+      const found = await t.all(
+        `select id from students s where lower(s.email) = $1
+            and exists (select 1 from enrollments e where e.student_id = s.id and e.course_status = 'active')`, [sender]);
+      if (!found.length) { brief.unmatched++; brief.unmatched_ids.push(m.id); continue; }
       brief.matched++;
-      const studentId = found[0].id;
-      const ins = await t.run(
-        `insert into absence_requests (student_id, absence_date, message_key, received_at)
-         select $1, d::date, $3, $4 from unnest($2::text[]) as d on conflict (student_id, absence_date) do nothing`,
-        [studentId, dates, String(m.id ?? '').slice(0, 120) || null, new Date(m.received ?? Date.now())]);
-      brief.added += ins; brief.duplicates += dates.length - ins;
-      const classes = await t.all("select class_id from enrollments where student_id = $1 and course_status = 'active'", [studentId]);
-      for (const c of classes) classIds.add(c.class_id);
+      for (const { id: studentId } of found) {
+        const ins = await t.run(
+          `insert into absence_requests (student_id, absence_date, message_key, received_at)
+           select $1, d::date, $3, $4 from unnest($2::text[]) as d on conflict (student_id, absence_date) do nothing`,
+          [studentId, dates, String(m.id ?? '').slice(0, 120) || null, new Date(m.received ?? Date.now())]);
+        brief.added += ins; brief.duplicates += dates.length - ins;
+        const classes = await t.all("select class_id from enrollments where student_id = $1 and course_status = 'active'", [studentId]);
+        for (const c of classes) classIds.add(c.class_id);
+      }
     }
   });
   brief.class_ids = [...classIds];

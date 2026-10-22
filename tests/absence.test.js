@@ -49,7 +49,7 @@ before(async () => {
   for (const [c, n] of [['A1', 'Võ An'], ['A2', 'Đặng Bình']]) await admin.post(`/api/classes/${classId}/students`, { student_code: c, full_name: n });
   await admin.post(`/api/classes/${otherId}/students`, { student_code: 'A9', full_name: 'Lớp khác' });
   await t.db.run("update students set email = 'an@gmail.com' where student_code = 'A1'");
-  await t.db.run("update students set email = 'binh@mail.com' where student_code in ('A2', 'A9')"); // trùng email → không tự khớp
+  await t.db.run("update students set email = 'binh@mail.com' where student_code in ('A2', 'A9')"); // một email gắn với hai mã đang học → ghi cho cả hai
   sessions = (await admin.get(`/api/classes/${classId}/attendance`)).body.sessions;
   // Lịch giảng dạy: buổi 2 của lớp vào 24/10/2026, buổi 3 vào 31/10/2026
   await t.db.run("insert into teaching_schedule (class_id, short_code, session_date, session_no) values ($1, 'AB01', '2026-10-24', 2), ($1, 'AB01', '2026-10-31', 3)", [classId]);
@@ -67,8 +67,8 @@ test('đồng bộ: sai mã bị từ chối; thư khớp học viên được g
     mail('m6', 'academicaffairs.ste@gmail.com', 'Xin nghỉ học 24/10', 'không có người gửi'),
   ]);
   assert.equal(r.status, 200);
-  assert.deepEqual([r.body.matched, r.body.added, r.body.unmatched, r.body.ambiguous, r.body.no_date, r.body.not_absence, r.body.no_sender], [1, 1, 1, 1, 1, 1, 1]);
-  assert.deepEqual([...r.body.unmatched_ids].sort(), ['m2', 'm3', 'm4', 'm6']);
+  assert.deepEqual([r.body.matched, r.body.added, r.body.unmatched, r.body.no_date, r.body.not_absence, r.body.no_sender], [2, 3, 1, 1, 1, 1]); // m3: một email, hai mã đang học → ghi cho cả hai
+  assert.deepEqual([...r.body.unmatched_ids].sort(), ['m2', 'm4', 'm6']);
   const again = await send([mail('m1', 'an@gmail.com', 'Xin nghỉ học ngày 24/10')]); // gửi lại cùng thư: không nhân đôi
   assert.deepEqual([again.body.added, again.body.duplicates], [0, 1]);
 });
@@ -83,18 +83,19 @@ test('không lưu email người gửi, tiêu đề hay nội dung thư', async 
 
 test('hiện ở lớp đúng buổi: lớp có học viên và buổi trùng ngày mới thấy; lớp khác không', async () => {
   const list = (await admin.get(`/api/classes/${classId}/absences`)).body;
-  assert.equal(list.length, 1);
-  assert.deepEqual([list[0].student_code, list[0].absence_date, list[0].session_no, list[0].status], ['A1', '2026-10-24', 2, 'pending']);
-  assert.equal(list[0].session_id, sessions.find((s) => s.session_no === 2).id);
-  assert.equal((await gv.get(`/api/classes/${classId}/absences`)).body.length, 1);
-  assert.equal((await guest.get(`/api/classes/${classId}/absences`)).body.length, 1);
-  assert.equal((await admin.get(`/api/classes/${otherId}/absences`)).body.length, 0);
+  const a1 = list.find((r) => r.student_code === 'A1');
+  assert.deepEqual([a1.absence_date, a1.session_no, a1.status], ['2026-10-24', 2, 'pending']);
+  assert.equal(a1.session_id, sessions.find((s) => s.session_no === 2).id);
+  assert.deepEqual(list.map((r) => r.student_code).sort(), ['A1', 'A2'], 'email dùng chung: cả hai mã đang học đều có đơn');
+  assert.equal((await gv.get(`/api/classes/${classId}/absences`)).body.length, 2);
+  assert.equal((await guest.get(`/api/classes/${classId}/absences`)).body.length, 2);
+  assert.equal((await admin.get(`/api/classes/${otherId}/absences`)).body.length, 0, 'lớp khác chưa có lịch buổi trùng ngày');
   await send([mail('m7', 'an@gmail.com', 'Xin nghỉ học 29/10')]); // ngày không trùng buổi nào → không hiện
-  assert.equal((await admin.get(`/api/classes/${classId}/absences`)).body.length, 1);
+  assert.equal((await admin.get(`/api/classes/${classId}/absences`)).body.length, 2);
 });
 
 test('xác nhận → ô điểm danh thành Có phép (P), buổi không tự thành đã diễn ra; khách bị chặn', async () => {
-  const [r] = (await admin.get(`/api/classes/${classId}/absences`)).body;
+  const r = (await admin.get(`/api/classes/${classId}/absences`)).body.find((x) => x.student_code === 'A1');
   assert.equal((await guest.post(`/api/classes/${classId}/absences/${r.id}/confirm`, {})).status, 403);
   assert.equal((await admin.post(`/api/classes/${classId}/absences/${r.id}/xoa`, {})).status, 404);
   assert.equal((await admin.post(`/api/classes/${classId}/absences/999999/confirm`, {})).status, 404);
@@ -102,12 +103,12 @@ test('xác nhận → ô điểm danh thành Có phép (P), buổi không tự t
   const att = (await admin.get(`/api/classes/${classId}/attendance`)).body;
   assert.equal(att.rows.find((x) => x.student_code === 'A1').cells[r.session_id].status, 'excused');
   assert.equal(att.sessions.find((s) => s.id === r.session_id).held, false);
-  assert.equal((await admin.get(`/api/classes/${classId}/absences`)).body[0].status, 'confirmed');
+  assert.equal((await admin.get(`/api/classes/${classId}/absences`)).body.find((x) => x.student_code === 'A1' && x.absence_date === '2026-10-24').status, 'confirmed');
 });
 
 test('đã điểm danh có mặt thì xác nhận bị từ chối (409); bỏ qua thì đơn biến mất khỏi danh sách', async () => {
   await send([mail('m8', 'an@gmail.com', 'Xin nghỉ học 31/10')]);
-  const r = (await admin.get(`/api/classes/${classId}/absences`)).body.find((x) => x.absence_date === '2026-10-31');
+  const r = (await admin.get(`/api/classes/${classId}/absences`)).body.find((x) => x.absence_date === '2026-10-31' && x.student_code === 'A1');
   assert.ok(r);
   await admin.put(`/api/classes/${classId}/attendance`, { enrollment_id: r.enrollment_id, session_id: r.session_id, status: 'present', expected: null });
   assert.equal((await admin.post(`/api/classes/${classId}/absences/${r.id}/confirm`, {})).status, 409);

@@ -89,7 +89,7 @@ function syncAbsences() {
       if (miss) { th.addLabel(bad); } else { th.addLabel(done); th.removeLabel(bad); }
     });
     console.log('Đã gửi ' + messages.length + ' thư: khớp ' + out.matched + ', thêm ngày nghỉ ' + out.added + ', trùng ' + out.duplicates +
-      ', chưa khớp ' + (out.unmatched + out.ambiguous + out.no_sender + out.no_date));
+      ', chưa khớp ' + (out.unmatched + out.no_sender + out.no_date));
   } finally {
     lock.releaseLock();
   }
