@@ -84,6 +84,9 @@ Nguồn điểm HW **duy nhất** là file Excel `Chấm điểm.xlsx`, bảng (
 - **Học viên phải có trong lớp** của app (qua đồng bộ đăng ký) thì điểm mới hiện.
 - Xem điểm: trang **Học viên** (cột Điểm TB) và trang **Bài tập** (điểm ngay trong ô, cột Điểm TB) — admin + giảng viên của lớp; khách không thấy.
 
+## Lớp chưa có trong sheet COURSE
+Lớp đã có trong app (tạo tay ở trang **Lớp học**, hoặc thiết lập bằng migration như BIE107) mà chưa có dòng trong sheet COURSE vẫn nhận học viên từ PERSONAL/COMPANY nếu mã lớp (cột COURSE) khớp `short_code`; mã lớp không có ở cả hai nơi vẫn bị bỏ qua (`skipped_unknown_course`). Thông tin lớp (ngày, hình thức, giáo trình) chỉ được sửa theo sheet COURSE — thêm dòng COURSE khi có để lớp có ngày kết thúc. Bài tập mặc định tạo sẵn khi đồng bộ: SCA, PBM 4 HW; giáo trình BIE-6 (BIE107) HW1, HW2, Mini Project 1.
+
 ## Lịch giảng dạy (bảng "Calendar" trên Google Sheet, script riêng)
 Bảng **Calendar** (Google Sheets table) có các cột `Ngày · Buổi · Khóa · Nội dung · Số buổi · Hình thức · Loại · Ghi chú` (+ tùy chọn `Giảng viên`). Script `scripts/google-apps-script/sync-schedule.gs` gửi bảng tới `POST /api/sync/schedule` (mã `SYNC_TOKEN`), web lưu ở bảng `teaching_schedule` và hiện ở **Lịch → tab Lịch giảng dạy**.
 

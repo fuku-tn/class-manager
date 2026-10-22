@@ -32,10 +32,20 @@ const KNOWN_TEMPLATES = {
   BIH098: 'BIH-20', BIH100: 'BIH-20', BIH103: 'BIH-11', BIH106: 'BIH-20',
   // EBA thời 8 buổi (3 HW + Capstone, tốt nghiệp ≥ 6 buổi) — chủ dự án chốt 18/10/2026
   EBA069: 'EBA-8', EBA070: 'EBA-8', EBA072: 'EBA-8', EBA073: 'EBA-8',
+  // Lớp B2B BIE107: 6 buổi, 2 HW + 1 Mini Project (chủ dự án chốt 22/10/2026)
+  BIE107: 'BIE-6',
 };
+// Bài tập mặc định tạo sẵn cho lớp (chỉ thêm bài còn thiếu, không xóa/ghi đè): tra theo giáo trình trước, rồi theo chương trình.
+// SCA, PBM: 4 HW (chủ dự án chốt 22/10/2026); BIE107 (BIE-6): HW1, HW2, Mini Project 1.
+const DEFAULT_ASSIGNMENTS = {
+  'BIE-6': [['hw', 1], ['hw', 2], ['mini', 1]],
+  SCA: [['hw', 1], ['hw', 2], ['hw', 3], ['hw', 4]],
+  PBM: [['hw', 1], ['hw', 2], ['hw', 3], ['hw', 4]],
+};
+const assignmentTitle = (kind, seq) => (kind === 'mini' ? `Mini Project ${seq}` : kind === 'capstone' ? 'Capstone Project' : `HW ${seq}`);
 // Lớp BI cũ chưa có mẫu: theo lớp mới gần nhất cùng chương trình.
 // EBA mặc định 6 buổi, PBM 10 buổi (chủ dự án chốt 13/10/2026; EBA069/070/072/073 trước đây 8 buổi vẫn giữ buổi đã có).
-const OPTIONAL_TEMPLATES = new Set(['EBA-6', 'EBA-8', 'PBM-10']); // thiếu trong file giáo trình thì bỏ qua (không dừng nhập)
+const OPTIONAL_TEMPLATES = new Set(['EBA-6', 'EBA-8', 'BIE-6', 'PBM-10']); // thiếu trong file giáo trình thì bỏ qua (không dừng nhập)
 const DEFAULT_TEMPLATE = { BIE: 'BIE-8', BIH: 'BIH-20', EBA: 'EBA-6', PBM: 'PBM-10' };
 
 const txt = (v) => {
@@ -254,6 +264,11 @@ async function importTransactions(db, { transactionsFile, curriculumFile, dryRun
   const curricula = curriculumFile ? parseCurricula(await loadWorkbook(curriculumFile)) : await curriculaFromDb(db);
   const classes = parseCourse(courseWs);
   const classByShort = new Map(classes.map((c) => [c.short_code, c]));
+  // Lớp đã có trong app nhưng chưa có dòng trong sheet COURSE (vd lớp B2B tạo tay trên web): vẫn nhận ghi danh từ PERSONAL/COMPANY.
+  // Không đụng tới thông tin lớp (chỉ có bảng COURSE mới được sửa ngày/hình thức/giáo trình).
+  const extraClasses = await db.all('select id, code, short_code from classes where short_code is not null and not (short_code = any($1::text[]))',
+    [classes.map((c) => c.short_code)]);
+  for (const x of extraClasses) classByShort.set(x.short_code, { code: x.code, short_code: x.short_code, extra: true });
   const parsed = parseTransactions(txWs, classByShort);
   const byCode = new Map(curricula.map((c) => [c.code, c]));
   const missingTemplates = [...new Set(classes.map((c) => c.template).filter((t) => t && !byCode.has(t)))];
@@ -323,7 +338,7 @@ async function importTransactions(db, { transactionsFile, curriculumFile, dryRun
         [classes.map((c) => c.code), classes.map((c) => c.name), classes.map((c) => c.short_code), classes.map((c) => c.program),
           classes.map((c) => c.delivery_mode), classes.map((c) => c.shift), classes.map((c) => c.start_date), classes.map((c) => c.end_date),
           classes.map((c) => c.next_short_code), classes.map((c) => c.template), classes.map((c) => c.days_of_week ?? null)]);
-      const classId = new Map(classRows.map((r) => [r.short_code, r.id]));
+      const classId = new Map([...classRows, ...extraClasses].map((r) => [r.short_code, r.id]));
       summary.class_ids = [...new Set(en0(parsed.enrolls, classId))];
 
       // 3) Buổi học theo giáo trình (không ghi đè tên buổi do người dùng tự đặt)
@@ -338,6 +353,17 @@ async function importTransactions(db, { transactionsFile, curriculumFile, dryRun
          on conflict (class_id, session_no) do update set title = excluded.title
            where sessions.title is null or sessions.title ~ '^Buổi [0-9]+( —.*)?$'`,
         [ses.c, ses.n, ses.title]);
+
+      // 3b) Bài tập mặc định (SCA/PBM 4 HW; BIE-6: HW1, HW2, Mini Project 1) — chỉ thêm bài còn thiếu
+      const da = { c: [], kind: [], seq: [], title: [] };
+      for (const c of classes) {
+        const list = DEFAULT_ASSIGNMENTS[c.template] ?? DEFAULT_ASSIGNMENTS[c.program];
+        if (!list || !classId.get(c.short_code)) continue;
+        for (const [kind, seq] of list) { da.c.push(classId.get(c.short_code)); da.kind.push(kind); da.seq.push(seq); da.title.push(assignmentTitle(kind, seq)); }
+      }
+      if (da.c.length) await t.run(
+        `insert into assignments (class_id, kind, seq, title) select * from unnest($1::bigint[], $2::text[], $3::int[], $4::text[])
+         on conflict (class_id, kind, seq) do nothing`, [da.c, da.kind, da.seq, da.title]);
 
       // 4) Học viên
       const st = parsed.students;
@@ -367,7 +393,7 @@ async function importTransactions(db, { transactionsFile, curriculumFile, dryRun
         // Admin đã chủ động gỡ học viên khỏi lớp: đồng bộ không tự thêm lại (muốn thêm lại thì thêm tay trên web).
         const removed = new Set((await t.all("select distinct class_code, student_code from enrollment_events where event = 'removed'"))
           .map((r) => `${r.class_code}|${r.student_code}`));
-        const codeOfShort = new Map(classes.map((c) => [c.short_code, c.code]));
+        const codeOfShort = new Map([...classes, ...extraClasses].map((c) => [c.short_code, c.code]));
         const before = en.length;
         en = en.filter((e) => !removed.has(`${codeOfShort.get(e.short_code)}|${e.student_code}`)
           || prev.has(`${classId.get(e.short_code)}:${studentId.get(e.student_code)}`));
@@ -423,7 +449,7 @@ async function importTransactions(db, { transactionsFile, curriculumFile, dryRun
       // Nhật ký sự kiện (cùng transaction): thêm mới, đổi trạng thái, đổi trạng thái đăng ký, chuyển Potential, không còn/lại xuất hiện
       const stuByCode = new Map(st.map((s) => [s.student_code, s]));
       const codeById = new Map(studentRows.map((r) => [r.id, r.student_code]));
-      const classCodeById = new Map(classRows.map((r) => [r.id, r.code]));
+      const classCodeById = new Map([...classRows, ...extraClasses].map((r) => [r.id, r.code]));
       const nameOf = (studentIdVal) => stuByCode.get(codeById.get(studentIdVal))?.full_name ?? null;
       const base = (r) => ({
         enrollment_id: r.id, class_id: r.class_id, class_code: classCodeById.get(r.class_id), student_id: r.student_id,
