@@ -5,7 +5,7 @@ module.exports = (db) => {
   const router = express.Router(); // đã được bảo vệ requireAdmin ở app.js
 
   router.get('/', async (_req, res) => {
-    const users = await db.all('select id, email, name, role, active, can_remind, can_view_upcoming, can_view_potential from users order by name');
+    const users = await db.all('select id, email, name, role, active, can_remind, can_view_upcoming, can_view_potential, can_voucher from users order by name');
     const links = await db.all('select class_id, user_id from class_instructors');
     res.json(users.map((u) => ({ ...u, class_ids: links.filter((l) => l.user_id === u.id).map((l) => l.class_id) })));
   });
@@ -48,6 +48,14 @@ module.exports = (db) => {
     const id = Number(req.params.id);
     if (!Number.isSafeInteger(id) || !await db.one('select 1 as x from users where id = $1', [id])) return res.status(404).json({ error: 'Không tìm thấy người dùng' });
     await db.run('update users set can_view_potential = $1 where id = $2', [!!req.body.can_view_potential, id]);
+    res.json({ ok: true });
+  });
+
+  // Bật/tắt quyền xem/sửa voucher Google Maps của học viên (admin luôn có).
+  router.put('/:id/voucher', async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isSafeInteger(id) || !await db.one('select 1 as x from users where id = $1', [id])) return res.status(404).json({ error: 'Không tìm thấy người dùng' });
+    await db.run('update users set can_voucher = $1 where id = $2', [!!req.body.can_voucher, id]);
     res.json({ ok: true });
   });
 

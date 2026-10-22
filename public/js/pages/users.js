@@ -43,7 +43,7 @@ export async function renderUsers({ state, navigate }) {
         try { await post('/api/users', v); toast('Đã tạo'); location.reload(); } catch (e) { toast(e.message, true); }
       } }, '+ Thêm người dùng')),
     h('div', { class: 'table-wrap' }, h('table', {},
-      h('thead', {}, h('tr', {}, ['Họ tên', 'Email', 'Vai trò', 'Nhắc bài (tin nhắn + chụp ảnh)', 'Xem lớp chưa diễn ra', 'Xem Potential', 'Lớp được phân', 'Trạng thái', ''].map((x) => h('th', {}, x)))),
+      h('thead', {}, h('tr', {}, ['Họ tên', 'Email', 'Vai trò', 'Nhắc bài (tin nhắn + chụp ảnh)', 'Xem lớp chưa diễn ra', 'Xem Potential', 'Voucher GG Maps', 'Lớp được phân', 'Trạng thái', ''].map((x) => h('th', {}, x)))),
       h('tbody', {}, users.map((u) => h('tr', { class: u.active ? '' : 'inactive' },
         h('td', {}, u.name), h('td', {}, u.email), h('td', {}, ({ admin: 'Admin', guest: 'Khách (chỉ xem)' })[u.role] ?? 'Giảng viên'),
         h('td', {}, u.role === 'admin' ? 'Có (admin)' : u.role === 'guest' ? '—'
@@ -54,6 +54,10 @@ export async function renderUsers({ state, navigate }) {
           : h('button', { class: u.can_view_potential ? 'primary' : '', title: 'Cho phép xem danh sách Potential (người chưa thanh toán / đã bị xóa khỏi sheet)', onclick: async () => {
             try { await put(`/api/users/${u.id}/view-potential`, { can_view_potential: !u.can_view_potential }); location.reload(); } catch (e) { toast(e.message, true); }
           } }, u.can_view_potential ? 'Được xem — tắt' : 'Không — bật')),
+        h('td', {}, u.role === 'admin' ? 'Có (admin)' : u.role === 'guest' ? '—'
+          : h('button', { class: u.can_voucher ? 'primary' : '', title: 'Cho phép xem và nhập voucher Google Maps (số tiền) của học viên trong popup Voucher ở trang Điểm danh', onclick: async () => {
+            try { await put(`/api/users/${u.id}/voucher`, { can_voucher: !u.can_voucher }); location.reload(); } catch (e) { toast(e.message, true); }
+          } }, u.can_voucher ? 'Được dùng — tắt' : 'Không — bật')),
         h('td', {}, u.role === 'admin' ? 'Tất cả' : u.role === 'guest' ? '—'
           : h('button', { class: u.can_view_upcoming ? 'primary' : '', title: 'Cho phép xem (không sửa) mọi lớp chưa tới ngày khai giảng, kể cả lớp chưa được phân công', onclick: async () => {
             try { await put(`/api/users/${u.id}/view-upcoming`, { can_view_upcoming: !u.can_view_upcoming }); location.reload(); } catch (e) { toast(e.message, true); }

@@ -10,6 +10,7 @@ create table if not exists users (
   can_remind    boolean not null default false,
   can_view_upcoming boolean not null default false,
   can_view_potential boolean not null default false,
+  can_voucher   boolean not null default false,   -- xem/sửa voucher Google Maps (admin luôn được)
   active        boolean not null default true,
   created_at    timestamptz not null default now()
 );
@@ -320,3 +321,15 @@ create table if not exists teaching_schedule (
 alter table teaching_schedule enable row level security;
 create index if not exists idx_teaching_schedule_date on teaching_schedule (session_date);
 create index if not exists idx_teaching_schedule_class on teaching_schedule (class_id);
+
+-- Voucher Google Maps của học viên (chỉ admin + users.can_voucher) — xem supabase/migrations/2026-10-22-vouchers.sql
+create table if not exists enrollment_vouchers (
+  enrollment_id   bigint primary key references enrollments(id) on delete cascade,
+  amount          integer check (amount is null or (amount >= 0 and amount <= 100000000)),   -- VND
+  sent_date       date,
+  expiration_date date,
+  status          text check (status is null or status = 'Used'),                            -- trống = chưa dùng
+  updated_by      bigint references users(id) on delete set null,
+  updated_at      timestamptz not null default now()
+);
+alter table enrollment_vouchers enable row level security;

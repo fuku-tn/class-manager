@@ -1,6 +1,6 @@
 // Học viên, điểm danh, bài tập của một lớp. Mount tại /api/classes/:classId
 const express = require('express');
-const { requireAdmin, requireClassAccess, canViewPotential } = require('../auth');
+const { requireAdmin, requireClassAccess, canViewPotential, canVoucher } = require('../auth');
 const { compareByName, loadClassData, computeEnrollmentStats, sessionSummaries, averageScore } = require('../services/stats');
 const realtime = require('../services/realtime');
 const { logEvents, latestEvents } = require('../services/history');
@@ -184,6 +184,50 @@ module.exports = (db) => {
 
   // Học bù: học viên lớp khác được ghi chú điểm danh "Bù <mã lớp này>" (vd "Bù EBA122") — để lớp này biết có ai đến học bù buổi nào.
   router.get('/makeups', async (req, res) => { res.json(await makeupsFor(db, req.cls)); });
+
+  // ---------- Voucher Google Maps (số tiền do chủ dự án cho phép 22/10/2026) ----------
+  // Chỉ admin + tài khoản được bật can_voucher (hiện: Đoàn Minh Lý). Nhập tay trên web; KHÔNG đọc từ Excel/Sheet. Mỗi học viên một dòng.
+  const needVoucher = (req, res, next) => (canVoucher(req.user) ? next() : res.status(403).json({ error: 'Bạn không có quyền xem voucher' }));
+  const VOUCHER_SQL = `select e.id as enrollment_id, s.student_code, s.full_name, e.course_status, v.amount, v.sent_date::text as sent_date,
+                              v.expiration_date::text as expiration_date, v.status, u.name as updated_by_name, v.updated_at
+                         from enrollments e join students s on s.id = e.student_id
+                         left join enrollment_vouchers v on v.enrollment_id = e.id left join users u on u.id = v.updated_by`;
+  router.get('/vouchers', needVoucher, async (req, res) => {
+    const rows = await db.all(`${VOUCHER_SQL} where e.class_id = $1`, [req.cls.id]);
+    rows.sort(compareByName);
+    res.json(rows);
+  });
+
+  const isoOrNull = (v, label) => {
+    if (v == null || v === '') return null;
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(v));
+    const d = m && new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+    if (!d || d.getUTCFullYear() !== +m[1] || d.getUTCMonth() !== +m[2] - 1 || d.getUTCDate() !== +m[3]) throw Object.assign(new Error(`${label} không hợp lệ (cần dạng ngày/tháng/năm)`), { status: 400, expose: true });
+    return `${m[1]}-${m[2]}-${m[3]}`;
+  };
+  router.put('/vouchers/:enrollmentId', needVoucher, async (req, res) => {
+    const b = req.body ?? {};
+    const err = (msg) => res.status(400).json({ error: msg });
+    let amount = null;
+    if (b.amount != null && b.amount !== '') {
+      amount = Number(b.amount);
+      if (!Number.isInteger(amount) || amount < 0 || amount > 100000000) return err('Số tiền voucher phải là số nguyên từ 0 đến 100.000.000');
+    }
+    let sent; let exp;
+    try { sent = isoOrNull(b.sent_date, 'Ngày gửi voucher'); exp = isoOrNull(b.expiration_date, 'Ngày hết hạn'); } catch (e) { return err(e.message); }
+    if (sent && exp && exp < sent) return err('Ngày hết hạn không được trước ngày gửi');
+    const status = b.status == null || b.status === '' ? null : b.status;
+    if (status !== null && status !== 'Used') return err('Trạng thái voucher chỉ có thể để trống (chưa dùng) hoặc "Used"');
+    const enr = await db.one('select id from enrollments where id = $1 and class_id = $2', [Number(req.params.enrollmentId) || 0, req.cls.id]);
+    if (!enr) return res.status(404).json({ error: 'Không tìm thấy học viên trong lớp' });
+    if (amount === null && !sent && !exp && !status) await db.run('delete from enrollment_vouchers where enrollment_id = $1', [enr.id]);   // xóa trắng cả dòng
+    else await db.run(
+      `insert into enrollment_vouchers (enrollment_id, amount, sent_date, expiration_date, status, updated_by, updated_at)
+       values ($1, $2, $3::date, $4::date, $5, $6, now())
+       on conflict (enrollment_id) do update set amount = excluded.amount, sent_date = excluded.sent_date, expiration_date = excluded.expiration_date,
+         status = excluded.status, updated_by = excluded.updated_by, updated_at = now()`, [enr.id, amount, sent, exp, status, req.user.id]);
+    res.json(await db.one(`${VOUCHER_SQL} where e.id = $1`, [enr.id]));
+  });
 
   // ---------- Potential: học viên trong sheet PERSONAL nhưng không có tên trong danh sách/điểm danh ----------
   // (Chưa thanh toán, hoặc đã bị xóa khỏi Sheet). Chỉ admin và tài khoản được bật can_view_potential (hiện: Đoàn Ly).

@@ -59,7 +59,7 @@ module.exports = (db) => {
     await logEvent(req, 'login_ok', { email, userId: user.id });
     if (Math.random() < 0.02) db.run("delete from auth_events where at < now() - interval '90 days'").catch(() => {}); // giữ 90 ngày
     setSessionCookie(res, await createSession(db, user.id));
-    res.json({ id: user.id, email: user.email, name: user.name, role: user.role, can_remind: user.can_remind === true, can_view_potential: user.can_view_potential === true });
+    res.json({ id: user.id, email: user.email, name: user.name, role: user.role, can_remind: user.can_remind === true, can_view_potential: user.can_view_potential === true, can_voucher: user.can_voucher === true });
   });
 
   router.post('/logout', async (req, res) => {

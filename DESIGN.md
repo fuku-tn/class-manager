@@ -1,7 +1,7 @@
 # DESIGN — Class Manager (Starttrain)
 
 Tài liệu thiết kế của webapp quản lý lớp học: **vì sao** hệ thống được dựng như vậy, dữ liệu chảy thế nào, quy tắc nào là bất biến.
-Cập nhật theo trạng thái ngày **18/10/2026** (187 test). Chi tiết cài đặt từng phần xem [Documents/3-ky-thuat/code-guide.md](Documents/3-ky-thuat/code-guide.md); nhật ký quyết định theo ngày xem [memory.md](memory.md).
+Cập nhật theo trạng thái ngày **18/10/2026** (192 test). Chi tiết cài đặt từng phần xem [Documents/3-ky-thuat/code-guide.md](Documents/3-ky-thuat/code-guide.md); nhật ký quyết định theo ngày xem [memory.md](memory.md).
 
 ---
 
@@ -13,7 +13,7 @@ Cập nhật theo trạng thái ngày **18/10/2026** (187 test). Chi tiết cài
 1. Một nơi duy nhất để **điểm danh, theo dõi bài tập, điểm, tốt nghiệp** theo từng lớp, nhiều người dùng cùng lúc.
 2. **Tự động hóa** dữ liệu đăng ký từ Google Sheet của bộ phận vận hành (không nhập tay lại).
 3. Cảnh báo sớm học viên cần chú ý; hỗ trợ giảng viên nhắc bài hàng loạt.
-4. **Không bao giờ giữ số tiền** của học viên (ràng buộc của chủ dự án).
+4. **Không giữ số tiền** của học viên (ràng buộc của chủ dự án) — **một ngoại lệ có kiểm soát (22/10/2026): voucher Google Maps** nhập tay, chỉ admin + tài khoản được cấp quyền (mục 5.8).
 
 **Ngoài phạm vi.** Thanh toán/học phí, tạo nội dung bài giảng, cổng thông tin cho học viên (học viên không có tài khoản).
 
@@ -26,7 +26,7 @@ Cập nhật theo trạng thái ngày **18/10/2026** (187 test). Chi tiết cài
 | # | Nguyên tắc | Hệ quả cụ thể |
 |---|---|---|
 | P1 | **Một nguồn sự thật cho mỗi công thức** | Mọi tỉ lệ/điểm trung bình chỉ tính ở `src/services/stats.js`; frontend và route không tự tính lại |
-| P2 | **Dữ liệu tiền không tồn tại trong hệ thống** | Bộ nhập chỉ đọc cột trong danh sách cho phép (`ALLOWED_*`), không "đọc hết rồi bỏ"; test kiểm có chuỗi tiền không lọt vào DB |
+| P2 | **Dữ liệu tiền không tồn tại trong hệ thống** (trừ voucher Google Maps nhập tay, mục 5.8) | Bộ nhập chỉ đọc cột trong danh sách cho phép (`ALLOWED_*`), không "đọc hết rồi bỏ"; test kiểm có chuỗi tiền không lọt vào DB |
 | P3 | **Server là nơi duy nhất quyết định quyền** | Ẩn nút ở giao diện chỉ để tiện; mọi route đều kiểm quyền ở máy chủ |
 | P4 | **Nguồn ngoài là không đáng tin** | Sheet có thể sửa dở, lệch cột, xóa nhầm → chốt chặn thay đổi bất thường, đếm dòng bị bỏ qua, không ghi nửa chừng |
 | P5 | **Thay đổi ghi danh luôn có dấu vết** | Nhật ký `enrollment_events` chỉ thêm, ghi trong cùng transaction với thay đổi |
@@ -199,6 +199,9 @@ Thẻ PNG tiến độ từng học viên (vẽ canvas ở trình duyệt), tin 
 
 ---
 
+### 5.8 Voucher Google Maps (ngoại lệ có kiểm soát)
+Chủ dự án cho phép (22/10/2026) lưu **voucher Google Maps** của học viên: số tiền (500.000 / 1.000.000 / 1.500.000 / 2.000.000 hoặc tự nhập), ngày gửi, ngày hết hạn, trạng thái (trống = chưa dùng, `Used`). Bảng riêng `enrollment_vouchers` (một dòng cho mỗi ghi danh), **chỉ admin và tài khoản `users.can_voucher`** (hiện: Đoàn Minh Lý) xem/sửa trong popup "Voucher" ở trang Điểm danh; **nhập tay trên web**, bộ nhập Excel/Sheet vẫn không đọc cột voucher; không xuất hiện ở API học viên/điểm danh/bài tập/dashboard.
+
 ## 6. Luồng dữ liệu
 
 ### 6.1 Đồng bộ đăng ký từ Google Sheet
@@ -321,7 +324,7 @@ flowchart LR
 
 ## 11. Kiểm thử
 
-187 test chạy trên Postgres trong bộ nhớ, **không** động tới Supabase. Nhóm chính: đăng nhập/phân quyền, điểm danh/bài tập và xung đột `expected`, đồng bộ Sheet (cột cho phép, chốt chặn, Potential, STATUS), điểm, tốt nghiệp, giai đoạn lớp, nhắc bài (quyền, ẩn danh), bảo mật đăng nhập, header CSP, nhập Excel không lọt cột tiền, sao lưu/khôi phục CSV, lịch (khai giảng/buổi học theo thứ học). Mỗi quy tắc bất biến ở mục 2 có ít nhất một test chặn hồi quy.
+192 test chạy trên Postgres trong bộ nhớ, **không** động tới Supabase. Nhóm chính: đăng nhập/phân quyền, điểm danh/bài tập và xung đột `expected`, đồng bộ Sheet (cột cho phép, chốt chặn, Potential, STATUS), điểm, tốt nghiệp, giai đoạn lớp, nhắc bài (quyền, ẩn danh), bảo mật đăng nhập, header CSP, nhập Excel không lọt cột tiền, sao lưu/khôi phục CSV, lịch (khai giảng/buổi học theo thứ học). Mỗi quy tắc bất biến ở mục 2 có ít nhất một test chặn hồi quy.
 
 ---
 
