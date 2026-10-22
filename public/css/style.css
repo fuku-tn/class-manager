@@ -102,6 +102,9 @@ a:hover { color: var(--gold-2); }
 /* Hai chuông (Xin nghỉ, Học bù) đứng cạnh nhau, sát phải */
 .notices { position: relative; z-index: 50; display: flex; align-items: center; gap: .55rem; margin-left: auto; align-self: center; }
 .notices > .makeup { margin-left: 0; }
+/* Không có chuông nào hiện: bỏ hẳn khung (nếu không, lề auto của khung rỗng chia đôi chỗ trống với nút Voucher và đẩy nó ra giữa). Có Voucher đứng trước thì Voucher đã là phần tử đẩy sang phải */
+.notices:not(:has(> .makeup:not([hidden]))) { display: none; }
+.vc-open + .notices { margin-left: .6rem; }
 .absence-btn { border-color: var(--bad, #e5484d); }
 .absence-btn .makeup-count { background: var(--bad, #e5484d); color: var(--solid); }
 .absence-actions { display: flex; gap: .4rem; margin-top: .4rem; }
