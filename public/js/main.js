@@ -252,7 +252,13 @@ function fitView() {
     if (fit) {
       const head = el.querySelector('thead')?.getBoundingClientRect().height ?? 0;
       const row = el.querySelector('tbody tr')?.getBoundingClientRect().height ?? 0;
-      el.style.maxHeight = row ? `${Math.ceil(head + row * ROWS_VISIBLE + 2)}px` : '';
+      if (!row) { el.style.maxHeight = ''; continue; }
+      // Tối đa 10 hàng, nhưng không vượt phần màn hình còn lại (laptop thấp: nếu không, hàng cuối bị cắt vì khung trang không cuộn)
+      const block = el.parentElement?.classList.contains('az-layout') ? el.parentElement : el;
+      let below = 0;
+      for (let s = block.nextElementSibling; s; s = s.nextElementSibling) below += (s.matches('details[open]') ? Math.min(s.offsetHeight, 96) : s.offsetHeight) + 16;
+      const room = Math.floor(window.innerHeight - (el.getBoundingClientRect().top) - 16 - below);
+      el.style.maxHeight = `${Math.max(128, Math.min(Math.ceil(head + row * ROWS_VISIBLE + 2), room))}px`;
     } else {
       const top = el.getBoundingClientRect().top + window.scrollY;
       el.style.maxHeight = `${Math.max(240, Math.floor(window.innerHeight - top - 12))}px`;
