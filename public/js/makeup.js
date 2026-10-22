@@ -79,7 +79,7 @@ export function createMakeupNotice() {
       if (!cls) { el.hidden = true; pop.hidden = true; list = []; return; }
       if (changed) { list = []; el.hidden = true; pop.hidden = true; }
       load();
-      timer = setInterval(load, POLL_MS);
+      timer = setInterval(() => { if (document.visibilityState === 'visible') load(); }, POLL_MS);   // tab ẩn không thăm dò: bớt tải/kết nối tới database
     },
   };
 }

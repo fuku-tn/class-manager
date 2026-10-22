@@ -90,7 +90,7 @@ function describeDbError(e) {
   if (/Invalid URL|invalid connection string/i.test(m)) return 'DATABASE_URL không đúng định dạng (kiểm tra dấu ngoặc [ ] và ký tự đặc biệt trong mật khẩu)';
   if (/ENOTFOUND|ECONNREFUSED|ETIMEDOUT|ECONNRESET|EAI_AGAIN/.test(m + code)) return 'không kết nối được tới máy chủ database';
   if (code === '42P01' || /relation .* does not exist/i.test(m)) return 'chưa tạo bảng trong database (chạy supabase/schema.sql)';
-  if (/too many (clients|connections)|remaining connection slots|max client conn/i.test(m)) return 'database hết kết nối (dùng Transaction pooler, cổng 6543)';
+  if (/too many (clients|connections)|remaining connection slots|max client conn|max clients reached|EMAXCONN/i.test(m + code)) return 'database hết kết nối (dùng Transaction pooler, cổng 6543)';
   return null;
 }
 

@@ -90,7 +90,7 @@ export function createAbsenceNotice({ canAct }) {
       if (!cls) { el.hidden = true; pop.hidden = true; absenceStore.classId = null; absenceStore.list = []; return; }
       if (changed) { el.hidden = true; pop.hidden = true; absenceStore.classId = null; absenceStore.list = []; }
       load();
-      timer = setInterval(load, POLL_MS);
+      timer = setInterval(() => { if (document.visibilityState === 'visible') load(); }, POLL_MS);   // tab ẩn không thăm dò: bớt tải/kết nối tới database
     },
     refresh: load,
   };

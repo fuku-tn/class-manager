@@ -5,6 +5,7 @@ const { createApp } = require('../src/create-app');
 
 test('phân loại lỗi cấu hình/kết nối database', () => {
   assert.match(describeDbError(new Error('Thiếu DATABASE_URL (xem ...)')), /thiếu biến DATABASE_URL/);
+  assert.match(describeDbError(Object.assign(new Error('max clients reached in session mode - max clients are limited to pool_size: 15'), { code: 'EMAXCONNSESSION' })), /hết kết nối/);
   assert.match(describeDbError(Object.assign(new Error('password authentication failed for user "x"'), { code: '28P01' })), /sai mật khẩu/);
   assert.match(describeDbError(new Error('Invalid URL')), /không đúng định dạng/);
   assert.match(describeDbError(Object.assign(new Error('getaddrinfo ENOTFOUND host'), { code: 'ENOTFOUND' })), /không kết nối được/);
