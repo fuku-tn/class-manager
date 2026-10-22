@@ -97,8 +97,17 @@ a:hover { color: var(--gold-2); }
 .makeup { position: relative; z-index: 50; margin-left: auto; align-self: center; }
 .makeup[hidden] { display: none; }
 /* hàng chứa nút (có transform khi vào trang) tạo lớp xếp chồng riêng: nâng lên để hộp thông báo nằm trên bảng */
-.toolbar:has(> .makeup), .page-head:has(> .makeup) { position: relative; z-index: 50; }
-.view > .makeup { width: fit-content; margin: 0 0 .8rem auto; }
+.toolbar:has(> .notices), .page-head:has(> .notices), .toolbar:has(> .makeup), .page-head:has(> .makeup) { position: relative; z-index: 50; }
+.view > .makeup, .view > .notices { width: fit-content; margin: 0 0 .8rem auto; }
+/* Hai chuông (Xin nghỉ, Học bù) đứng cạnh nhau, sát phải */
+.notices { position: relative; z-index: 50; display: flex; align-items: center; gap: .55rem; margin-left: auto; align-self: center; }
+.notices > .makeup { margin-left: 0; }
+.absence-btn { border-color: var(--bad, #e5484d); }
+.absence-btn .makeup-count { background: var(--bad, #e5484d); color: var(--solid); }
+.absence-actions { display: flex; gap: .4rem; margin-top: .4rem; }
+/* Chấm vàng ở ô điểm danh có đơn xin nghỉ qua email (chờ xác nhận) */
+.cell[data-leave] { position: relative; }
+.cell[data-leave]::after { content: ''; position: absolute; top: -3px; right: -3px; width: 9px; height: 9px; border-radius: 50%; background: var(--warn); box-shadow: 0 0 0 2px var(--solid); }
 .makeup-btn { display: inline-flex; align-items: center; gap: .4rem; padding: .38rem .8rem; border-radius: 999px; border: 1px solid var(--warn);
   background: var(--warn-bg); color: var(--warn); font: inherit; font-size: .82rem; font-weight: 650; cursor: pointer; white-space: nowrap; }
 .makeup-btn svg { width: 16px; height: 16px; }
@@ -763,7 +772,7 @@ span.cell[role="button"] { cursor: pointer; }
 [data-theme="light"] .home-hero.cosmic .home-lead { color: rgba(21, 32, 58, .78); font-weight: 400; }
 [data-theme="light"] .cta-circle { color: #15203a !important; }
 [data-theme="light"] .cta-ring { border-color: rgba(160, 113, 42, .85); color: #8a6424; }
-[data-theme="light"] .cta-circle:hover .cta-ring { background: #a0712a; color: #fff; }
+[data-theme="light"] .cta-circle:hover .cta-ring { background: #a0712a; color: var(--solid); }
 [data-theme="light"] .cta-link { color: rgba(21, 32, 58, .75) !important; }
 [data-theme="light"] .cta-link:hover { color: #8a6424 !important; }
 [data-theme="light"] .cta-link svg { color: #a0712a; }

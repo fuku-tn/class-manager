@@ -8,6 +8,7 @@ const { ALLOWED_TX, ALLOWED_COURSE } = require('../services/importTransactions')
 const { FORM_COLUMNS, applyForms } = require('../services/formProfile');
 const { importPoints, POINT_SYNC_COLUMNS } = require('../services/importPoints');
 const { importSchedule } = require('../services/importSchedule');
+const { importAbsences } = require('../services/absence');
 
 // Tab COURSE của Google Sheet dùng tên cột "START DATE"/"EXPECTED END DATE" (Excel/Power Query đổi thành STARTDATE/ENDDATE).
 const COURSE_ALIASES = { 'START DATE': 'STARTDATE', 'EXPECTED END DATE': 'ENDDATE' };
@@ -201,6 +202,31 @@ module.exports = (db) => {
       throw e;
     } finally {
       busySchedule = false;
+    }
+  });
+
+  // Đơn xin nghỉ học qua email: tối đa 100 thư/lượt, mỗi thư { id, from, replyTo, subject, body, received }. Máy chủ chỉ giữ học viên + ngày nghỉ.
+  let busyAbsences = false;
+  router.post('/absences', async (req, res) => {
+    checkToken(req);
+    if (busyAbsences) return res.status(409).json({ error: 'Đang xử lý một lượt đồng bộ đơn xin nghỉ khác' });
+    busyAbsences = true;
+    try {
+      const list = req.body?.messages;
+      if (!Array.isArray(list)) throw httpError(400, 'Dữ liệu đồng bộ không đúng định dạng');
+      if (list.length > 100) throw httpError(413, 'Mỗi lượt tối đa 100 thư');
+      const messages = list.filter((m) => m && typeof m === 'object').map((m) => ({
+        id: String(m.id ?? '').slice(0, 120), from: String(m.from ?? '').slice(0, 300), replyTo: String(m.replyTo ?? '').slice(0, 300),
+        subject: String(m.subject ?? '').slice(0, 300), body: String(m.body ?? '').slice(0, 4000), received: m.received }));
+      const { class_ids, ...brief } = await importAbsences(db, messages);
+      if (brief.added > 0) await realtime.publishMany(class_ids.map((classId) => ({ classId, payload: { kind: 'absence' } })));
+      await log(true, brief, null, 'google-sheet-absences');
+      res.json({ ok: true, ...brief, changed: brief.added > 0 });
+    } catch (e) {
+      await log(false, null, e.message, 'google-sheet-absences').catch(() => {});
+      throw e;
+    } finally {
+      busyAbsences = false;
     }
   });
 

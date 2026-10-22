@@ -5,6 +5,7 @@ import { SORTS, isSortKey, sortRows } from '../student-sort.mjs';
 import { classDisplayName, norm, surnameInitial } from '../class-filter.mjs';
 import { createAzIndex } from '../azindex.js';
 import { openVouchers } from './vouchers.js';
+import { absenceStore, ABSENCE_EVENT, LEAVE_HINT } from '../absence.js';
 
 const STATUSES = ['present', 'late', 'absent', 'excused'];
 const SHORT = { present: '✓', late: 'T', absent: 'V', excused: 'P' };
@@ -57,7 +58,17 @@ export async function renderAttendance({ cls, state }) {
     const sel = el.querySelector('select');
     if (sel) sel.value = st ?? '';
     const who = cell?.by ? ` · ${cell.by}${cell.at ? `, ${fmtTime(cell.at)}` : ''}` : '';
-    el.title = (st ? LABEL[st] : 'Chưa điểm danh') + who + (cell?.note ? ` — ${cell.note}` : '');
+    el.title = (st ? LABEL[st] : 'Chưa điểm danh') + who + (cell?.note ? ` — ${cell.note}` : '') + (el.dataset.leave ? LEAVE_HINT : '');
+  };
+  // Đơn xin nghỉ qua email đang chờ xác nhận: chấm vàng ở ô của buổi bị xin nghỉ (danh sách do absence.js tải, dùng chung với chuông "Xin nghỉ")
+  let leave = new Set();
+  const markLeave = (el, on) => {
+    if (on === !!el.dataset.leave) return;
+    if (on) { el.dataset.leave = '1'; el.title += LEAVE_HINT; } else { delete el.dataset.leave; el.title = el.title.replace(LEAVE_HINT, ''); }
+  };
+  const syncLeave = () => {
+    leave = new Set((absenceStore.classId === cls.id ? absenceStore.list : []).filter((r) => r.status === 'pending').map((r) => key(r.enrollment_id, r.session_id)));
+    for (const [k, el] of cells) markLeave(el, leave.has(k));
   };
   const flash = (el) => { el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1200); };
 
@@ -205,6 +216,7 @@ export async function renderAttendance({ cls, state }) {
       el.setAttribute('aria-label', `${row.full_name} buổi ${s.session_no}`);
     }
     cells.set(key(row.enrollment_id, s.id), el);
+    if (leave.has(key(row.enrollment_id, s.id))) el.dataset.leave = '1';
     paintCell(el, row.cells[s.id]);
     return h('td', { class: 'num' }, el);
   }
@@ -261,6 +273,7 @@ export async function renderAttendance({ cls, state }) {
     saveSort(state.user.id, sortKey);
     renderBody();
   });
+  syncLeave();
   renderHead(); renderBody();
 
   const view = h('div', {},
@@ -272,6 +285,12 @@ export async function renderAttendance({ cls, state }) {
     h('div', { class: 'toolbar' }, search, h('label', { class: 'sort-label' }, 'Sắp xếp ', sortSelect),
       voucherBtn),
     h('div', { class: 'az-layout' }, az.el, tableWrap));
+
+  const onAbsence = (e) => {
+    if (!view.isConnected) { window.removeEventListener(ABSENCE_EVENT, onAbsence); return; }
+    if (e.detail?.classId === cls.id) syncLeave();
+  };
+  window.addEventListener(ABSENCE_EVENT, onAbsence);
 
   startLive({
     base,

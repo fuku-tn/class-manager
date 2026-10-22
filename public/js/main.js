@@ -10,6 +10,7 @@ import { renderRemind } from './pages/remind.js';
 import { renderPotential } from './pages/potential.js';
 import { renderSchedule } from './pages/schedule.js';
 import { createMakeupNotice } from './makeup.js';
+import { createAbsenceNotice } from './absence.js';
 import { renderClasses } from './pages/classes.js';
 import { renderUsers } from './pages/users.js';
 import { renderImport } from './pages/import.js';
@@ -66,6 +67,8 @@ function buildShell() {
     h('a', { class: 'nav-link', 'data-key': 'feedback', href: '#/feedback', title: 'Khảo sát sau khóa' }, icon('feedback'), h('span', {}, 'Khảo sát')),
   ] : [];
   const makeup = createMakeupNotice();   // "Học bù": học viên lớp khác đến bù buổi ở lớp đang xem
+  const absence = createAbsenceNotice({ canAct: (c) => state.user.role !== 'guest' && !c?.view_only });   // "Xin nghỉ": đơn xin nghỉ qua email
+  const notices = h('div', { class: 'notices' }, absence.el, makeup.el);
   const themeBtn = h('button', { class: 'icon-btn', title: 'Đổi giao diện sáng/tối', 'aria-label': 'Đổi giao diện sáng/tối' });
   const paintTheme = () => themeBtn.replaceChildren(icon(document.documentElement.dataset.theme === 'light' ? 'moon' : 'sun'));
   themeBtn.addEventListener('click', () => { applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light'); paintTheme(); route(); }); // vẽ lại để biểu đồ lấy màu mới
@@ -91,7 +94,7 @@ function buildShell() {
             onclick: async () => { await post('/api/auth/logout'); state.user = null; shell = null; route(); } }, icon('logout'))))),
     h('main', { class: 'content' }, view));
   tooltips(root.querySelector('.topbar'));
-  shell = { root, view, picker, makeup, homeLink, scheduleLink, navLinks, adminLinks, progress, active: null };
+  shell = { root, view, picker, makeup, absence, notices, homeLink, scheduleLink, navLinks, adminLinks, progress, active: null };
 }
 
 // Tự đổi mật khẩu (các phiên khác của tài khoản này bị đăng xuất).
@@ -218,13 +221,15 @@ async function route() {
   }
   // Thông báo học bù chỉ hiện khi đang xem trang của một lớp
   const inClass = !['home', 'schedule', 'classes', 'feedback', 'import', 'users'].includes(parts[0] ?? 'home') && parts.length > 0;
-  shell?.makeup.show(inClass ? state.classes.find((c) => String(c.id) === store.get('classId')) ?? null : null);
+  const curCls = inClass ? state.classes.find((c) => String(c.id) === store.get('classId')) ?? null : null;
+  shell?.makeup.show(curCls);
+  shell?.absence.show(curCls);
   // Thông báo học bù nằm trong trang: cuối hàng công cụ (tìm kiếm/sắp xếp) bên phải; trang không có hàng công cụ thì ở cuối dòng tiêu đề
   if (shell) {
     const host = inClass ? shell.view.querySelector('.toolbar') ?? shell.view.querySelector('.page-head') : null;
-    if (host) host.append(shell.makeup.el);
-    else if (inClass) shell.view.prepend(shell.makeup.el);   // trang không có hàng công cụ (vd Dashboard): đầu trang, sát phải
-    else shell.makeup.el.remove();
+    if (host) host.append(shell.notices);
+    else if (inClass) shell.view.prepend(shell.notices);   // trang không có hàng công cụ (vd Dashboard): đầu trang, sát phải
+    else shell.notices.remove();
   }
   if (result === 'unauth') { state.user = null; shell = null; route(); }
   shell?.view.classList.toggle('fit', fitNow);
