@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { startTestApp } = require('./helpers');
-const { parseAbsenceDates, originalSender } = require('../src/services/absence');
+const { parseAbsenceDates, originalSender, innerSubject } = require('../src/services/absence');
 
 const TOKEN = 'absence-test-token';
 const realFetch = global.fetch;
@@ -142,4 +142,21 @@ test('thư thật qua Power Automate: tiêu đề "XIN VẮNG…" không có ng�
   assert.deepEqual([r.body.matched, r.body.not_absence], [1, 0]);
   const list = (await admin.get(`/api/classes/${classId}/absences`)).body.filter((x) => x.absence_date === ymd(D3));
   assert.deepEqual(list.map((x) => x.student_code), ['A2'], 'ngày xin nghỉ trong nội dung thư được báo ở lớp của học viên');
+});
+
+test('flow mới: tiêu đề cố định ABSENCEREQ, dòng From: ở đầu, tiêu đề thật nằm trong JSON; thư chỉ là biểu tượng cảm xúc bị bỏ qua', async () => {
+  const day = `${dm(D3)}/${ymd(D3).slice(0, 4)}`;
+  const json = (subject, preview) => `{"messageId":"AAMk=","from":"binh@mail.com","received":"${new Date().toISOString()}","subject":"${subject}","preview":"${preview}","webLink":""}`;
+  const real = `From: binh@mail.com\n${json(`[BIE102]-Xin vắng học -Ngày ${day}-Võ Bình`, 'Em xin vắng học ạ')}`;
+  const reaction = `From: binh@mail.com\n${json(`Re: [BIE102]-Xin vắng học -Ngày ${day}-Võ Bình`, '💖\r\n\r\nBình reacted via Gmail')}`;
+  assert.equal(innerSubject(real), `[BIE102]-Xin vắng học -Ngày ${day}-Võ Bình`);
+  assert.equal(innerSubject('không có JSON'), null);
+  const from = 'Academic Affairs <academicaffairs@starttrain.edu.vn>';
+  const r = await send([
+    { id: 'f1', from, subject: 'ABSENCEREQ', body: reaction, received: new Date().toISOString() },
+    { id: 'f2', from, subject: 'ABSENCEREQ', body: real, received: new Date().toISOString() },
+    { id: 'f3', from, subject: 'ABSENCEREQ', body: `From: binh@mail.com\n${json('Báo cáo tuần', 'Gửi anh báo cáo')}`, received: new Date().toISOString() },
+  ]);
+  assert.deepEqual([r.body.not_absence, r.body.matched], [2, 1], 'phản hồi cảm xúc và thư không phải xin nghỉ bị bỏ qua');
+  assert.ok((await admin.get(`/api/classes/${classId}/absences`)).body.some((x) => x.student_code === 'A2' && x.absence_date === ymd(D3)));
 });

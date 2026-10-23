@@ -17,7 +17,7 @@
  * gỡ nhãn để gửi lại; script cũng tự thử lại 3 ngày). Máy chủ KHÔNG lưu email người gửi, tiêu đề hay nội dung thư — chỉ học viên + ngày nghỉ.
  */
 const ABSENCE_SETTINGS = {
-  QUERY: 'subject:(nghỉ OR nghi OR vắng OR vang OR "xin phép" OR "xin phep") newer_than:30d',
+  QUERY: '(subject:ABSENCEREQ OR subject:(nghỉ OR nghi OR vắng OR vang OR "xin phép" OR "xin phep")) newer_than:30d',
   LABEL_DONE: 'CM-da-gui',
   LABEL_UNMATCHED: 'CM-chua-khop',
   RETRY_UNMATCHED_DAYS: 3,

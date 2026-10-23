@@ -5,7 +5,10 @@
 const FORWARDERS = new Set(['academicaffairs@starttrain.edu.vn', 'academicaffairs.ste@gmail.com']);
 const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+/;
 // Tiêu đề xin nghỉ/xin vắng/xin phép (vd "[XIN VẮNG BUỔI KHAI GIẢNG KHÓA PBM]"); so sánh sau khi chuẩn hóa NFC để dấu không bị tách rời.
-const SUBJECT_RE = /ngh[ỉi]|v[ắa]ng|xin\s*ph[ée]p|absent|leave/i;
+// "ABSENCEREQ" là tiêu đề cố định của flow Power Automate (tiêu đề thật của thư học viên nằm trong JSON ở nội dung).
+const SUBJECT_RE = /ngh[ỉi]|v[ắa]ng|xin\s*ph[ée]p|absent|leave|absencereq/i;
+// Thư chỉ là biểu tượng cảm xúc/phản hồi nhanh của Gmail ("… reacted via Gmail"), không phải đơn xin nghỉ.
+const REACTION_RE = /reacted (?:via|to)|đã bày tỏ cảm xúc/i;
 const MAX_DATES = 14;
 const MAX_BODY = 1500;
 
@@ -19,6 +22,12 @@ function originalSender({ from, replyTo, body }) {
     ?? /"from"\s*:\s*"[^"]*?([A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+)/.exec(text);   // flow gửi nguyên JSON của trigger
   const e = m ? m[1].toLowerCase() : null;
   return e && !FORWARDERS.has(e) ? e : null;
+}
+
+// Tiêu đề thật của thư học viên khi flow gửi nguyên JSON của trigger (vd "[BIE102]-Xin vắng học -Ngày 17/10/2026-Đặng Thị Bích Ngà"); không có JSON thì null.
+function innerSubject(body) {
+  const m = /"subject"\s*:\s*"((?:[^"\\]|\\.)*)"/.exec(String(body ?? ''));
+  return m ? m[1].replace(/\\u([0-9a-f]{4})/gi, (_, h) => String.fromCharCode(parseInt(h, 16))).replace(/\\(["\\/])/g, '$1') : null;
 }
 
 // Flow Power Automate có thể gửi nguyên JSON của trigger ({"messageId":…,"from":…,"received":…,"subject":…,"preview":"nội dung thư"}):
@@ -85,10 +94,11 @@ async function importAbsences(db, messages) {
   const classIds = new Set();
   await db.tx(async (t) => {
     for (const m of messages) {
-      if (!SUBJECT_RE.test(String(m.subject ?? '').normalize('NFC'))) { brief.not_absence++; continue; }
+      const subject = String(innerSubject(m.body) ?? m.subject ?? '').normalize('NFC');   // ưu tiên tiêu đề thật trong JSON của flow
+      if (!SUBJECT_RE.test(subject) || REACTION_RE.test(mailText(m.body))) { brief.not_absence++; continue; }
       const sender = originalSender(m);
       if (!sender) { brief.no_sender++; brief.unmatched_ids.push(m.id); continue; }
-      const dates = parseAbsenceDates(m.subject, m.body, m.received);
+      const dates = parseAbsenceDates(subject, m.body, m.received);
       if (!dates.length) { brief.no_date++; brief.unmatched_ids.push(m.id); continue; }
       // Một email có thể gắn với nhiều mã học viên (cùng một người, hoặc hai người dùng chung): lấy các mã đang học lớp nào đó.
       // Đơn chỉ hiện ở lớp mà học viên đang học và vẫn cần người xác nhận nên ghi cho tất cả là an toàn.
@@ -127,4 +137,4 @@ async function absencesFor(db, classId) {
       order by r.absence_date, st.full_name`, [classId]);
 }
 
-module.exports = { parseAbsenceDates, originalSender, importAbsences, absencesFor, SUBJECT_RE };
+module.exports = { parseAbsenceDates, originalSender, importAbsences, absencesFor, innerSubject, SUBJECT_RE };
