@@ -1,7 +1,7 @@
 /**
  * Đọc EMAIL XIN NGHỈ HỌC trong hộp thư academicaffairs.ste@gmail.com → gửi sang Class Manager (webapp lớp học).
  * Luồng: học viên gửi academicaffairs@starttrain.edu.vn → Power Automate chuyển tiếp sang Gmail này → script này đẩy từng thư sang web.
- * Web tự nhận ra học viên (theo email người gửi), tìm NGÀY xin nghỉ trong tiêu đề/nội dung, rồi báo bằng chuông "Xin nghỉ" + chấm vàng ở ô điểm danh.
+ * Web tự nhận ra học viên (theo email người gửi), tìm NGÀY xin nghỉ trong tiêu đề/nội dung, rồi báo bằng chuông "Xin nghỉ" (chỉ báo NGÀY xin nghỉ, không xác định buổi).
  *
  * Cách dùng (xem Documents/3-ky-thuat/google-sheet-sync.md):
  *  1. Đăng nhập Gmail academicaffairs.ste@gmail.com → script.google.com → dự án mới (hoặc dự án đang có SYNC URL / SYNC TOKEN) → dán file này.

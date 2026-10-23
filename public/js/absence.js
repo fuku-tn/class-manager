@@ -1,13 +1,11 @@
-// Chuông "Xin nghỉ" cạnh "Học bù": học viên gửi email xin nghỉ (Apps Script đọc hộp thư academicaffairs → /api/sync/absences),
-// ngày nghỉ rơi đúng một buổi của lớp đang xem. Hiện danh sách đơn chờ; admin/giảng viên bấm "Xác nhận" (ghi Có phép) hoặc "Bỏ qua".
-// Danh sách dùng chung với trang Điểm danh (chấm vàng ở ô) qua absenceStore + sự kiện ABSENCE_EVENT. "Đã xem" lưu theo trình duyệt chỉ để tắt nhấp nháy.
+// Chuông "Xin nghỉ" cạnh "Học bù": học viên gửi email xin nghỉ (Apps Script đọc hộp thư academicaffairs → /api/sync/absences).
+// Chỉ báo NGÀY xin nghỉ của học viên đang học lớp này — không tự xác định buổi (người dùng tự biết và tự điểm danh); bấm "Đã biết" thì hết nhắc.
+// "Đã xem" lưu theo trình duyệt chỉ để tắt nhấp nháy.
 import { get, post } from './api.js';
 import { h, icon, setChildren, toast } from './ui.js';
 import { classDisplayName } from './class-filter.mjs';
 
-export const ABSENCE_EVENT = 'absences-changed';
-export const LEAVE_HINT = ' · Có đơn xin nghỉ qua email (chờ xác nhận)';
-export const absenceStore = { classId: null, list: [] };
+let list = [];   // đơn chờ của lớp đang xem
 
 const POLL_MS = 60000;
 const seenKey = (classId) => `absenceSeen:${classId}`;
@@ -23,7 +21,7 @@ export function createAbsenceNotice({ canAct }) {
   const pop = h('div', { class: 'makeup-pop', role: 'dialog', 'aria-label': 'Đơn xin nghỉ học', hidden: true });
   const el = h('div', { class: 'makeup', hidden: true }, btn, pop);
   let cls = null; let timer = null; let seq = 0;
-  const pendingList = () => absenceStore.list.filter((r) => r.status === 'pending');
+  const pendingList = () => list.filter((r) => r.status === 'pending');
 
   function paint() {
     const list = pendingList();
@@ -35,10 +33,10 @@ export function createAbsenceNotice({ canAct }) {
     btn.title = fresh.length ? `${fresh.length} đơn xin nghỉ mới chưa xem` : 'Học viên xin nghỉ qua email';
     if (!pop.hidden) paintPop(seen);
   }
-  async function act(r, action) {
+  async function dismiss(r) {
     try {
-      await post(`/api/classes/${cls.id}/absences/${r.id}/${action}`, {});
-      toast(action === 'confirm' ? `Đã ghi Có phép cho ${r.full_name} (buổi ${r.session_no})` : 'Đã ghi nhận, không nhắc đơn này nữa');
+      await post(`/api/classes/${cls.id}/absences/${r.id}/dismiss`, {});
+      toast('Đã ghi nhận, không nhắc đơn này nữa');
       await load();
     } catch (e) { toast(e.message, true); }
   }
@@ -49,11 +47,10 @@ export function createAbsenceNotice({ canAct }) {
       h('div', { class: 'makeup-list' }, list.map((r) => h('div', { class: `makeup-item${seen.has(r.id) ? '' : ' new'}` },
         h('div', { class: 'makeup-top' }, h('b', {}, r.full_name), seen.has(r.id) ? null : h('span', { class: 'makeup-new' }, 'Mới')),
         h('div', { class: 'muted small' }, r.student_code, ' · nhận ', fmtWhen(r.received_at)),
-        h('div', { class: 'small' }, h('b', {}, `Xin nghỉ ngày ${fmtDay(r.absence_date)}`), r.session_no ? ` · buổi ${r.session_no} của lớp` : ''),
+        h('div', { class: 'small' }, h('b', {}, `Xin nghỉ ngày ${fmtDay(r.absence_date)}`)),
         canAct(cls) ? h('div', { class: 'absence-actions' },
-          r.session_id ? h('button', { type: 'button', class: 'small', title: 'Ghi "Có phép" vào ô điểm danh của buổi này', onclick: () => act(r, 'confirm') }, 'Xác nhận có phép') : null,
-          h('button', { type: 'button', class: 'small', title: 'Xong, không cần nhắc nữa', onclick: () => act(r, 'dismiss') }, r.session_id ? 'Bỏ qua' : 'Đã biết')) : null))),
-      h('p', { class: 'muted small makeup-foot' }, 'Lấy từ email xin nghỉ học: báo ngày học viên xin nghỉ, bạn tự biết đó là buổi nào. Nếu ngày trùng một buổi của lớp thì ô điểm danh có chấm vàng; chỉ khi bấm "Xác nhận có phép" mới ghi P.'));
+          h('button', { type: 'button', class: 'small', title: 'Xong, không cần nhắc nữa', onclick: () => dismiss(r) }, 'Đã biết')) : null))),
+      h('p', { class: 'muted small makeup-foot' }, 'Lấy từ email xin nghỉ học: chỉ báo ngày học viên xin nghỉ, bạn tự biết đó là buổi nào và tự ghi điểm danh.'));
   }
   async function load() {
     if (!cls) return;
@@ -61,9 +58,8 @@ export function createAbsenceNotice({ canAct }) {
     try {
       const data = await get(`/api/classes/${id}/absences`);
       if (my !== seq || !cls || cls.id !== id) return;   // đã chuyển lớp trong lúc tải
-      absenceStore.classId = id; absenceStore.list = data;
+      list = data;
       paint();
-      window.dispatchEvent(new CustomEvent(ABSENCE_EVENT, { detail: { classId: id } }));
     } catch { /* lỗi mạng: giữ trạng thái cũ */ }
   }
   btn.addEventListener('click', (e) => {
@@ -87,8 +83,8 @@ export function createAbsenceNotice({ canAct }) {
       const changed = cls?.id !== next?.id;
       cls = next;
       clearInterval(timer); timer = null;
-      if (!cls) { el.hidden = true; pop.hidden = true; absenceStore.classId = null; absenceStore.list = []; return; }
-      if (changed) { el.hidden = true; pop.hidden = true; absenceStore.classId = null; absenceStore.list = []; }
+      if (!cls) { el.hidden = true; pop.hidden = true; list = []; return; }
+      if (changed) { el.hidden = true; pop.hidden = true; list = []; }
       load();
       timer = setInterval(() => { if (document.visibilityState === 'visible') load(); }, POLL_MS);   // tab ẩn không thăm dò: bớt tải/kết nối tới database
     },

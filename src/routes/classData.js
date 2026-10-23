@@ -187,29 +187,14 @@ module.exports = (db) => {
   router.get('/makeups', async (req, res) => { res.json(await makeupsFor(db, req.cls)); });
 
   // ---------- Đơn xin nghỉ học qua email (Apps Script → /api/sync/absences) ----------
-  // Chỉ có ngày nghỉ + học viên. Xác nhận → ghi "Có phép" (P) vào buổi đó nếu ô còn trống/đang vắng; không đè có mặt/đi trễ; không đổi trạng thái "đã diễn ra" của buổi.
+  // Chỉ báo ngày xin nghỉ (không tự xác định buổi). "Đã biết" (dismiss) → đơn không còn nhắc; không tự ghi điểm danh.
   router.get('/absences', async (req, res) => { res.json(await absencesFor(db, req.cls.id)); });
 
-  router.post('/absences/:absenceId/:action', async (req, res) => {
-    if (!['confirm', 'dismiss'].includes(req.params.action)) return res.status(404).json({ error: 'Không tìm thấy thao tác' });
-    const confirm = req.params.action === 'confirm';
-    const out = await db.tx(async (t) => {
-      const all = await absencesFor(t, req.cls.id);
-      const r = all.find((x) => x.id === id(req.params.absenceId));
-      if (!r) throw httpError(404, 'Không tìm thấy đơn xin nghỉ của lớp này');
-      if (confirm) {
-        if (!r.session_id) throw httpError(409, 'Ngày xin nghỉ này không có buổi học của lớp, hãy tự ghi vào ô điểm danh rồi bấm "Đã biết"');
-        const cur = await t.one('select status from attendance where enrollment_id = $1 and session_id = $2 for update', [r.enrollment_id, r.session_id]);
-        if (cur && (cur.status === 'present' || cur.status === 'late')) throw httpError(409, 'Học viên đã được điểm danh có mặt/đi trễ buổi này, không ghi đè thành có phép');
-        await t.run(`insert into attendance (enrollment_id, session_id, status, note, updated_by) values ($1, $2, 'excused', 'Xin nghỉ qua email', $3)
-          on conflict (enrollment_id, session_id) do update set status = 'excused', note = coalesce(attendance.note, excluded.note), updated_at = now(), updated_by = excluded.updated_by`,
-        [r.enrollment_id, r.session_id, req.user.id]);
-      }
-      await t.run('update absence_requests set status = $2, reviewed_by = $3, reviewed_at = now() where id = $1', [r.id, confirm ? 'confirmed' : 'dismissed', req.user.id]);
-      return r;
-    });
-    await realtime.publish(req.cls.id, { kind: 'attendance' });
-    res.json({ ok: true, id: out.id, status: confirm ? 'confirmed' : 'dismissed' });
+  router.post('/absences/:absenceId/dismiss', async (req, res) => {
+    const r = (await absencesFor(db, req.cls.id)).find((x) => x.id === id(req.params.absenceId));
+    if (!r) throw httpError(404, 'Không tìm thấy đơn xin nghỉ của lớp này');
+    await db.run('update absence_requests set status = $2, reviewed_by = $3, reviewed_at = now() where id = $1', [r.id, 'dismissed', req.user.id]);
+    res.json({ ok: true, id: r.id, status: 'dismissed' });
   });
 
   // ---------- Voucher Google Maps (số tiền do chủ dự án cho phép 22/10/2026) ----------

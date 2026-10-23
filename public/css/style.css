@@ -108,9 +108,6 @@ a:hover { color: var(--gold-2); }
 .absence-btn { border-color: var(--bad, #e5484d); }
 .absence-btn .makeup-count { background: var(--bad, #e5484d); color: var(--solid); }
 .absence-actions { display: flex; gap: .4rem; margin-top: .4rem; }
-/* Chấm vàng ở ô điểm danh có đơn xin nghỉ qua email (chờ xác nhận) */
-.cell[data-leave] { position: relative; }
-.cell[data-leave]::after { content: ''; position: absolute; top: -3px; right: -3px; width: 9px; height: 9px; border-radius: 50%; background: var(--warn); box-shadow: 0 0 0 2px var(--solid); }
 .makeup-btn { display: inline-flex; align-items: center; gap: .4rem; padding: .38rem .8rem; border-radius: 999px; border: 1px solid var(--warn);
   background: var(--warn-bg); color: var(--warn); font: inherit; font-size: .82rem; font-weight: 650; cursor: pointer; white-space: nowrap; }
 .makeup-btn svg { width: 16px; height: 16px; }

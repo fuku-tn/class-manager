@@ -1,4 +1,4 @@
-// Đơn xin nghỉ học qua email: đọc ngày, nhận người gửi thật, đồng bộ, hiện ở lớp đúng buổi, xác nhận → Có phép, quyền, riêng tư, Apps Script.
+// Đơn xin nghỉ học qua email: đọc ngày, nhận người gửi thật, đồng bộ, chuông báo NGÀY ở mọi lớp học viên đang học (không xác định buổi), quyền, riêng tư, Apps Script.
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -8,7 +8,7 @@ const { parseAbsenceDates, originalSender } = require('../src/services/absence')
 
 const TOKEN = 'absence-test-token';
 const realFetch = global.fetch;
-let t, admin, gv, guest, classId, otherId, sessions;
+let t, admin, gv, guest, classId, otherId;
 
 const send = (messages, token = TOKEN) => realFetch(`${t.base}/api/sync/absences`, {
   method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Sync-Token': token }, body: JSON.stringify({ messages }),
@@ -17,7 +17,7 @@ const mail = (id, from, subject, body = '') => ({ id, from, subject, body, recei
 // Ngày tính theo hôm nay (đơn chỉ hiện trong khoảng gần đây, nên không dùng ngày cố định)
 const ymd = (n) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
 const dm = (n) => ymd(n).slice(8, 10) + '/' + ymd(n).slice(5, 7);
-const D2 = 2, D3 = 9, DX = 5;   // buổi 2, buổi 3 của lớp, và một ngày không có buổi
+const D2 = 2, D3 = 9, DX = 5;   // ba ngày xin nghỉ khác nhau (số ngày kể từ hôm nay)
 
 test('đọc ngày xin nghỉ: một ngày, nhiều ngày, khoảng, có năm, qua năm; bỏ giờ giấc; ưu tiên tiêu đề', () => {
   const r = '2026-10-22T14:04:46Z';
@@ -54,9 +54,6 @@ before(async () => {
   await admin.post(`/api/classes/${otherId}/students`, { student_code: 'A9', full_name: 'Lớp khác' });
   await t.db.run("update students set email = 'an@gmail.com' where student_code = 'A1'");
   await t.db.run("update students set email = 'binh@mail.com' where student_code in ('A2', 'A9')"); // một email gắn với hai mã đang học → ghi cho cả hai
-  sessions = (await admin.get(`/api/classes/${classId}/attendance`)).body.sessions;
-  // Lịch giảng dạy: buổi 2 và buổi 3 của lớp
-  await t.db.run("insert into teaching_schedule (class_id, short_code, session_date, session_no) values ($1, 'AB01', $2, 2), ($1, 'AB01', $3, 3)", [classId, ymd(D2), ymd(D3)]);
 });
 after(async () => { delete process.env.SYNC_TOKEN; await t.close(); });
 
@@ -85,52 +82,35 @@ test('không lưu email người gửi, tiêu đề hay nội dung thư', async 
   assert.ok(!JSON.stringify(run).includes('gmail.com'));
 });
 
-test('chuông của MỌI lớp mà học viên đang học báo ngày nghỉ; ngày trùng buổi thì kèm số buổi, không trùng thì chỉ báo ngày', async () => {
+test('chuông của MỌI lớp mà học viên đang học báo ngày nghỉ (không có buổi/ô điểm danh nào bị tự xác định)', async () => {
   const list = (await admin.get(`/api/classes/${classId}/absences`)).body;
-  const a1 = list.find((r) => r.student_code === 'A1');
-  assert.deepEqual([a1.absence_date, a1.session_no, a1.status], [ymd(D2), 2, 'pending']);
-  assert.equal(a1.session_id, sessions.find((s) => s.session_no === 2).id);
-  assert.deepEqual(list.map((r) => r.student_code).sort(), ['A1', 'A2'], 'email dùng chung: cả hai mã đang học đều có đơn');
+  assert.deepEqual(list.map((r) => [r.student_code, r.absence_date]).sort(), [['A1', ymd(D2)], ['A2', ymd(D2)]], 'email dùng chung: cả hai mã đang học đều có đơn');
+  assert.ok(list.every((r) => r.status === 'pending' && !('session_id' in r) && !('session_no' in r)));
   assert.equal((await gv.get(`/api/classes/${classId}/absences`)).body.length, 2);
   assert.equal((await guest.get(`/api/classes/${classId}/absences`)).body.length, 2);
   const other = (await admin.get(`/api/classes/${otherId}/absences`)).body;
-  assert.deepEqual(other.map((r) => [r.student_code, r.absence_date, r.session_id]), [['A9', ymd(D2), null]], 'lớp khác không có buổi trùng ngày: vẫn báo ngày nghỉ');
-  await send([mail('m7', 'an@gmail.com', `Xin nghỉ học ${dm(DX)}`)]); // ngày không trùng buổi nào → vẫn hiện, chỉ báo ngày
-  const x = (await admin.get(`/api/classes/${classId}/absences`)).body.find((r) => r.absence_date === ymd(DX));
-  assert.deepEqual([x.student_code, x.session_id, x.session_no], ['A1', null, null]);
+  assert.deepEqual(other.map((r) => [r.student_code, r.absence_date]), [['A9', ymd(D2)]]);
 });
 
 test('đơn quá cũ (trước 7 ngày) hoặc sau buổi cuối của lớp không hiện', async () => {
   await send([mail('old1', 'an@gmail.com', `Xin nghỉ học ${dm(-20)}`)]);
   assert.ok(!(await admin.get(`/api/classes/${classId}/absences`)).body.some((r) => r.absence_date === ymd(-20)));
-  await t.db.run("update classes set end_date = $2 where id = $1", [otherId, ymd(0)]);
+  await t.db.run('update classes set end_date = $2 where id = $1', [otherId, ymd(0)]);
   assert.equal((await admin.get(`/api/classes/${otherId}/absences`)).body.length, 0, 'ngày nghỉ sau buổi cuối của lớp');
-  await t.db.run("update classes set end_date = null where id = $1", [otherId]);
+  await t.db.run('update classes set end_date = null where id = $1', [otherId]);
 });
 
-test('xác nhận → ô điểm danh thành Có phép (P), buổi không tự thành đã diễn ra; khách bị chặn; ngày không có buổi thì không xác nhận được', async () => {
-  const body = () => admin.get(`/api/classes/${classId}/absences`).then((r) => r.body);
-  const r = (await body()).find((x) => x.student_code === 'A1' && x.absence_date === ymd(D2));
-  assert.equal((await guest.post(`/api/classes/${classId}/absences/${r.id}/confirm`, {})).status, 403);
-  assert.equal((await admin.post(`/api/classes/${classId}/absences/${r.id}/xoa`, {})).status, 404);
-  assert.equal((await admin.post(`/api/classes/${classId}/absences/999999/confirm`, {})).status, 404);
-  const noSession = (await body()).find((x) => x.absence_date === ymd(DX));
-  assert.equal((await admin.post(`/api/classes/${classId}/absences/${noSession.id}/confirm`, {})).status, 409);
-  assert.equal((await gv.post(`/api/classes/${classId}/absences/${r.id}/confirm`, {})).status, 200);
+test('"Đã biết": đơn biến mất khỏi danh sách; không tự ghi điểm danh; khách bị chặn; không có route xác nhận', async () => {
+  const get = () => admin.get(`/api/classes/${classId}/absences`).then((r) => r.body);
+  const r = (await get()).find((x) => x.student_code === 'A1');
+  assert.equal((await guest.post(`/api/classes/${classId}/absences/${r.id}/dismiss`, {})).status, 403);
+  assert.equal((await admin.post(`/api/classes/${classId}/absences/999999/dismiss`, {})).status, 404);
+  assert.equal((await admin.post(`/api/classes/${otherId}/absences/${r.id}/dismiss`, {})).status, 404, 'đơn của lớp khác');
+  assert.equal((await admin.post(`/api/classes/${classId}/absences/${r.id}/confirm`, {})).status, 404, 'không tự ghi Có phép');
+  assert.equal((await gv.post(`/api/classes/${classId}/absences/${r.id}/dismiss`, {})).status, 200);
+  assert.ok(!(await get()).some((x) => x.id === r.id));
   const att = (await admin.get(`/api/classes/${classId}/attendance`)).body;
-  assert.equal(att.rows.find((x) => x.student_code === 'A1').cells[r.session_id].status, 'excused');
-  assert.equal(att.sessions.find((x) => x.id === r.session_id).held, false);
-  assert.equal((await body()).find((x) => x.id === r.id).status, 'confirmed');
-});
-
-test('đã điểm danh có mặt thì xác nhận bị từ chối (409); "đã biết/bỏ qua" thì đơn biến mất khỏi danh sách', async () => {
-  await send([mail('m8', 'an@gmail.com', `Xin nghỉ học ${dm(D3)}`)]);
-  const r = (await admin.get(`/api/classes/${classId}/absences`)).body.find((x) => x.absence_date === ymd(D3) && x.student_code === 'A1');
-  assert.ok(r);
-  await admin.put(`/api/classes/${classId}/attendance`, { enrollment_id: r.enrollment_id, session_id: r.session_id, status: 'present', expected: null });
-  assert.equal((await admin.post(`/api/classes/${classId}/absences/${r.id}/confirm`, {})).status, 409);
-  assert.equal((await admin.post(`/api/classes/${classId}/absences/${r.id}/dismiss`, {})).status, 200);
-  assert.ok(!(await admin.get(`/api/classes/${classId}/absences`)).body.some((x) => x.id === r.id));
+  assert.ok(att.rows.every((row) => Object.values(row.cells).every((c) => c === null)), 'điểm danh không bị đổi');
 });
 
 test('bảng có RLS ở cả hai file schema; Apps Script gọi đúng địa chỉ cấu hình và không chứa mã bí mật', () => {
@@ -160,6 +140,6 @@ test('thư thật qua Power Automate: tiêu đề "XIN VẮNG…" không có ng�
   assert.deepEqual(parseAbsenceDates('Xin nghỉ', '2026-10-22T15:16:47 giờ nhận', '2026-10-22T15:16:47Z'), [], 'dãy ngày giờ ISO không phải ngày xin nghỉ');
   const r = await send([{ id: 'real1', from: 'Academic Affairs <academicaffairs@starttrain.edu.vn>', subject, body, received: now }]);
   assert.deepEqual([r.body.matched, r.body.not_absence], [1, 0]);
-  const list = (await admin.get(`/api/classes/${classId}/absences`)).body.filter((x) => x.absence_date === ymd(D3) && x.student_code === 'A2');
-  assert.deepEqual(list.map((x) => x.session_no), [3], 'ngày này là buổi 3 của lớp');
+  const list = (await admin.get(`/api/classes/${classId}/absences`)).body.filter((x) => x.absence_date === ymd(D3));
+  assert.deepEqual(list.map((x) => x.student_code), ['A2'], 'ngày xin nghỉ trong nội dung thư được báo ở lớp của học viên');
 });
