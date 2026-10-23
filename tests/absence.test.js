@@ -128,3 +128,17 @@ test('bảng có RLS ở cả hai file schema; Apps Script gọi đúng địa c
   assert.match(gs, /X-Sync-Token/);
   assert.ok(!/https?:\/\/[^\s'"]*vercel\.app/.test(gs), 'không ghi sẵn địa chỉ thật trong script');
 });
+
+test('thư thật qua Power Automate: tiêu đề "XIN VẮNG…" không có ngày, nội dung là JSON của trigger (giờ nhận, mã thư không bị đọc thành ngày), người gửi ở dòng from:', async () => {
+  const body = '{"messageId":"AAMkADI3Nm=","from":"binh@mail.com","received":"2026-10-22T15:16:47+00:00","subject":"[XIN VẮNG BUỔI KHAI GIẢNG KHÓA PBM]",'
+    + '"preview":"Dear Team,\r\n\r\nDo có việc đột xuất nên mình xin phép vắng buổi khai giảng diễn ra vào ngày 31/10/2026.\r\n\r\n--\r\nĐoàn Minh Lý\r\nPhone: (+84) 915 96 70 26","webLink":""}\nfrom: binh@mail.com';
+  const subject = '[XIN VẮNG BUỔI KHAI GIẢNG KHÓA PBM]';
+  assert.deepEqual(parseAbsenceDates(subject, body, '2026-10-22T15:16:47Z'), ['2026-10-31']);
+  assert.equal(originalSender({ from: 'Academic Affairs <academicaffairs@starttrain.edu.vn>', body }), 'binh@mail.com');
+  assert.equal(originalSender({ from: 'academicaffairs@starttrain.edu.vn', body: body.split('\nfrom:')[0] }), 'binh@mail.com', 'chỉ có JSON: đọc "from" trong JSON');
+  assert.deepEqual(parseAbsenceDates('Xin nghỉ', '2026-10-22T15:16:47 giờ nhận', '2026-10-22T15:16:47Z'), [], 'dãy ngày giờ ISO không phải ngày xin nghỉ');
+  const r = await send([{ id: 'real1', from: 'Academic Affairs <academicaffairs@starttrain.edu.vn>', subject, body, received: '2026-10-22T15:16:47Z' }]);
+  assert.deepEqual([r.body.matched, r.body.not_absence], [1, 0]);
+  const list = (await admin.get(`/api/classes/${classId}/absences`)).body.filter((x) => x.absence_date === '2026-10-31' && x.student_code === 'A2');
+  assert.equal(list.length, 1, 'ngày 31/10 là buổi 3 của lớp');
+});

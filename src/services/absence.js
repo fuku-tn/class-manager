@@ -4,7 +4,8 @@
 // Thư được chuyển tiếp qua Power Automate: người gửi thật nằm trong Reply-To hoặc dòng "From:/Từ:" của nội dung.
 const FORWARDERS = new Set(['academicaffairs@starttrain.edu.vn', 'academicaffairs.ste@gmail.com']);
 const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+/;
-const SUBJECT_RE = /(xin\s*)?(ngh[ỉi]|v[ắa]ng)\s*(h[ọo]c|bu[ổo]i|l[ớo]p)|xin\s*ph[ée]p|absent|leave/i;
+// Tiêu đề xin nghỉ/xin vắng/xin phép (vd "[XIN VẮNG BUỔI KHAI GIẢNG KHÓA PBM]"); so sánh sau khi chuẩn hóa NFC để dấu không bị tách rời.
+const SUBJECT_RE = /ngh[ỉi]|v[ắa]ng|xin\s*ph[ée]p|absent|leave/i;
 const MAX_DATES = 14;
 const MAX_BODY = 1500;
 
@@ -13,9 +14,21 @@ const lowerEmail = (v) => { const m = EMAIL_RE.exec(String(v ?? '')); return m ?
 // Người gửi thật của đơn: Reply-To → From (nếu không phải hộp chuyển tiếp) → dòng "From:/Từ:" trong nội dung chuyển tiếp.
 function originalSender({ from, replyTo, body }) {
   for (const v of [replyTo, from]) { const e = lowerEmail(v); if (e && !FORWARDERS.has(e)) return e; }
-  const m = /(?:^|\n)\s*(?:from|từ|người gửi|de)\s*:[^\n]*?([A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+)/i.exec(String(body ?? ''));
+  const text = String(body ?? '');
+  const m = /(?:^|\n)\s*(?:from|từ|người gửi|de)\s*:[^\n]*?([A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+)/i.exec(text)
+    ?? /"from"\s*:\s*"[^"]*?([A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+)/.exec(text);   // flow gửi nguyên JSON của trigger
   const e = m ? m[1].toLowerCase() : null;
   return e && !FORWARDERS.has(e) ? e : null;
+}
+
+// Flow Power Automate có thể gửi nguyên JSON của trigger ({"messageId":…,"from":…,"received":…,"subject":…,"preview":"nội dung thư"}):
+// chỉ lấy phần chữ của thư (preview), bỏ mã thư/giờ nhận để không đọc nhầm làm ngày xin nghỉ.
+function mailText(body) {
+  const s = String(body ?? '');
+  const m = /"preview"\s*:\s*"((?:[^"\\]|\\.)*)"/.exec(s);
+  if (!m) return s;
+  return m[1].replace(/\\u([0-9a-f]{4})/gi, (_, h) => String.fromCharCode(parseInt(h, 16)))
+    .replace(/\\r/g, '\r').replace(/\\n/g, '\n').replace(/\\t/g, ' ').replace(/\\(["\\/])/g, '$1');
 }
 
 const pad = (n) => String(n).padStart(2, '0');
@@ -37,7 +50,8 @@ function resolve(d, m, yRaw, received) {
   return dt;
 }
 
-const D = '(\\d{1,2})\\s*[\\/.-]\\s*(\\d{1,2})(?:\\s*[\\/.-]\\s*(\\d{4}|\\d{2}))?';
+// Không bắt đầu giữa một dãy số ("2026-10-22T15:16" không bị đọc thành 26/10/22) và không kết thúc trước một chữ số.
+const D = '(?<![\\d/.-])(\\d{1,2})\\s*[\\/.-]\\s*(\\d{1,2})(?:\\s*[\\/.-]\\s*(\\d{4}|\\d{2}))?(?!\\d)';
 const RANGE_RE = new RegExp(String.raw`${D}(?:\s*(?:đến|tới|->|→|–|—)\s*|\s+-\s+)(?:ngày\s*)?${D}`, 'giu');
 const PAIR_RE = /(?<![\d/.-])(\d{1,2})(?![\d/.-])\s*(?:,|và|&)\s*(?:ngày\s*)?(\d{1,2})\s*[/.-]\s*(\d{1,2})(?:\s*[/.-]\s*(\d{4}|\d{2}))?/giu;
 const ONE_RE = new RegExp(D, 'g');
@@ -61,7 +75,7 @@ function parseAbsenceDates(subject, body, receivedAt) {
   if (Number.isNaN(received.getTime())) return [];
   const fromSubject = datesIn(subject, received);
   if (fromSubject.length) return fromSubject;
-  const own = String(body ?? '').slice(0, MAX_BODY).split(/\n\s*(?:-{2,}|_{5,}|from\s*:|từ\s*:|sent\s*:|gửi\s*:|on .{0,80} wrote)/i)[0];
+  const own = mailText(body).slice(0, MAX_BODY).split(/\n\s*(?:-{2,}|_{5,}|from\s*:|từ\s*:|sent\s*:|gửi\s*:|on .{0,80} wrote)/i)[0];
   return datesIn(own, received);
 }
 
@@ -71,7 +85,7 @@ async function importAbsences(db, messages) {
   const classIds = new Set();
   await db.tx(async (t) => {
     for (const m of messages) {
-      if (!SUBJECT_RE.test(String(m.subject ?? ''))) { brief.not_absence++; continue; }
+      if (!SUBJECT_RE.test(String(m.subject ?? '').normalize('NFC'))) { brief.not_absence++; continue; }
       const sender = originalSender(m);
       if (!sender) { brief.no_sender++; brief.unmatched_ids.push(m.id); continue; }
       const dates = parseAbsenceDates(m.subject, m.body, m.received);
