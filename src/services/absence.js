@@ -112,7 +112,9 @@ async function importAbsences(db, messages) {
   return brief;
 }
 
-// Đơn còn hiệu lực của một lớp: ngày nghỉ rơi đúng một buổi của lớp (theo lịch giảng dạy hoặc ngày của buổi), học viên đang học.
+// Đơn của một lớp: MỌI học viên đang học lớp này có đơn xin nghỉ (chuông báo ngày nghỉ, người dùng tự biết là buổi nào), còn trong thời hạn:
+// ngày nghỉ từ 7 ngày trước đến hết buổi cuối của lớp. Nếu ngày trùng một buổi (theo lịch giảng dạy hoặc ngày của buổi) thì kèm session_id/session_no
+// để hiện chấm vàng ở ô điểm danh và cho phép "Xác nhận có phép"; không trùng thì session_id = null (chỉ báo ngày).
 async function absencesFor(db, classId) {
   return db.all(
     `select r.id, r.status, r.absence_date::text as absence_date, r.received_at, e.id as enrollment_id,
@@ -120,9 +122,15 @@ async function absencesFor(db, classId) {
        from absence_requests r
        join students st on st.id = r.student_id
        join enrollments e on e.student_id = st.id and e.class_id = $1 and e.course_status = 'active'
-       join sessions se on se.class_id = $1 and (se.session_date = r.absence_date or se.session_no = (
-              select ts.session_no from teaching_schedule ts where ts.class_id = $1 and ts.session_date = r.absence_date and ts.session_no is not null limit 1))
+       join classes c on c.id = e.class_id
+       left join lateral (
+         select s.id, s.session_no from sessions s
+          where s.class_id = $1 and (s.session_date = r.absence_date or s.session_no = (
+                select ts.session_no from teaching_schedule ts where ts.class_id = $1 and ts.session_date = r.absence_date and ts.session_no is not null limit 1))
+          order by (s.session_date = r.absence_date) desc nulls last limit 1) se on true
       where r.status <> 'dismissed'
+        and r.absence_date >= (now() at time zone 'Asia/Ho_Chi_Minh')::date - 7
+        and (c.end_date is null or r.absence_date <= c.end_date)
       order by r.absence_date, st.full_name`, [classId]);
 }
 

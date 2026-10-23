@@ -67,7 +67,7 @@ export async function renderAttendance({ cls, state }) {
     if (on) { el.dataset.leave = '1'; el.title += LEAVE_HINT; } else { delete el.dataset.leave; el.title = el.title.replace(LEAVE_HINT, ''); }
   };
   const syncLeave = () => {
-    leave = new Set((absenceStore.classId === cls.id ? absenceStore.list : []).filter((r) => r.status === 'pending').map((r) => key(r.enrollment_id, r.session_id)));
+    leave = new Set((absenceStore.classId === cls.id ? absenceStore.list : []).filter((r) => r.status === 'pending' && r.session_id).map((r) => key(r.enrollment_id, r.session_id)));
     for (const [k, el] of cells) markLeave(el, leave.has(k));
   };
   const flash = (el) => { el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1200); };

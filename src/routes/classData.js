@@ -198,6 +198,7 @@ module.exports = (db) => {
       const r = all.find((x) => x.id === id(req.params.absenceId));
       if (!r) throw httpError(404, 'Không tìm thấy đơn xin nghỉ của lớp này');
       if (confirm) {
+        if (!r.session_id) throw httpError(409, 'Ngày xin nghỉ này không có buổi học của lớp, hãy tự ghi vào ô điểm danh rồi bấm "Đã biết"');
         const cur = await t.one('select status from attendance where enrollment_id = $1 and session_id = $2 for update', [r.enrollment_id, r.session_id]);
         if (cur && (cur.status === 'present' || cur.status === 'late')) throw httpError(409, 'Học viên đã được điểm danh có mặt/đi trễ buổi này, không ghi đè thành có phép');
         await t.run(`insert into attendance (enrollment_id, session_id, status, note, updated_by) values ($1, $2, 'excused', 'Xin nghỉ qua email', $3)

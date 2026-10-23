@@ -38,7 +38,7 @@ export function createAbsenceNotice({ canAct }) {
   async function act(r, action) {
     try {
       await post(`/api/classes/${cls.id}/absences/${r.id}/${action}`, {});
-      toast(action === 'confirm' ? `Đã ghi Có phép cho ${r.full_name} (buổi ${r.session_no})` : 'Đã bỏ qua đơn xin nghỉ');
+      toast(action === 'confirm' ? `Đã ghi Có phép cho ${r.full_name} (buổi ${r.session_no})` : 'Đã ghi nhận, không nhắc đơn này nữa');
       await load();
     } catch (e) { toast(e.message, true); }
   }
@@ -49,11 +49,11 @@ export function createAbsenceNotice({ canAct }) {
       h('div', { class: 'makeup-list' }, list.map((r) => h('div', { class: `makeup-item${seen.has(r.id) ? '' : ' new'}` },
         h('div', { class: 'makeup-top' }, h('b', {}, r.full_name), seen.has(r.id) ? null : h('span', { class: 'makeup-new' }, 'Mới')),
         h('div', { class: 'muted small' }, r.student_code, ' · nhận ', fmtWhen(r.received_at)),
-        h('div', { class: 'small' }, h('b', {}, `Nghỉ buổi ${r.session_no}`), ` (${fmtDay(r.absence_date)})`),
+        h('div', { class: 'small' }, h('b', {}, `Xin nghỉ ngày ${fmtDay(r.absence_date)}`), r.session_no ? ` · buổi ${r.session_no} của lớp` : ''),
         canAct(cls) ? h('div', { class: 'absence-actions' },
-          h('button', { type: 'button', class: 'small', title: 'Ghi "Có phép" vào ô điểm danh của buổi này', onclick: () => act(r, 'confirm') }, 'Xác nhận có phép'),
-          h('button', { type: 'button', class: 'small', onclick: () => act(r, 'dismiss') }, 'Bỏ qua')) : null))),
-      h('p', { class: 'muted small makeup-foot' }, 'Lấy từ email xin nghỉ học. Chưa xác nhận thì ô điểm danh chỉ có chấm vàng, không tự đổi thành Có phép.'));
+          r.session_id ? h('button', { type: 'button', class: 'small', title: 'Ghi "Có phép" vào ô điểm danh của buổi này', onclick: () => act(r, 'confirm') }, 'Xác nhận có phép') : null,
+          h('button', { type: 'button', class: 'small', title: 'Xong, không cần nhắc nữa', onclick: () => act(r, 'dismiss') }, r.session_id ? 'Bỏ qua' : 'Đã biết')) : null))),
+      h('p', { class: 'muted small makeup-foot' }, 'Lấy từ email xin nghỉ học: báo ngày học viên xin nghỉ, bạn tự biết đó là buổi nào. Nếu ngày trùng một buổi của lớp thì ô điểm danh có chấm vàng; chỉ khi bấm "Xác nhận có phép" mới ghi P.'));
   }
   async function load() {
     if (!cls) return;
