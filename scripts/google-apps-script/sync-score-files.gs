@@ -1,7 +1,7 @@
 /**
  * Đồng bộ ĐIỂM BÀI TẬP từ danh sách file bài làm trên SharePoint → Class Manager (webapp lớp học).
  * Bảng nguồn (một tab trong Google Sheet, do Power Automate ghi hoặc dán từ scores_STARTTRAIN.csv) có 3 cột:
- *   Path  = "Shared Documents/STARTTRAIN/<CHƯƠNG TRÌNH>/<LỚP>/<TÊN HỌC VIÊN>/[HW1/Basic/…]/<tên file>"
+ *   Path (hoặc Key) = "Shared Documents/STARTTRAIN/<CHƯƠNG TRÌNH>/<LỚP>/<TÊN HỌC VIÊN>/[HW1/Basic/…]/<tên file>"
  *   Name  = tên file
  *   Point = điểm chấm cho file đó
  * Web tự suy ra lớp, học viên (ghép theo tên), bài (HW1…, Mini Project, Capstone) từ Path; điểm của một bài = TỔNG điểm các file (tối đa 10).
@@ -13,14 +13,15 @@
  *       SYNC_TOKEN      = (cùng mã đồng bộ do chủ dự án cấp; đã có sẵn nếu dán chung dự án với các script khác)
  *  3. Chạy hàm setupScoreFiles() một lần, cấp quyền khi được hỏi. Từ đó mỗi 30 phút script kiểm tra và chỉ gửi khi bảng đổi.
  *
- * Tab: tên "scores_STARTTRAIN"/"Scores"/"Điểm"; không có thì tự tìm tab có hai ô tiêu đề "Path" và "Point".
+ * Tab: tên "scores_STARTTRAIN"/"Scores"/"Điểm"; không có thì tự tìm tab có ô tiêu đề "Path" (hoặc "Key") và "Point". Cột khác (UpdatedAt…) được bỏ qua.
  * AN TOÀN: chỉ đọc 3 cột Path, Name, Point và chỉ gửi dòng có điểm. Web KHÔNG lưu đường dẫn/tên học viên; không có dữ liệu tiền.
  * Thứ tự ưu tiên điểm trên web: gõ tay > file Excel "Chấm điểm" > nguồn SharePoint này (chỉ điền ô còn trống và cập nhật điểm do chính nó nhập;
  * không xóa điểm nào). Một lượt gửi tối đa ~15.000 dòng có điểm (cả bảng phải nằm trong MỘT lượt vì điểm = tổng các file).
  */
 const SCORE_FILES_SETTINGS = {
   SHEET_NAMES: ['scores_STARTTRAIN', 'Scores', 'Điểm', 'Diem'],
-  KEY_HEADERS: ['Path', 'Point'],
+  PATH_HEADERS: ['Path', 'Key'],     // tên cột đường dẫn: "Path" hoặc "Key" (bảng Power Automate dùng "Key")
+  POINT_HEADER: 'Point',
   MAX_HEADER_ROW: 10,
   EVERY_MINUTES: 30,                 // chu kỳ kiểm tra (1, 5, 10, 15, 30)
   RESEND_AFTER_MINUTES: 180,         // không đổi gì vẫn gửi lại mỗi 3 giờ một lần
@@ -59,7 +60,7 @@ function syncScoreFiles(forceArg) {
 
     const sheet = findScoreFilesSheet_(SpreadsheetApp.getActiveSpreadsheet());
     const table = sheet && readScoreFilesTable_(sheet);
-    if (!table) throw new Error('Không tìm thấy tab điểm (cần tiêu đề Path và Point)');
+    if (!table) throw new Error('Không tìm thấy tab điểm (cần tiêu đề Path hoặc Key, và Point)');
     if (table.rows.length > SCORE_FILES_SETTINGS.MAX_ROWS) {
       throw new Error('Bảng có ' + table.rows.length + ' dòng có điểm, vượt giới hạn ' + SCORE_FILES_SETTINGS.MAX_ROWS + ' dòng/lượt — hãy lọc bớt (vd chỉ giữ các lớp đang học)');
     }
@@ -97,17 +98,19 @@ function findScoreFilesSheet_(ss) {
   return sheets.filter(function (s) { return findScoreFilesHeader_(s) !== null; })[0] || null;
 }
 
-/** Tìm hàng tiêu đề (trong MAX_HEADER_ROW hàng đầu) chứa đủ KEY_HEADERS; trả { row (1-based), index: {PATH, NAME, POINT} } hoặc null. */
+/** Tìm hàng tiêu đề (trong MAX_HEADER_ROW hàng đầu) có cột đường dẫn (Path/Key) và Point; trả { row (1-based), index: {PATH, NAME, POINT} } hoặc null. */
 function findScoreFilesHeader_(sheet) {
   const lastCol = sheet.getLastColumn();
   if (lastCol < 1 || sheet.getLastRow() < 1) return null;
   const top = sheet.getRange(1, 1, Math.min(sheet.getLastRow(), SCORE_FILES_SETTINGS.MAX_HEADER_ROW), lastCol).getValues();
   for (let r = 0; r < top.length; r++) {
     const cells = top[r].map(norm_);
-    const has = SCORE_FILES_SETTINGS.KEY_HEADERS.every(function (k) { return cells.indexOf(norm_(k)) >= 0; });
-    if (!has) continue;
-    const index = {};
-    SCORE_FILES_COLUMNS.forEach(function (c) { const i = cells.indexOf(c); if (i >= 0) index[c] = i; });
+    const pathAt = SCORE_FILES_SETTINGS.PATH_HEADERS.map(function (k) { return cells.indexOf(norm_(k)); }).filter(function (i) { return i >= 0; })[0];
+    const pointAt = cells.indexOf(norm_(SCORE_FILES_SETTINGS.POINT_HEADER));
+    if (pathAt === undefined || pointAt < 0) continue;
+    const nameAt = cells.indexOf('NAME');
+    const index = { PATH: pathAt, POINT: pointAt };
+    if (nameAt >= 0) index.NAME = nameAt;
     return { row: r + 1, index: index };
   }
   return null;
