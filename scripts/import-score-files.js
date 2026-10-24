@@ -7,6 +7,7 @@ const path = require('node:path');
 const { openDb } = require('../src/db');
 const { importScoreFiles } = require('../src/services/importScoreFiles');
 const { parseCsv } = require('../src/services/backup');
+const { writeScoresBackup } = require('../src/services/pointsExcel');
 const realtime = require('../src/services/realtime');
 
 (async () => {
@@ -19,6 +20,7 @@ const realtime = require('../src/services/realtime');
   const keep = columns.filter((c) => ['PATH', 'NAME', 'POINT'].includes(c.trim().toUpperCase()));
   const db = await openDb();
   try {
+    if (!dryRun) { const b = await writeScoresBackup(db, path.join(__dirname, '..')); console.log(`Sao lưu điểm trước khi nhập: ${b.count} điểm → private-data/backups/diem/${b.name}`); }
     const r = await importScoreFiles(db, { headers: keep, rows: rows.map((x) => keep.map((c) => x[c])) }, { dryRun, verbose });
     const { import: imp, unmatched_names: names, class_ids, ...brief } = r;
     console.log(JSON.stringify(brief, null, 2));

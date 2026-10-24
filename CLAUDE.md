@@ -32,7 +32,9 @@ npm run import-feedback -- file.xlsx [--dry-run]   # khảo sát sau khóa (shee
 # Hoặc nhập qua web: đăng nhập admin → mục "Nhập Excel" (#/import): Chạy thử → Nhập thật; xong thì màn hình đang mở tự cập nhật
 npm start        # http://localhost:3000   (PORT=3100 npm start nếu cổng bận; npm run dev: tự reload)
 npm test         # node:test, Postgres trong bộ nhớ (PGlite) — KHÔNG đụng Supabase
-npm run import-points [-- file.xlsx|backup.csv] [--dry-run]   # điểm HW từ "Chấm điểm.xlsx" bảng Point_Transform (lịch 12:00: scripts/points-scheduled.cmd); trước khi nhập tự sao lưu điểm → private-data/backups/diem/ (giữ 1 bản)
+npm run import-points [-- file.xlsx|backup.csv] [--dry-run]   # điểm HW từ "Chấm điểm.xlsx" bảng Point_Transform (lịch 12:00: scripts/points-scheduled.cmd); trước khi nhập tự sao lưu điểm → private-data/backups/diem/ (giữ 1 bản; có cột Source = manual/excel/sharepoint để khôi phục đúng điểm gõ tay)
+npm run backup-points   # chỉ sao lưu điểm (chỉ đọc) → private-data/backups/diem/diem_<ngày_giờ>.csv, giữ 1 bản mới nhất
+npm run import-score-files -- file.csv [--dry-run] [--verbose]   # điểm từ danh sách file SharePoint (Path/Name/Point); tự sao lưu điểm trước khi nhập thật
 npm run backup   # sao lưu toàn bộ dữ liệu (chỉ đọc) → private-data/backups/<ngày_giờ>/  — xem Documents/4-van-hanh/backup.md
 npm run restore -- <thư-mục> [--dry-run]   # khôi phục, CHỈ vào database trống (RESTORE_DATABASE_URL hoặc DATABASE_URL)
 ```

@@ -4,6 +4,9 @@
 // trong Sheet bị xóa (có chốt chặn nếu bỗng xóa quá nhiều).
 const POINT_COLUMNS = ['STUDENTID', 'COURSE', 'HW', 'POINT', 'MODULE'];
 const POINT_SYNC_COLUMNS = [...POINT_COLUMNS, 'STUDENT ID'];   // chấp nhận cả "Student ID"
+// Bản sao lưu CSV có thêm cột SOURCE (excel | sharepoint | manual) để khôi phục đúng nguồn/điểm gõ tay; CHỈ đọc khi khôi phục từ CSV (trustSource), không nhận từ Sheet.
+const POINT_CSV_COLUMNS = [...POINT_SYNC_COLUMNS, 'SOURCE'];
+const SOURCES = ['excel', 'sharepoint', 'manual'];
 
 const STUDENT_ID_RE = /^[A-Za-z][A-Za-z0-9]{0,5}\.\d{1,9}$/;
 const DELETE_MIN = 50;      // dưới ngưỡng này luôn được xóa
@@ -51,10 +54,10 @@ function applyAlias(short, hw) {
   return POINT_ALIASES[prog]?.[`${hw.kind}:${hw.seq}`] ?? hw;
 }
 
-function parsePointRows(table) {
+function parsePointRows(table, { trustSource = false } = {}) {
   const h = table.headers;
   const col = (...names) => names.map((n) => h.indexOf(n)).find((i) => i >= 0) ?? -1;
-  const iSid = col('STUDENTID', 'STUDENT ID'), iCourse = col('COURSE'), iHw = col('HW'), iPoint = col('POINT'), iModule = col('MODULE');
+  const iSid = col('STUDENTID', 'STUDENT ID'), iCourse = col('COURSE'), iHw = col('HW'), iPoint = col('POINT'), iModule = col('MODULE'), iSource = trustSource ? col('SOURCE') : -1;
   const out = { entries: new Map(), skipped: { bad_student_id: 0, bad_hw: 0, bad_point: 0, no_course: 0 }, total: table.rows.length, badHw: new Set(), badPoint: new Set() };
   if ([iSid, iCourse, iHw, iPoint].some((i) => i < 0)) {
     const e = new Error('Thiếu cột trong tab Point (cần StudentID, Course, HW, Point)');
@@ -71,14 +74,15 @@ function parsePointRows(table) {
     if (!hw) { out.skipped.bad_hw++; addExample(out.badHw, r[iHw]); continue; }
     const score = parseScore(r[iPoint]);
     if (score == null) { out.skipped.bad_point++; addExample(out.badPoint, `${short} ${txt(r[iHw]) ?? ''}: ${r[iPoint] == null ? '(trống)' : r[iPoint]}`); continue; }
-    out.entries.set(`${short}|${sid}|${hw.kind}:${hw.seq}`, { short, sid, ...hw, score, module: (txt(iModule >= 0 ? r[iModule] : null) ?? '').slice(0, 60) || null });
+    const src = iSource >= 0 ? String(txt(r[iSource]) ?? '').toLowerCase() : '';
+    out.entries.set(`${short}|${sid}|${hw.kind}:${hw.seq}`, { short, sid, ...hw, score, module: (txt(iModule >= 0 ? r[iModule] : null) ?? '').slice(0, 60) || null, src: SOURCES.includes(src) ? src : null });
   }
   return out;
 }
 
 // source: 'excel' (mặc định) | 'sharepoint' — nguồn ghi vào homework_scores.source. allowDelete = false: không xóa điểm nào (nguồn danh sách file không đầy đủ).
-async function importPoints(db, table, { dryRun = false, source = 'excel', allowDelete = true } = {}) {
-  const parsed = parsePointRows(table);
+async function importPoints(db, table, { dryRun = false, source = 'excel', allowDelete = true, trustSource = false } = {}) {
+  const parsed = parsePointRows(table, { trustSource });
   const entries = [...parsed.entries.values()];
   const summary = {
     points_rows: parsed.total, valid: entries.length,
@@ -123,7 +127,8 @@ async function importPoints(db, table, { dryRun = false, source = 'excel', allow
         if (!eid) { summary.skipped_no_enrollment++; addExample(noEnrollment, `${e.short} ${e.kind === 'capstone' ? 'Capstone' : `${e.kind === 'mini' ? 'MP' : 'HW'}${e.seq}`}`); continue; }
         const aid = asgId.get(`${cid}|${e.kind}:${e.seq}`);
         if (!aid) { summary.skipped_no_assignment++; addExample(noAssignment, `${e.short} ${e.kind === 'capstone' ? 'Capstone' : `${e.kind === 'mini' ? 'MP' : 'HW'}${e.seq}`}`); continue; }
-        rows.push({ eid, aid, score: e.score, module: e.module });
+        const src = e.src ?? source;   // dòng khôi phục từ CSV có SOURCE riêng; còn lại theo nguồn của lượt nhập
+        rows.push({ eid, aid, score: e.score, module: e.module, manual: src === 'manual', source: src === 'manual' ? 'excel' : src });
         usedClasses.add(cid);
       }
       summary.class_ids = [...usedClasses];
@@ -133,16 +138,18 @@ async function importPoints(db, table, { dryRun = false, source = 'excel', allow
 
       if (rows.length) {
         const res = await t.all(
-          `insert into homework_scores (enrollment_id, assignment_id, score, module, source)
-           select u.*, $5::text from unnest($1::bigint[], $2::bigint[], $3::numeric[], $4::text[]) as u
-           on conflict (enrollment_id, assignment_id) do update set score = excluded.score, source = excluded.source, updated_at = now(),
+          `insert into homework_scores (enrollment_id, assignment_id, score, module, manual, source)
+           select * from unnest($1::bigint[], $2::bigint[], $3::numeric[], $4::text[], $5::boolean[], $6::text[])
+           on conflict (enrollment_id, assignment_id) do update set score = excluded.score, source = excluded.source, manual = excluded.manual, updated_at = now(),
                module = case when excluded.source = 'sharepoint' then coalesce(excluded.module, homework_scores.module) else excluded.module end
-             where homework_scores.manual is false   -- điểm gõ tay trên web được giữ nguyên: nguồn tự động chỉ điền ô còn trống / cập nhật điểm tự động
-               and (excluded.source = 'excel' or homework_scores.source = 'sharepoint')   -- ưu tiên: gõ tay > Excel > SharePoint (SharePoint không đè điểm Excel)
-               and (homework_scores.score is distinct from excluded.score or homework_scores.module is distinct from excluded.module
-                    or homework_scores.source is distinct from excluded.source)
+             where ($7::boolean and (homework_scores.score is distinct from excluded.score or homework_scores.module is distinct from excluded.module   -- khôi phục từ bản sao lưu CSV: bản sao lưu là chuẩn (cả điểm gõ tay và nguồn)
+                                     or homework_scores.manual is distinct from excluded.manual or homework_scores.source is distinct from excluded.source))
+                or (homework_scores.manual is false   -- điểm gõ tay trên web được giữ nguyên: nguồn tự động chỉ điền ô còn trống / cập nhật điểm tự động
+                    and (excluded.source = 'excel' or homework_scores.source = 'sharepoint')   -- ưu tiên: gõ tay > Excel > SharePoint (SharePoint không đè điểm Excel)
+                    and (homework_scores.score is distinct from excluded.score or homework_scores.module is distinct from excluded.module
+                         or homework_scores.source is distinct from excluded.source))
            returning (xmax = 0) as inserted`,
-          [rows.map((r) => r.eid), rows.map((r) => r.aid), rows.map((r) => r.score), rows.map((r) => r.module), source]);
+          [rows.map((r) => r.eid), rows.map((r) => r.aid), rows.map((r) => r.score), rows.map((r) => r.module), rows.map((r) => r.manual), rows.map((r) => r.source), trustSource]);
         summary.inserted = res.filter((r) => r.inserted).length;
         summary.updated = res.length - summary.inserted;
       }
@@ -167,4 +174,4 @@ async function importPoints(db, table, { dryRun = false, source = 'excel', allow
   return summary;
 }
 
-module.exports = { importPoints, parsePointRows, parseHw, parseScore, normalizeCourse, applyAlias, POINT_ALIASES, POINT_COLUMNS, POINT_SYNC_COLUMNS };
+module.exports = { importPoints, parsePointRows, parseHw, parseScore, normalizeCourse, applyAlias, POINT_ALIASES, POINT_COLUMNS, POINT_SYNC_COLUMNS, POINT_CSV_COLUMNS };

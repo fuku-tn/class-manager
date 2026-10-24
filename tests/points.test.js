@@ -203,18 +203,18 @@ test('đọc bảng Point_Transform trong file Excel: chỉ cột cho phép, l�
   await assert.rejects(readPointTransform(buf, { tableName: 'Khong_Co' }), /Không thấy bảng/);
 });
 
-test('sao lưu điểm trước khi nhập: ảnh chụp 5 cột ra CSV, nạp lại CSV đó thì không đổi gì', async () => {
+test('sao lưu điểm trước khi nhập: ảnh chụp (5 cột + Source) ra CSV, nạp lại CSV đó thì không đổi gì', async () => {
   const { snapshotScores, readPointsCsv } = require('../src/services/pointsExcel');
   const { importPoints } = require('../src/services/importPoints');
   const { toCsv } = require('../src/services/backup');
   const snap = await snapshotScores(t.db);
   assert.ok(snap.rows.length > 0);
-  assert.deepEqual(snap.headers, ['STUDENTID', 'COURSE', 'HW', 'POINT', 'MODULE']);
+  assert.deepEqual(snap.headers, ['STUDENTID', 'COURSE', 'HW', 'POINT', 'MODULE', 'SOURCE']);
   assert.ok(snap.rows.every((r) => /^(HW\d+|Mini Project \d+|Capstone Project)$/.test(r[2]) && /^P\.\d+$/.test(r[0]) && r[1] === 'PTS101'), JSON.stringify(snap.rows));
-  const cols = ['StudentID', 'Course', 'HW', 'Point', 'Module'];
+  const cols = ['StudentID', 'Course', 'HW', 'Point', 'Module', 'Source'];
   const csv = toCsv(cols, snap.rows.map((r) => Object.fromEntries(cols.map((c, i) => [c, r[i]]))));
   assert.ok(!csv.includes('Tên không được lưu'));                       // không có họ tên
-  const s = await importPoints(t.db, readPointsCsv(csv));
+  const s = await importPoints(t.db, readPointsCsv(csv), { trustSource: true });
   assert.deepEqual([s.valid, s.inserted, s.updated, s.deleted], [snap.rows.length, 0, 0, 0]);
 });
 

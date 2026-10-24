@@ -4,34 +4,24 @@
 //   Lịch tự động 12:00 hằng ngày: scripts/points-scheduled.cmd (làm mới truy vấn Excel trước rồi mới nhập).
 // File là bản chuẩn: điểm sửa thì cập nhật, điểm không còn trong bảng thì xóa (chốt chặn nếu bỗng xóa quá nhiều).
 // Trước mỗi lần nhập thật: chụp toàn bộ điểm đang có ra private-data/backups/diem/diem_<ngày_giờ>.csv và CHỈ giữ bản mới nhất.
-// Khôi phục điểm về lúc đó: npm run import-points -- private-data/backups/diem/diem_<ngày_giờ>.csv
+// Khôi phục điểm về lúc đó: npm run import-points -- private-data/backups/diem/diem_<ngày_giờ>.csv (cột Source giữ nguyên điểm gõ tay / nguồn). Chỉ sao lưu: npm run backup-points
 const fs = require('node:fs');
 const path = require('node:path');
 const { openDb } = require('../src/db');
 const { importPoints } = require('../src/services/importPoints');
-const { readPointTransform, snapshotScores, readPointsCsv } = require('../src/services/pointsExcel');
-const { toCsv } = require('../src/services/backup');
+const { readPointTransform, readPointsCsv, writeScoresBackup } = require('../src/services/pointsExcel');
 const realtime = require('../src/services/realtime');
 
 const root = path.join(__dirname, '..');
-const BACKUP_DIR = path.join(root, 'private-data', 'backups', 'diem');
-const BACKUP_RE = /^diem_\d{4}-\d{2}-\d{2}_\d{4,6}\.csv$/;
 function defaultFile() {
   const cands = [process.env.POINTS_XLSX, path.join(root, 'private-data', 'excel', 'Chấm điểm.xlsx'), path.join(root, 'Chấm điểm.xlsx')].filter(Boolean);
   return cands.find((f) => fs.existsSync(f)) ?? cands[0];
 }
 
-// Sao lưu điểm hiện có (trước khi nhập), xóa các bản cũ hơn — chỉ còn 1 bản mới nhất.
+// Sao lưu điểm hiện có (trước khi nhập), chỉ giữ 1 bản mới nhất (logic ở src/services/pointsExcel.js).
 async function backupScores(db) {
-  const snap = await snapshotScores(db);
-  const stamp = new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 19).replace('T', '_').replace(/:/g, '');
-  fs.mkdirSync(BACKUP_DIR, { recursive: true });
-  const name = `diem_${stamp}.csv`;
-  const cols = ['StudentID', 'Course', 'HW', 'Point', 'Module'];
-  fs.writeFileSync(path.join(BACKUP_DIR, name), toCsv(cols, snap.rows.map((r) => Object.fromEntries(cols.map((c, i) => [c, r[i]])))));
-  const olds = fs.readdirSync(BACKUP_DIR).filter((f) => BACKUP_RE.test(f) && f !== name);
-  for (const f of olds) fs.rmSync(path.join(BACKUP_DIR, f), { force: true });
-  console.log(`Sao lưu điểm trước khi nhập: ${snap.rows.length} điểm → private-data/backups/diem/${name}${olds.length ? ` (đã xóa ${olds.length} bản cũ)` : ''}`);
+  const b = await writeScoresBackup(db, root);
+  console.log(`Sao lưu điểm trước khi nhập: ${b.count} điểm → private-data/backups/diem/${b.name}${b.removed ? ` (đã xóa ${b.removed} bản cũ, chỉ giữ bản mới nhất)` : ''}`);
 }
 
 (async () => {
@@ -47,7 +37,7 @@ async function backupScores(db) {
   const db = await openDb();
   try {
     if (!dryRun) await backupScores(db);
-    const { class_ids = [], ...s } = await importPoints(db, table, { dryRun });
+    const { class_ids = [], ...s } = await importPoints(db, table, { dryRun, trustSource: isCsv });
     console.log(`Hợp lệ ${s.valid}/${s.points_rows} · thêm ${s.inserted} · sửa ${s.updated} · xóa ${s.deleted}${s.delete_skipped ? ' (BỎ QUA bước xóa: xóa quá nhiều — kiểm tra file)' : ''}`
       + (s.created_assignments ? ` · tạo ${s.created_assignments} cột Mini Project` : ''));
     const skip = Object.entries(s).filter(([k, v]) => k.startsWith('skipped_') && v).map(([k, v]) => `${k.slice(8)}=${v}`);

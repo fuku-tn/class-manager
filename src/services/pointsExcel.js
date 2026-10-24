@@ -2,7 +2,9 @@
 // Chỉ lấy đúng các cột cho phép POINT_SYNC_COLUMNS (StudentID, Course, HW, Point, Module) theo tên tiêu đề —
 // KHÔNG đọc cột "Họ và tên" hay bảng/sheet khác (StudentProfile…). Ô công thức lấy giá trị đã tính (Excel lưu sẵn).
 // Kết quả { headers, rows } đưa thẳng vào importPoints() (cùng bộ ghép/chốt chặn như đồng bộ Sheet trước đây).
-const { POINT_SYNC_COLUMNS } = require('./importPoints');
+const fs = require('node:fs');
+const path = require('node:path');
+const { POINT_SYNC_COLUMNS, POINT_CSV_COLUMNS } = require('./importPoints');
 
 const TABLE_NAME = 'Point_Transform';
 
@@ -62,21 +64,38 @@ async function readPointTransform(file, { tableName = TABLE_NAME } = {}) {
 // dùng làm bản sao lưu trước mỗi lần nhập; nạp lại được bằng chính importPoints (npm run import-points -- <file.csv>).
 async function snapshotScores(db) {
   const rows = await db.all(
-    `select s.student_code, c.short_code, a.kind, a.seq, hs.score::float8 as score, hs.module
+    `select s.student_code, c.short_code, a.kind, a.seq, hs.score::float8 as score, hs.module, hs.manual, hs.source
        from homework_scores hs
        join enrollments e on e.id = hs.enrollment_id join students s on s.id = e.student_id
        join classes c on c.id = e.class_id join assignments a on a.id = hs.assignment_id
       order by c.short_code, s.student_code, case a.kind when 'hw' then 0 when 'mini' then 1 else 2 end, a.seq`);
   const label = (r) => (r.kind === 'capstone' ? 'Capstone Project' : r.kind === 'mini' ? `Mini Project ${r.seq}` : `HW${r.seq}`);
-  return { headers: [...POINT_SYNC_COLUMNS.slice(0, 5)], rows: rows.map((r) => [r.student_code, r.short_code, label(r), r.score, r.module]) };
+  // Cột SOURCE: manual (gõ tay trên web) | excel | sharepoint — để khôi phục giữ đúng điểm gõ tay và nguồn
+  return { headers: [...POINT_SYNC_COLUMNS.slice(0, 5), 'SOURCE'], rows: rows.map((r) => [r.student_code, r.short_code, label(r), r.score, r.module, r.manual ? 'manual' : r.source]) };
 }
 
 // Đọc bản sao lưu CSV (hoặc CSV bất kỳ có các cột trên) thành { headers, rows } cho importPoints; chỉ giữ cột cho phép.
 function readPointsCsv(text) {
   const { parseCsv } = require('./backup');
   const { columns, rows } = parseCsv(text);
-  const keep = columns.map((c) => ({ c, name: norm(c) })).filter((x, i, arr) => POINT_SYNC_COLUMNS.includes(x.name) && arr.findIndex((y) => y.name === x.name) === i);
+  const keep = columns.map((c) => ({ c, name: norm(c) })).filter((x, i, arr) => POINT_CSV_COLUMNS.includes(x.name) && arr.findIndex((y) => y.name === x.name) === i);
   return { headers: keep.map((x) => x.name), rows: rows.map((r) => keep.map((x) => r[x.c])) };
 }
 
-module.exports = { readPointTransform, snapshotScores, readPointsCsv, TABLE_NAME, parseRef, cellValue };
+const BACKUP_RE = /^diem_\d{4}-\d{2}-\d{2}_\d{4,6}\.csv$/;
+// Ghi bản sao lưu điểm ra <root>/private-data/backups/diem/diem_<ngày_giờ>.csv và CHỈ giữ bản mới nhất. Trả { file, name, count, removed }.
+async function writeScoresBackup(db, root) {
+  const { toCsv } = require('./backup');
+  const snap = await snapshotScores(db);
+  const dir = path.join(root, 'private-data', 'backups', 'diem');
+  const stamp = new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 19).replace('T', '_').replace(/:/g, '');
+  fs.mkdirSync(dir, { recursive: true });
+  const name = `diem_${stamp}.csv`;
+  const cols = ['StudentID', 'Course', 'HW', 'Point', 'Module', 'Source'];
+  fs.writeFileSync(path.join(dir, name), toCsv(cols, snap.rows.map((r) => Object.fromEntries(cols.map((c, i) => [c, r[i]])))));
+  const olds = fs.readdirSync(dir).filter((f) => BACKUP_RE.test(f) && f !== name);
+  for (const f of olds) fs.rmSync(path.join(dir, f), { force: true });
+  return { file: path.join(dir, name), name, count: snap.rows.length, removed: olds.length };
+}
+
+module.exports = { readPointTransform, snapshotScores, readPointsCsv, writeScoresBackup, TABLE_NAME, parseRef, cellValue };
