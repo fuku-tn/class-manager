@@ -135,7 +135,8 @@ async function importPoints(db, table, { dryRun = false } = {}) {
           `insert into homework_scores (enrollment_id, assignment_id, score, module)
            select * from unnest($1::bigint[], $2::bigint[], $3::numeric[], $4::text[])
            on conflict (enrollment_id, assignment_id) do update set score = excluded.score, module = excluded.module, updated_at = now()
-             where homework_scores.score is distinct from excluded.score or homework_scores.module is distinct from excluded.module
+             where homework_scores.manual is false   -- điểm gõ tay trên web được giữ nguyên: Excel chỉ điền ô còn trống / cập nhật điểm từ Excel
+               and (homework_scores.score is distinct from excluded.score or homework_scores.module is distinct from excluded.module)
            returning (xmax = 0) as inserted`,
           [rows.map((r) => r.eid), rows.map((r) => r.aid), rows.map((r) => r.score), rows.map((r) => r.module)]);
         summary.inserted = res.filter((r) => r.inserted).length;
@@ -147,7 +148,7 @@ async function importPoints(db, table, { dryRun = false } = {}) {
         const keep = new Set(rows.map((r) => `${r.eid}|${r.aid}`));
         const existing = await t.all(
           `select hs.id, hs.enrollment_id, hs.assignment_id from homework_scores hs join enrollments e on e.id = hs.enrollment_id
-            where e.class_id = any($1::bigint[])`, [[...usedClasses]]);
+            where e.class_id = any($1::bigint[]) and hs.manual is false`, [[...usedClasses]]);   // điểm gõ tay không bao giờ bị xóa theo Excel
         const gone = existing.filter((x) => !keep.has(`${x.enrollment_id}|${x.assignment_id}`));
         if (gone.length) {
           if (gone.length > Math.max(DELETE_MIN, Math.ceil(existing.length * DELETE_RATIO))) summary.delete_skipped = true;

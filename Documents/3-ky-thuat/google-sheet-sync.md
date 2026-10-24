@@ -58,7 +58,7 @@ Tạm dừng: chạy hàm `stop`. Bật lại: chạy `setup`.
 | Điểm danh, bài tập | **Không** đồng bộ — web là nơi nhập chính |
 
 ## Điểm bài tập — từ file Excel "Chấm điểm.xlsx" (từ 18/10/2026)
-Nguồn điểm HW **duy nhất** là file Excel `Chấm điểm.xlsx`, bảng (Excel Table) **`Point_Transform`** (sheet "Tổng điểm"). Google Sheet điểm **không còn được nhận**: `/api/sync/points` trả 410 (bật lại tạm bằng biến `POINTS_SHEET_SYNC=1`) — chạy `stop()` trong Apps Script của Sheet điểm để tắt hẹn giờ.
+Điểm HW có hai nguồn: file Excel `Chấm điểm.xlsx` (dưới đây) và **điểm gõ tay trên trang Bài tập** (admin + giảng viên của lớp; điểm gõ tay được giữ nguyên khi Excel nhập — Excel chỉ điền ô còn trống và cập nhật ô do chính Excel điền; từ 24/10/2026). Nguồn Excel, bảng (Excel Table) **`Point_Transform`** (sheet "Tổng điểm"). Google Sheet điểm **không còn được nhận**: `/api/sync/points` trả 410 (bật lại tạm bằng biến `POINTS_SHEET_SYNC=1`) — chạy `stop()` trong Apps Script của Sheet điểm để tắt hẹn giờ.
 
 | Việc | Cách |
 |---|---|

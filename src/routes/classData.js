@@ -475,14 +475,14 @@ module.exports = (db) => {
       db.all("select id, kind, seq, title from assignments where class_id = $1 order by case kind when 'hw' then 0 when 'mini' then 1 else 2 end, seq", [req.cls.id]),
       db.all(`select e.id, e.course_status, s.student_code, s.full_name from enrollments e join students s on s.id = e.student_id
                where e.class_id = $1`, [req.cls.id]),
-      db.all(`select hs.enrollment_id, hs.assignment_id, hs.score::float8 as score, hs.module from homework_scores hs
+      db.all(`select hs.enrollment_id, hs.assignment_id, hs.score::float8 as score, hs.module, hs.manual from homework_scores hs
                 join enrollments e on e.id = hs.enrollment_id where e.class_id = $1`, [req.cls.id]),
     ]);
     enrollments.sort(compareByName);   // thứ tự chữ cái tiếng Việt (Đ sau D)
     const byEnr = new Map();
     for (const x of scores) {
       if (!byEnr.has(x.enrollment_id)) byEnr.set(x.enrollment_id, {});
-      byEnr.get(x.enrollment_id)[x.assignment_id] = { score: x.score, module: x.module };
+      byEnr.get(x.enrollment_id)[x.assignment_id] = { score: x.score, module: x.module, manual: x.manual };
     }
     const rows = enrollments.map((e) => {
       const mine = byEnr.get(e.id) ?? {};
@@ -494,6 +494,43 @@ module.exports = (db) => {
       assignments: assignments.filter((a) => used.has(a.id)),
       rows, class_avg: averageScore(scores.map((x) => x.score)), has_scores: scores.length > 0,
     });
+  });
+
+  // Gõ điểm trên web (admin + giảng viên của lớp; khách bị blockGuestWrites, lớp chỉ-xem bị requireClassAccess). Điểm gõ tay (manual) được file Excel giữ nguyên.
+  // score: 0–10 (chấp nhận dấu phẩy), null/"" = xóa điểm gõ tay. expected: điểm người dùng đang thấy — đã đổi thì 409 (như ô điểm danh/bài tập).
+  router.put('/scores', async (req, res) => {
+    const b = req.body ?? {};
+    const hasExpected = Object.prototype.hasOwnProperty.call(b, 'expected');
+    const parse = (v) => {
+      if (v == null || String(v).trim() === '') return null;
+      const n = Number(String(v).trim().replace(',', '.'));
+      if (!Number.isFinite(n) || n < 0 || n > 10) throw httpError(400, 'Điểm phải là số từ 0 đến 10');
+      return Math.round(n * 100) / 100;
+    };
+    const score = parse(b.score);
+    const expected = hasExpected ? parse(b.expected) : null;
+    const out = await db.tx(async (t) => {
+      const e = await findEnrollment(t, req.cls.id, b.enrollment_id);
+      const a = await t.one('select id from assignments where id = $1 and class_id = $2', [id(b.assignment_id), req.cls.id]);
+      if (!e || !a) throw httpError(404, 'Học viên hoặc bài tập không thuộc lớp này');
+      const cur = await t.one('select score::float8 as score, manual from homework_scores where enrollment_id = $1 and assignment_id = $2 for update', [e.id, a.id]);
+      if (hasExpected && (cur?.score ?? null) !== expected) return { conflict: cur };
+      if (score === null) {
+        if (cur && !cur.manual) throw httpError(409, 'Điểm này lấy từ file Excel — hãy gõ điểm mới để ghi đè, hoặc sửa trong file Excel');
+        if (cur) await t.run('delete from homework_scores where enrollment_id = $1 and assignment_id = $2', [e.id, a.id]);
+      } else {
+        await t.run(`insert into homework_scores (enrollment_id, assignment_id, score, manual, updated_by) values ($1, $2, $3, true, $4)
+          on conflict (enrollment_id, assignment_id) do update set score = excluded.score, manual = true, updated_by = excluded.updated_by, updated_at = now()`,
+        [e.id, a.id, score, req.user.id]);
+      }
+      const mine = await t.all('select score::float8 as score from homework_scores where enrollment_id = $1', [e.id]);
+      const all = await t.all('select hs.score::float8 as score from homework_scores hs join enrollments x on x.id = hs.enrollment_id where x.class_id = $1', [req.cls.id]);
+      return { cell: score === null ? null : { score, manual: true }, avg: averageScore(mine.map((x) => x.score)),
+        class_avg: averageScore(all.map((x) => x.score)), has_scores: all.length > 0 };
+    });
+    if (out.conflict !== undefined) return res.status(409).json({ error: 'Điểm ô này vừa được người khác đổi, đã tải lại giá trị mới', current: { score: out.conflict?.score ?? null, manual: !!out.conflict?.manual } });
+    await realtime.publish(req.cls.id, { kind: 'scores' });
+    res.json({ ok: true, ...out });
   });
 
   // ---------- Bài tập ----------

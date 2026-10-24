@@ -23,16 +23,17 @@ const saveMode = (m) => { try { localStorage.setItem(MODE_KEY, m); } catch { /* 
 export async function renderHomework({ cls, state }) {
   const readOnly = state.user.role === 'guest'; // khách chỉ xem
   const base = `/api/classes/${cls.id}`;
-  // Điểm (đồng bộ từ Google Sheet bảng điểm) hiện ngay trong ô bài tập; khách không xem được điểm (máy chủ trả 403)
+  // Điểm (từ file Excel "Chấm điểm" hoặc gõ tay) hiện ngay trong ô bài tập; khách không xem được điểm (máy chủ trả 403). Admin/giảng viên gõ điểm trong hộp thoại của ô.
   const [data, sc] = await Promise.all([
     get(`${base}/submissions`),
     readOnly ? null : get(`${base}/scores`).catch(() => null),
   ]);
   data.assignments = sortAssignments(data.assignments, cls);   // HW → Mini Project → Capstone (BIH: HW5 hiện là MP3)
-  const hasScores = !!sc?.has_scores;
+  const hasScores = !!sc;   // có quyền xem/gõ điểm (kể cả khi lớp chưa có điểm nào — để gõ điểm đầu tiên)
   const scoreOf = new Map((sc?.rows ?? []).map((r) => [r.enrollment_id, r]));   // enrollment_id -> { scores: {assignment_id: {score, module}}, avg }
   const moduleOf = new Map();
   for (const r of sc?.rows ?? []) for (const [aid, v] of Object.entries(r.scores)) if (v.module && !moduleOf.has(aid)) moduleOf.set(aid, v.module);
+  const scoreStr = (v) => (v == null ? '' : String(Math.round(v * 100) / 100));
   let mode = hasScores ? readMode() : 'status';
   let sortBy = 'name';
   const search = h('input', { type: 'search', placeholder: 'Tìm học viên…', 'aria-label': 'Tìm học viên' });
@@ -57,7 +58,7 @@ export async function renderHomework({ cls, state }) {
     else if (mode === 'score') btn.replaceChildren(h('b', { class: 'cell-score' }, fmtScore(score)));
     else btn.replaceChildren(h('span', { class: 'cell-mark' }, mark), h('b', { class: 'cell-score' }, fmtScore(score)));
     const who = cell?.by ? ` · ${cell.by}${cell.at ? `, ${fmtTime(cell.at)}` : ''}` : '';
-    btn.title = (cell?.status ? LABEL[st] : st ? 'Có điểm Mini Project' : 'Chưa ghi nhận') + (score != null ? ` · Điểm ${fmtScore(score)}/10` : '')
+    btn.title = (cell?.status ? LABEL[st] : st ? 'Có điểm Mini Project' : 'Chưa ghi nhận') + (score != null ? ` · Điểm ${fmtScore(score)}/10${scoreOf.get(enr)?.scores?.[aid]?.manual ? ' (gõ tay)' : ''}` : '')
       + (cell?.challenge ? ' · có làm Challenge' : '') + who + (cell?.note ? ` — ${cell.note}` : '');
   };
   const flash = (el) => { el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1200); };
@@ -72,25 +73,69 @@ export async function renderHomework({ cls, state }) {
     h('th', { class: 'num' }, 'Hoàn thành HW'),
     hasScores ? avgHead : null));
 
+  // Cập nhật điểm 1 ô trong bộ nhớ trang (cell = null → xóa) rồi vẽ lại điểm TB học viên + tóm tắt lớp
+  const avgCells = new Map();
+  function applyScore(enr, aid, cell, avg, classAvg, hasAny) {
+    if (!scoreOf.has(enr)) scoreOf.set(enr, { enrollment_id: enr, scores: {}, avg: null });
+    const rec = scoreOf.get(enr);
+    if (cell == null) delete rec.scores[aid]; else rec.scores[aid] = { ...(rec.scores[aid] ?? {}), score: cell.score, manual: !!cell.manual };
+    if (avg !== undefined) rec.avg = avg;
+    if (classAvg !== undefined && sc) { sc.class_avg = classAvg; sc.has_scores = !!hasAny; paintSummary(); }
+  }
+  function refreshAvgCell(enr) {
+    const td = avgCells.get(enr);
+    if (td) { td.replaceChildren(h('b', { class: 'avg-score' }, fmtScore(scoreOf.get(enr)?.avg ?? null))); flash(td); }
+  }
+  const summaryEl = h('div', { class: 'score-summary-host' });
+  function paintSummary() {
+    const scored = [...scoreOf.values()].filter((r) => r.avg != null).length;
+    summaryEl.replaceChildren(...(sc?.has_scores ? [h('div', { class: 'score-summary' },
+      h('span', { class: 'score-kpi' }, h('small', {}, 'Điểm TB cả lớp'), h('b', {}, fmtScore(sc.class_avg)), h('small', {}, '/10')),
+      h('span', { class: 'muted small' }, `${scored}/${data.rows.length} học viên có điểm · điểm từ file Chấm điểm (12:00 hằng ngày) hoặc gõ tay trong ô — điểm gõ tay được giữ nguyên`))] : []));
+  }
+
   async function edit(row, a, btn) {
     const cur = row.cells[a.id];
     const seen = cur?.status ?? null; // trạng thái người dùng đang thấy lúc mở hộp thoại
+    const curScore = scoreOf.get(row.enrollment_id)?.scores?.[a.id] ?? null;
+    const seenScore = curScore?.score ?? null;
     const v = await formModal({ title: `${row.full_name} — ${a.title}`, fields: [
       { name: 'status', label: 'Trạng thái', type: 'select', value: cur?.status ?? '', options: [['', '(chưa ghi nhận)'], ...Object.entries(LABEL)], full: true },
       { name: 'challenge', label: 'Có làm bài Challenge', type: 'checkbox', value: cur?.challenge },
+      ...(hasScores ? [{ name: 'score', label: `Điểm (0–10)${curScore && !curScore.manual ? ' — hiện lấy từ file Excel, gõ điểm mới để ghi đè' : ''}`, value: scoreStr(seenScore), full: true }] : []),
       { name: 'note', label: 'Ghi chú', type: 'textarea', value: cur?.note, full: true }] });
     if (!v) return;
     const k = key(row.enrollment_id, a.id);
     const status = v.status || null;
     pending.add(k);
     try {
-      const r = await put(`${base}/submissions`, {
-        enrollment_id: row.enrollment_id, assignment_id: a.id, status, challenge: v.challenge, note: v.note,
-        expected: seen, // nếu người khác đã đổi ô này trong lúc mở hộp thoại, server từ chối thay vì ghi đè
-      });
-      row.cells[a.id] = r.cell;
-      paint(btn, r.cell, row.enrollment_id, a.id);
+      const changed = status !== seen || !!v.challenge !== !!cur?.challenge || (v.note || null) !== (cur?.note || null);
+      if (changed) {
+        const r = await put(`${base}/submissions`, {
+          enrollment_id: row.enrollment_id, assignment_id: a.id, status, challenge: v.challenge, note: v.note,
+          expected: seen, // nếu người khác đã đổi ô này trong lúc mở hộp thoại, server từ chối thay vì ghi đè
+        });
+        row.cells[a.id] = r.cell;
+        paint(btn, r.cell, row.enrollment_id, a.id);
+      }
+      if (hasScores && String(v.score ?? '').trim().replace(',', '.') !== scoreStr(seenScore)) {
+        const r = await put(`${base}/scores`, { enrollment_id: row.enrollment_id, assignment_id: a.id, score: v.score, expected: seenScore });
+        applyScore(row.enrollment_id, a.id, r.cell, r.avg, r.class_avg, r.has_scores);
+        paint(btn, row.cells[a.id], row.enrollment_id, a.id);
+        refreshAvgCell(row.enrollment_id);
+        flash(btn);
+      }
     } catch (e) {
+      if (e.status === 409 && e.data?.current && 'score' in e.data.current) {   // người khác vừa đổi điểm ô này
+        const c = e.data.current;
+        applyScore(row.enrollment_id, a.id, c.score == null ? null : { score: c.score, manual: c.manual }, undefined);
+        paint(btn, row.cells[a.id], row.enrollment_id, a.id);
+        refreshAvgCell(row.enrollment_id);
+        flash(btn);
+        toast(e.message, true);
+        pending.delete(k);
+        return;
+      }
       if (e.status === 409 && e.data?.current !== undefined) {
         row.cells[a.id] = e.data.current;
         paint(btn, e.data.current, row.enrollment_id, a.id);
@@ -104,7 +149,7 @@ export async function renderHomework({ cls, state }) {
 
   function renderBody() {
     const q = norm(search.value).trim(); // không phân biệt hoa/thường và dấu tiếng Việt
-    buttons.clear(); rateCells.clear();
+    buttons.clear(); rateCells.clear(); avgCells.clear();
     const avg = (r) => scoreOf.get(r.enrollment_id)?.avg ?? null;
     const rows = data.rows.filter((r) => !q || norm(r.full_name).includes(q) || norm(r.student_code).includes(q));
     if (sortBy !== 'name') {   // học viên chưa có điểm luôn xếp cuối
@@ -125,11 +170,32 @@ export async function renderHomework({ cls, state }) {
             if (readOnly) { btn.classList.add('readonly'); btn.setAttribute('aria-readonly', 'true'); } else btn.addEventListener('click', () => edit(row, a, btn));
             return h('td', { class: 'num' }, btn);
           }), rate,
-          hasScores ? h('td', { class: 'num' }, h('b', { class: 'avg-score' }, fmtScore(avg(row)))) : null);
+          hasScores ? (() => { const td = h('td', { class: 'num' }, h('b', { class: 'avg-score' }, fmtScore(avg(row)))); avgCells.set(row.enrollment_id, td); return td; })() : null);
       }));
   }
 
+  // Người khác gõ/nhập điểm: tải lại điểm, vẽ lại các ô điểm đã đổi (nháy vàng) + điểm TB
+  async function refreshScores() {
+    const fresh = hasScores ? await get(`${base}/scores`).catch(() => null) : null;
+    if (!fresh) return;
+    const before = new Map([...scoreOf].map(([enr, r]) => [enr, JSON.stringify(r.scores)]));
+    scoreOf.clear();
+    for (const r of fresh.rows) scoreOf.set(r.enrollment_id, r);
+    sc.class_avg = fresh.class_avg; sc.has_scores = fresh.has_scores;
+    for (const row of data.rows) {
+      const changed = before.get(row.enrollment_id) !== JSON.stringify(scoreOf.get(row.enrollment_id)?.scores);
+      if (!changed) continue;
+      for (const a of data.assignments) {
+        const btn = buttons.get(key(row.enrollment_id, a.id));
+        if (btn && !pending.has(key(row.enrollment_id, a.id))) paint(btn, row.cells[a.id], row.enrollment_id, a.id);
+      }
+      refreshAvgCell(row.enrollment_id);
+    }
+    paintSummary();
+  }
+
   async function applyRemote() {
+    await refreshScores();
     const fresh = await get(`${base}/submissions`);
     fresh.assignments = sortAssignments(fresh.assignments, cls);
     const sameShape = fresh.assignments.length === data.assignments.length && fresh.rows.length === data.rows.length
@@ -163,18 +229,15 @@ export async function renderHomework({ cls, state }) {
         for (const b of e.currentTarget.parentElement.children) b.classList.toggle('active', b.dataset.mode === k);
         renderBody();
       } }, label))) : null;
-  const scoredCount = (sc?.rows ?? []).filter((r) => r.avg != null).length;
-  const scoreSummary = hasScores ? h('div', { class: 'score-summary' },
-    h('span', { class: 'score-kpi' }, h('small', {}, 'Điểm TB cả lớp'), h('b', {}, fmtScore(sc.class_avg)), h('small', {}, '/10')),
-    h('span', { class: 'muted small' }, `${scoredCount}/${sc.rows.length} học viên có điểm · ${sc.assignments.length} bài đã có điểm · cập nhật từ file Chấm điểm lúc 12:00 hằng ngày`)) : null;
+  paintSummary();
 
   const view = h('div', {},
     h('div', { class: 'page-head' }, h('h1', {}, 'Bài tập'), h('span', { class: 'muted', title: cls.code }, classDisplayName(cls)), liveBadge),
     h('div', { class: 'legend' },
       h('span', {}, readOnly ? 'Chú thích: ' : 'Bấm ô để cập nhật: '), ...Object.entries(LABEL).map(([k, v]) => h('span', {}, h('span', { class: `cell ${k}` }, SHORT[k]), ` ${v}`)),
       h('span', { class: 'muted' }, (readOnly ? '· Tài khoản khách chỉ xem ' : '') + '· ★ = có làm Challenge · "Nộp lại" chưa tính là hoàn thành'
-        + (hasScores ? ' · Số trong ô = điểm (thang 10) · Bấm "Điểm TB" để sắp xếp' : '') + ' · Rê chuột để xem ai đã cập nhật')),
-    scoreSummary,
+        + (hasScores ? ' · Số trong ô = điểm (thang 10, bấm ô để gõ điểm) · Bấm "Điểm TB" để sắp xếp' : '') + ' · Rê chuột để xem ai đã cập nhật')),
+    summaryEl,
     h('div', { class: 'toolbar' }, search, modeChips),
     h('div', { class: 'table-wrap' }, h('table', {}, head, body)));
 

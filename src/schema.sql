@@ -267,6 +267,8 @@ create table if not exists homework_scores (
   assignment_id bigint not null references assignments(id) on delete cascade,
   score         numeric(5,2) not null check (score >= 0 and score <= 10),
   module        text,
+  manual        boolean not null default false,   -- gõ tay trên web: file Excel không ghi đè/xóa
+  updated_by    bigint references users(id) on delete set null,
   updated_at    timestamptz not null default now(),
   unique (enrollment_id, assignment_id)
 );
