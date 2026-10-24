@@ -76,7 +76,8 @@ function parsePointRows(table) {
   return out;
 }
 
-async function importPoints(db, table, { dryRun = false } = {}) {
+// source: 'excel' (mặc định) | 'sharepoint' — nguồn ghi vào homework_scores.source. allowDelete = false: không xóa điểm nào (nguồn danh sách file không đầy đủ).
+async function importPoints(db, table, { dryRun = false, source = 'excel', allowDelete = true } = {}) {
   const parsed = parsePointRows(table);
   const entries = [...parsed.entries.values()];
   const summary = {
@@ -132,23 +133,26 @@ async function importPoints(db, table, { dryRun = false } = {}) {
 
       if (rows.length) {
         const res = await t.all(
-          `insert into homework_scores (enrollment_id, assignment_id, score, module)
-           select * from unnest($1::bigint[], $2::bigint[], $3::numeric[], $4::text[])
-           on conflict (enrollment_id, assignment_id) do update set score = excluded.score, module = excluded.module, updated_at = now()
-             where homework_scores.manual is false   -- điểm gõ tay trên web được giữ nguyên: Excel chỉ điền ô còn trống / cập nhật điểm từ Excel
-               and (homework_scores.score is distinct from excluded.score or homework_scores.module is distinct from excluded.module)
+          `insert into homework_scores (enrollment_id, assignment_id, score, module, source)
+           select u.*, $5::text from unnest($1::bigint[], $2::bigint[], $3::numeric[], $4::text[]) as u
+           on conflict (enrollment_id, assignment_id) do update set score = excluded.score, source = excluded.source, updated_at = now(),
+               module = case when excluded.source = 'sharepoint' then coalesce(excluded.module, homework_scores.module) else excluded.module end
+             where homework_scores.manual is false   -- điểm gõ tay trên web được giữ nguyên: nguồn tự động chỉ điền ô còn trống / cập nhật điểm tự động
+               and (excluded.source = 'excel' or homework_scores.source = 'sharepoint')   -- ưu tiên: gõ tay > Excel > SharePoint (SharePoint không đè điểm Excel)
+               and (homework_scores.score is distinct from excluded.score or homework_scores.module is distinct from excluded.module
+                    or homework_scores.source is distinct from excluded.source)
            returning (xmax = 0) as inserted`,
-          [rows.map((r) => r.eid), rows.map((r) => r.aid), rows.map((r) => r.score), rows.map((r) => r.module)]);
+          [rows.map((r) => r.eid), rows.map((r) => r.aid), rows.map((r) => r.score), rows.map((r) => r.module), source]);
         summary.inserted = res.filter((r) => r.inserted).length;
         summary.updated = res.length - summary.inserted;
       }
 
       // Sheet là bản chuẩn: điểm không còn trong Sheet (của các lớp có mặt trong lượt này) bị xóa — có chốt chặn.
-      if (usedClasses.size) {
+      if (usedClasses.size && allowDelete) {
         const keep = new Set(rows.map((r) => `${r.eid}|${r.aid}`));
         const existing = await t.all(
           `select hs.id, hs.enrollment_id, hs.assignment_id from homework_scores hs join enrollments e on e.id = hs.enrollment_id
-            where e.class_id = any($1::bigint[]) and hs.manual is false`, [[...usedClasses]]);   // điểm gõ tay không bao giờ bị xóa theo Excel
+            where e.class_id = any($1::bigint[]) and hs.manual is false and hs.source = 'excel'`, [[...usedClasses]]);   // điểm gõ tay / từ SharePoint không bị Excel xóa
         const gone = existing.filter((x) => !keep.has(`${x.enrollment_id}|${x.assignment_id}`));
         if (gone.length) {
           if (gone.length > Math.max(DELETE_MIN, Math.ceil(existing.length * DELETE_RATIO))) summary.delete_skipped = true;

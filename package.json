@@ -17,6 +17,7 @@
     "import-feedback": "node --env-file-if-exists=.env --no-warnings=ExperimentalWarning scripts/import-feedback.js",
     "create-guest": "node --env-file-if-exists=.env scripts/create-guest.js",
     "create-admin": "node --env-file-if-exists=.env scripts/create-admin.js",
+    "import-score-files": "node --env-file-if-exists=.env --no-warnings=ExperimentalWarning scripts/import-score-files.js",
     "import-points": "node --env-file-if-exists=.env --no-warnings=ExperimentalWarning scripts/import-points.js",
     "backup": "node --env-file-if-exists=.env --no-warnings=ExperimentalWarning scripts/backup.js",
     "restore": "node --env-file-if-exists=.env --no-warnings=ExperimentalWarning scripts/restore.js",

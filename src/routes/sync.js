@@ -9,6 +9,7 @@ const { FORM_COLUMNS, applyForms } = require('../services/formProfile');
 const { importPoints, POINT_SYNC_COLUMNS } = require('../services/importPoints');
 const { importSchedule } = require('../services/importSchedule');
 const { importAbsences } = require('../services/absence');
+const { importScoreFiles, SCORE_FILE_COLUMNS } = require('../services/importScoreFiles');
 
 // Tab COURSE của Google Sheet dùng tên cột "START DATE"/"EXPECTED END DATE" (Excel/Power Query đổi thành STARTDATE/ENDDATE).
 const COURSE_ALIASES = { 'START DATE': 'STARTDATE', 'EXPECTED END DATE': 'ENDDATE' };
@@ -202,6 +203,28 @@ module.exports = (db) => {
       throw e;
     } finally {
       busySchedule = false;
+    }
+  });
+
+  // Điểm từ danh sách file bài làm trên SharePoint (cột Path · Name · Point): điểm của bài = tổng điểm các file (tối đa 10), ghép theo (lớp, tên học viên).
+  // Chỉ thêm/cập nhật điểm do chính nguồn này nhập; không đè điểm Excel, không đè điểm gõ tay, không xóa điểm nào.
+  let busyScoreFiles = false;
+  router.post('/score-files', async (req, res) => {
+    checkToken(req);
+    if (busyScoreFiles) return res.status(409).json({ error: 'Đang xử lý một lượt đồng bộ điểm khác' });
+    busyScoreFiles = true;
+    try {
+      const table = pickColumns(req.body?.files, SCORE_FILE_COLUMNS);
+      const { class_ids = [], import: imp, ...brief } = await importScoreFiles(db, table);
+      if (imp && imp.inserted + imp.updated > 0) await realtime.publishMany(class_ids.map((classId) => ({ classId, payload: { kind: 'scores' } })));
+      const out = { ...brief, inserted: imp?.inserted ?? 0, updated: imp?.updated ?? 0, skipped_no_assignment: imp?.skipped_no_assignment ?? 0, examples: { ...brief.examples, no_assignment: imp?.examples?.no_assignment ?? [] } };
+      await log(true, out, null, 'google-sheet-scorefiles');
+      res.json({ ok: true, ...out, changed: out.inserted + out.updated > 0 });
+    } catch (e) {
+      await log(false, null, e.message, 'google-sheet-scorefiles').catch(() => {});
+      throw e;
+    } finally {
+      busyScoreFiles = false;
     }
   });
 
