@@ -36,11 +36,12 @@ const KNOWN_TEMPLATES = {
   BIE107: 'BIE-6',
 };
 // Bài tập mặc định tạo sẵn cho lớp (chỉ thêm bài còn thiếu, không xóa/ghi đè): tra theo giáo trình trước, rồi theo chương trình.
-// SCA, PBM: 4 HW (chủ dự án chốt 22/10/2026); BIE107 (BIE-6): HW1, HW2, Mini Project 1.
+// SCA, PBM: 4 HW (chủ dự án chốt 22/10/2026); BIE107 (BIE-6): HW1, HW2, Mini Project 1; EBA (mọi lớp): 4 HW + 1 Capstone Project (chốt 24/10/2026).
 const DEFAULT_ASSIGNMENTS = {
   'BIE-6': [['hw', 1], ['hw', 2], ['mini', 1]],
   SCA: [['hw', 1], ['hw', 2], ['hw', 3], ['hw', 4]],
   PBM: [['hw', 1], ['hw', 2], ['hw', 3], ['hw', 4]],
+  EBA: [['hw', 1], ['hw', 2], ['hw', 3], ['hw', 4], ['capstone', 1]],
 };
 const assignmentTitle = (kind, seq) => (kind === 'mini' ? `Mini Project ${seq}` : kind === 'capstone' ? 'Capstone Project' : `HW ${seq}`);
 // Lớp BI cũ chưa có mẫu: theo lớp mới gần nhất cùng chương trình.

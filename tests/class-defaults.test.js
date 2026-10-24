@@ -1,4 +1,4 @@
-// Lớp mặc định theo chương trình: SCA/PBM 4 HW; BIE107 (BIE-6) 6 buổi + HW1, HW2, Mini Project 1; lớp tạo tay trên web (chưa có dòng COURSE) vẫn nhận ghi danh.
+// Lớp mặc định theo chương trình: SCA/PBM 4 HW, EBA 4 HW + Capstone; BIE107 (BIE-6) 6 buổi + HW1, HW2, Mini Project 1; lớp tạo tay trên web (chưa có dòng COURSE) vẫn nhận ghi danh.
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { startTestApp } = require('./helpers');
@@ -28,12 +28,12 @@ before(async () => {
 });
 after(async () => { delete process.env.SYNC_TOKEN; await t.close(); });
 
-test('đồng bộ tạo sẵn 4 HW cho lớp SCA và PBM; chương trình khác (EBA) không tự có bài tập', async () => {
+test('đồng bộ tạo sẵn 4 HW cho lớp SCA và PBM, 4 HW + Capstone cho lớp EBA', async () => {
   const r = await post([row('P.1', 'SCA003'), row('P.2', 'PBM023'), row('P.3', 'EBA130')], COURSE);
   assert.equal(r.status, 200, JSON.stringify(r.body));
   assert.deepEqual(await asg('SCA003'), ['hw1', 'hw2', 'hw3', 'hw4']);
   assert.deepEqual(await asg('PBM023'), ['hw1', 'hw2', 'hw3', 'hw4']);
-  assert.deepEqual(await asg('EBA130'), []);
+  assert.deepEqual(await asg('EBA130'), ['capstone1', 'hw1', 'hw2', 'hw3', 'hw4']);
   // chạy lại không nhân đôi; bài đã có tick không bị đụng
   await post([row('P.1', 'SCA003'), row('P.2', 'PBM023')], COURSE);
   assert.deepEqual(await asg('SCA003'), ['hw1', 'hw2', 'hw3', 'hw4']);
