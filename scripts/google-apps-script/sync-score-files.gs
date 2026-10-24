@@ -11,7 +11,8 @@
  *  2. Project Settings → Script properties: thêm
  *       SCORE_FILES_URL = https://<tên-miền-web>/api/sync/score-files
  *       SYNC_TOKEN      = (cùng mã đồng bộ do chủ dự án cấp; đã có sẵn nếu dán chung dự án với các script khác)
- *  3. Chạy hàm setupScoreFiles() một lần, cấp quyền khi được hỏi. Từ đó mỗi 30 phút script kiểm tra và chỉ gửi khi bảng đổi.
+ *  3. Chạy hàm setupScoreFiles() một lần, cấp quyền khi được hỏi. Từ đó script tự chạy MỖI SÁNG LÚC 10:00 (giờ Việt Nam; Google chạy trong khoảng 10:00–11:00).
+ *     Muốn cập nhật ngay: chọn hàm syncScoreFiles rồi bấm Run (hoặc setupScoreFiles để đặt lại lịch).
  *
  * Tab: tên "scores_STARTTRAIN"/"Scores"/"Điểm"; không có thì tự tìm tab có ô tiêu đề "Path" (hoặc "Key") và "Point". Cột khác (UpdatedAt…) được bỏ qua.
  * AN TOÀN: chỉ đọc 3 cột Path, Name, Point và chỉ gửi dòng có điểm. Web KHÔNG lưu đường dẫn/tên học viên; không có dữ liệu tiền.
@@ -23,20 +24,21 @@ const SCORE_FILES_SETTINGS = {
   PATH_HEADERS: ['Path', 'Key'],     // tên cột đường dẫn: "Path" hoặc "Key" (bảng Power Automate dùng "Key")
   POINT_HEADER: 'Point',
   MAX_HEADER_ROW: 10,
-  EVERY_MINUTES: 30,                 // chu kỳ kiểm tra (1, 5, 10, 15, 30)
-  RESEND_AFTER_MINUTES: 180,         // không đổi gì vẫn gửi lại mỗi 3 giờ một lần
+  RUN_HOUR: 10,                      // chạy mỗi ngày lúc 10h sáng
+  TIMEZONE: 'Asia/Ho_Chi_Minh',
+  RESEND_AFTER_MINUTES: 60,          // chạy tay liên tiếp mà bảng không đổi thì bỏ qua; lượt hằng ngày luôn gửi (cách nhau > 60 phút)
   MAX_ROWS: 15000,
 };
 const SCORE_FILES_COLUMNS = ['PATH', 'NAME', 'POINT'];
 
-/** Chạy MỘT lần: tạo bộ hẹn giờ rồi đồng bộ ngay. */
+/** Chạy MỘT lần: đặt lịch 10:00 mỗi sáng rồi đồng bộ ngay (chạy lại để đặt lại lịch, không tạo trùng). */
 function setupScoreFiles() {
   const props = PropertiesService.getScriptProperties();
   if (!props.getProperty('SCORE_FILES_URL') || !props.getProperty('SYNC_TOKEN')) {
     throw new Error('Thiếu SCORE_FILES_URL hoặc SYNC_TOKEN: vào Project Settings → Script properties để thêm.');
   }
   stopScoreFiles();
-  ScriptApp.newTrigger('syncScoreFiles').timeBased().everyMinutes(SCORE_FILES_SETTINGS.EVERY_MINUTES).create();
+  ScriptApp.newTrigger('syncScoreFiles').timeBased().everyDays(1).atHour(SCORE_FILES_SETTINGS.RUN_HOUR).inTimezone(SCORE_FILES_SETTINGS.TIMEZONE).create();
   syncScoreFiles(true);
 }
 
