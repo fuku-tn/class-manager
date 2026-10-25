@@ -56,7 +56,7 @@ Course/
 ├─ legacy/         SQLite cũ, chỉ để tham khảo
 ├─ .claude/        skills/ + agents/ của project
 ├─ data/           (git-ignore) báo cáo sinh ra khi nhập, CSDL SQLite cũ
-└─ private-data/   (git-ignore) excel/ dữ liệu học viên thật · van-ban/ văn bản nội bộ · remind-homework-kit/
+└─ private-data/   (git-ignore) excel/ dữ liệu học viên thật (kể cả Chấm điểm.xlsx) · scores/ danh sách file điểm SharePoint (.csv) · backups/ · van-ban/ văn bản nội bộ · remind-homework-kit/
 ```
 
 ## Quy tắc bắt buộc

@@ -58,7 +58,7 @@ Agent(subagent_type: "schema-guard",  prompt: "Rà src/schema.sql, supabase/sche
 | Agent đề nghị ghi/sửa file | Từ chối; review chỉ báo cáo. |
 
 ## Kịch bản kiểm thử
-- **Điểm — bình thường:** người dùng hỏi "đã sót điểm học viên nào chưa" và đưa `scores_STARTTRAIN.csv` → chạy `score-coverage-auditor` (và `score-calc-checker` nếu hỏi cả "đúng chưa"); báo cáo chỉ có mã lớp/mã học viên, nêu rõ phần *sót khi nhập* khác với *chưa có điểm ở nguồn*.
+- **Điểm — bình thường:** người dùng hỏi "đã sót điểm học viên nào chưa" và đưa `scores_STARTTRAIN.csv` (để ở `private-data/scores/`) → chạy `score-coverage-auditor` (và `score-calc-checker` nếu hỏi cả "đúng chưa"); báo cáo chỉ có mã lớp/mã học viên, nêu rõ phần *sót khi nhập* khác với *chưa có điểm ở nguồn*.
 - **Điểm — ngoại lệ:** app khác file 24 bài nhưng đều là điểm Excel/gõ tay → `score-calc-checker` ghi "hợp lệ theo thứ tự ưu tiên", không báo là lỗi.
 - **Bình thường:** thêm cột vào `students` ở `src/schema.sql` nhưng quên `supabase/schema.sql` và migration → `schema-guard` báo 2 mục Chặn (lệch hai file, thiếu migration); `rules-reviewer` báo thiếu test nếu chưa có.
 - **Ngoại lệ:** người dùng đưa `Transacitons.xlsx` có cột lạ `PAID` → `import-auditor` không đọc cột đó, chỉ báo tên cột và yêu cầu chủ dự án quyết định; kết luận không có số liệu tiền nào xuất hiện trong báo cáo.

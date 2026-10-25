@@ -1,7 +1,7 @@
 // Rà soát ĐIỂM bài tập (CHỈ ĐỌC database, không ghi gì) — dùng cho agent score-coverage-auditor / score-calc-checker và chạy tay.
 //   npm run audit-scores                              → độ phủ điểm theo lớp: học viên đang học chưa có điểm nào, bài đã tick nhưng chưa có điểm…
 //   npm run audit-scores -- --class BIE101,EBA118     → chỉ các lớp đó (mã ngắn)
-//   npm run audit-scores -- --file scores_STARTTRAIN.csv [--class …]
+//   npm run audit-scores -- --file private-data/scores/scores_STARTTRAIN.csv [--class …]
 //                                                     → thêm đối chiếu danh sách file SharePoint với database (thiếu / lệch / do ưu tiên nguồn)
 //   npm run audit-scores -- --vs-backup               → so điểm hiện tại với bản sao lưu điểm gần nhất (chụp ngay TRƯỚC lần nhập thật gần nhất): thêm / mất / đổi điểm / đổi nguồn theo lớp
 //   --verbose                                         → in thêm tên không ghép được (CHỈ trên máy bạn; agent không dùng)
