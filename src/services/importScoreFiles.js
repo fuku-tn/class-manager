@@ -5,7 +5,7 @@
 // File không có mã học viên → ghép theo (lớp, TÊN học viên đã bỏ dấu); trùng tên trong lớp thì bỏ qua và đếm.
 // Sau khi ghép thì dùng lại importPoints (bí danh BIH MP3 = HW5, tạo Mini Project, giữ điểm gõ tay…), nhưng KHÔNG xóa điểm nào.
 // Tên học viên, đường dẫn, tên file chỉ xử lý trong bộ nhớ, không lưu.
-const { importPoints, parseHw, normalizeCourse } = require('./importPoints');
+const { importPoints, normalizeCourse } = require('./importPoints');
 const { moduleFor } = require('./scoreModules');
 
 const SCORE_FILE_COLUMNS = ['PATH', 'NAME', 'POINT'];

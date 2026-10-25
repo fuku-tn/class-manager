@@ -9,7 +9,6 @@ import { classDisplayName } from '../class-filter.mjs';
 import { THEMES, themeOf, shortHw } from '../remind-themes.mjs';
 import { drawCard, copyCanvasImage } from '../remind-card.js';
 
-const LABEL = (hd) => hd.replace(/^HOMEWORK (\d+)/, 'Homework $1').replace('CAPSTONE PROJECT', 'Capstone Project');
 const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
 
 export async function renderRemind({ cls, state }) {

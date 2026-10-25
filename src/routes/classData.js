@@ -15,7 +15,6 @@ const MODES = ['Online', 'Offline', 'Hybrid'];
 const COURSE_STATUS = ['active', 'deferred', 'dropped', 'completed'];
 const ATT_STATUS = ['present', 'late', 'absent', 'excused'];
 const SUB_STATUS = ['submitted', 'resubmit', 'missing'];
-const isDate = (v) => v == null || v === '' || /^\d{4}-\d{2}-\d{2}$/.test(v);
 const str = (v) => (v == null || String(v).trim() === '' ? null : String(v).trim());
 const httpError = (status, message) => Object.assign(new Error(message), { status });
 const id = (v) => (Number.isSafeInteger(Number(v)) ? Number(v) : 0);

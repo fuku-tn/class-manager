@@ -2,7 +2,7 @@
 // học viên lớp khác được ghi chú điểm danh "Bù <mã lớp này>" (vd "Bù EBA122"). Có trường hợp MỚI (chưa mở xem) thì nút nhấp nháy.
 // Đã xem lưu theo trình duyệt (localStorage) — chỉ để tắt nhấp nháy, không ảnh hưởng dữ liệu.
 import { get } from './api.js';
-import { h, icon, setChildren } from './ui.js';
+import { h, icon, setChildren, fmtWhen } from './ui.js';
 import { classDisplayName } from './class-filter.mjs';
 
 const POLL_MS = 60000;
@@ -10,7 +10,6 @@ const seenKey = (classId) => `makeupSeen:${classId}`;
 const readSeen = (classId) => { try { return new Set(JSON.parse(localStorage.getItem(seenKey(classId)) || '[]')); } catch { return new Set(); } };
 const saveSeen = (classId, keys) => { try { localStorage.setItem(seenKey(classId), JSON.stringify([...keys].slice(-500))); } catch { /* bỏ qua */ } };
 const fmtDate = (iso) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso ?? '')); return m ? `${m[3]}/${m[2]}` : ''; };
-const fmtWhen = (iso) => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }); };
 
 export function createMakeupNotice() {
   const count = h('b', { class: 'makeup-count' });

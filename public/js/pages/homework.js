@@ -1,19 +1,14 @@
 import { get, put } from '../api.js';
-import { h, toast, pct, formModal } from '../ui.js';
+import { h, toast, pct, formModal, fmtWhen, fmtScore } from '../ui.js';
 import { startLive, LIVE_LABEL } from '../live.js';
 import { classDisplayName, norm, assignmentLabel, sortAssignments } from '../class-filter.mjs';
 
 const SHORT = { submitted: '✓', resubmit: '↻', missing: '✗' };
 const LABEL = { submitted: 'Đã nộp', resubmit: 'Nộp lại', missing: 'Thiếu' };
 
-const fmtTime = (iso) => {
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
-};
 const sameCell = (a, b) => (a?.status ?? null) === (b?.status ?? null) && (a?.note ?? null) === (b?.note ?? null)
   && !!a?.challenge === !!b?.challenge && (a?.by ?? null) === (b?.by ?? null);
 
-const fmtScore = (n) => (n == null ? '—' : String(Math.round(n * 100) / 100));
 // Cách hiển thị ô khi lớp có điểm: cả hai / chỉ điểm / chỉ trạng thái (màu ô luôn theo trạng thái). Nhớ theo trình duyệt.
 const MODES = [['both', 'Trạng thái + điểm'], ['score', 'Chỉ điểm'], ['status', 'Chỉ trạng thái']];
 const MODE_KEY = 'hwViewMode';
@@ -57,7 +52,7 @@ export async function renderHomework({ cls, state }) {
     if (mode === 'status' || (mode === 'both' && score == null)) btn.replaceChildren(mark);
     else if (mode === 'score') btn.replaceChildren(h('b', { class: 'cell-score' }, fmtScore(score)));
     else btn.replaceChildren(h('span', { class: 'cell-mark' }, mark), h('b', { class: 'cell-score' }, fmtScore(score)));
-    const who = cell?.by ? ` · ${cell.by}${cell.at ? `, ${fmtTime(cell.at)}` : ''}` : '';
+    const who = cell?.by ? ` · ${cell.by}${cell.at ? `, ${fmtWhen(cell.at)}` : ''}` : '';
     btn.title = (cell?.status ? LABEL[st] : st ? 'Có điểm Mini Project' : 'Chưa ghi nhận') + (score != null ? ` · Điểm ${fmtScore(score)}/10${scoreOf.get(enr)?.scores?.[aid]?.manual ? ' (gõ tay)' : ''}` : '')
       + (cell?.challenge ? ' · có làm Challenge' : '') + who + (cell?.note ? ` — ${cell.note}` : '');
   };

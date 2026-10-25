@@ -1,20 +1,15 @@
 // Danh sách tốt nghiệp của lớp: gợi ý tự động theo quy tắc giáo trình, quyết định do người đặt, công bố (admin).
 // Công thức tỉ lệ nằm ở máy chủ (stats.js); trang chỉ hiển thị và so sánh kết quả máy chủ trả về.
 import { get, put, post, del } from '../api.js';
-import { h, toast, pct, formModal, confirmModal, downloadCsv, setChildren } from '../ui.js';
+import { h, toast, pct, formModal, confirmModal, downloadCsv, setChildren, fmtWhen } from '../ui.js';
 import { classDisplayName, fmtDate, TIMING_LABEL, norm } from '../class-filter.mjs';
 
 const DECISION = { pending: 'Chưa xét', passed: 'Tốt nghiệp', failed: 'Chưa đạt' };
-const DECISION_BADGE = { pending: '', passed: 'ok', failed: 'bad' };
 const CAPSTONE = { submitted: 'Đã nộp', resubmit: 'Nộp lại', missing: 'Thiếu' };
 // Xét tự động (BIE-8, BIE-12, BIH-20, BIH-11): kết quả tính từ số buổi + bài đã làm, không đặt tay
 const AUTO_RESULT = { passed: 'Tốt nghiệp', failed: 'Chưa đạt', in_progress: 'Đang học', no_data: 'Chưa đủ dữ liệu', pending: 'Chưa xét' };
 const AUTO_BADGE = { passed: 'ok', failed: 'bad', in_progress: 'warn', no_data: '', pending: '' };
 
-const fmtWhen = (iso) => {
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: '2-digit' });
-};
 const ruleText = (r) => [
   r.min_sessions != null ? `Có mặt ≥ ${r.min_sessions} buổi (vắng có phép không bị trừ)` : `Chuyên cần ≥ ${Math.round(r.attendance_min * 100)}%`,
   r.hw_min != null ? `Hoàn thành ≥ ${r.hw_min}/${r.hw_pool ?? 'tất cả'} bài HW` : null,
@@ -144,7 +139,7 @@ export async function renderGraduation({ cls, state }) {
         : h('span', { class: 'muted small' }, `Gợi ý: ${s.suggested_pass} đạt · ${s.suggested_fail} chưa đạt${s.no_data ? ` · ${s.no_data} chưa đủ dữ liệu` : ''}`));
     setChildren(bannerEl,
       c.published_at ? h('div', { class: 'card', role: 'status' },
-        h('b', {}, `Danh sách đã công bố lúc ${fmtWhen(c.published_at)}`), c.published_by ? ` bởi ${c.published_by}` : '',
+        h('b', {}, `Danh sách đã công bố lúc ${fmtWhen(c.published_at, { year: true })}`), c.published_by ? ` bởi ${c.published_by}` : '',
         locked() || readOnly ? '' : ' — admin có thể sửa hoặc hủy công bố.') : null);
     setChildren(buttonsEl,
       !readOnly && !isAuto() && d.rules.status !== 'none' && h('button', { type: 'button', disabled: !canEdit(), onclick: applySuggestions, title: 'Chỉ đặt cho học viên chưa xét' }, 'Áp dụng gợi ý'),
@@ -176,7 +171,7 @@ export async function renderGraduation({ cls, state }) {
           ? h('span', { class: 'muted small' }, d.rules.status === 'none' ? '—' : 'Chưa đủ dữ liệu')
           : h('span', { class: `badge ${sg.eligible ? 'ok' : 'bad'}`, title: sg.reasons.join(' · ') }, sg.eligible ? 'Đạt' : 'Chưa đạt'),
         sg.eligible === false && sg.reasons.length ? h('div', { class: 'muted small' }, sg.reasons.join(' · ')) : null),
-        h('td', {}, sel, r.decision.by ? h('div', { class: 'muted small' }, `${r.decision.by}${r.decision.at ? ` · ${fmtWhen(r.decision.at)}` : ''}`) : null),
+        h('td', {}, sel, r.decision.by ? h('div', { class: 'muted small' }, `${r.decision.by}${r.decision.at ? ` · ${fmtWhen(r.decision.at, { year: true })}` : ''}`) : null),
         h('td', {}, r.certificate.status || r.certificate.number
           ? h('span', { class: 'small' }, [r.certificate.status, r.certificate.number].filter(Boolean).join(' · ')) : h('span', { class: 'muted small' }, '—'),
         r.decision.note ? h('div', { class: 'muted small', title: r.decision.note }, `“${r.decision.note.slice(0, 40)}${r.decision.note.length > 40 ? '…' : ''}”`) : null),

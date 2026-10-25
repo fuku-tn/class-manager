@@ -29,7 +29,6 @@ export function toast(message, bad = false) {
 
 export const pct = (v) => (v == null ? '—' : `${Math.round(v * 100)}%`);
 
-export const MODE_LABEL = { Online: 'Online', Offline: 'Offline', Hybrid: 'Hybrid' };
 export const COURSE_STATUS_LABEL = { active: 'Đang học', deferred: 'Bảo lưu', dropped: 'Nghỉ học', completed: 'Hoàn thành' };
 export const COURSE_STATUS_BADGE = { active: 'ok', deferred: 'warn', dropped: 'bad', completed: 'ok' };
 
@@ -187,3 +186,11 @@ export function icon(name) {
   return svg('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.9, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' },
     ...(ICONS[name] || []).map(([tag, attrs]) => svg(tag, attrs)));
 }
+
+// Giờ ngày dạng dd/mm hh:mm (year: true → thêm năm 2 số); chuỗi rỗng nếu không đọc được
+export const fmtWhen = (iso, { year = false } = {}) => {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', ...(year ? { year: '2-digit' } : {}) });
+};
+// Điểm thang 10, tối đa 2 số lẻ; '—' nếu chưa có
+export const fmtScore = (n) => (n == null ? '—' : String(Math.round(n * 100) / 100));

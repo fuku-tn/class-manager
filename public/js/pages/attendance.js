@@ -1,5 +1,5 @@
 import { get, put, post, del } from '../api.js';
-import { h, toast, pct, formModal, confirmModal, icon } from '../ui.js';
+import { h, toast, pct, formModal, confirmModal, icon, fmtWhen } from '../ui.js';
 import { startLive, LIVE_LABEL } from '../live.js';
 import { SORTS, isSortKey, sortRows } from '../student-sort.mjs';
 import { classDisplayName, norm, surnameInitial } from '../class-filter.mjs';
@@ -11,10 +11,6 @@ const SHORT = { present: '✓', late: 'T', absent: 'V', excused: 'P' };
 const LABEL = { present: 'Có mặt', late: 'Đi trễ', absent: 'Vắng', excused: 'Có phép' };
 const NOTE = '__note';
 
-const fmtTime = (iso) => {
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
-};
 const sameCell = (a, b) => (a?.status ?? null) === (b?.status ?? null) && (a?.note ?? null) === (b?.note ?? null) && (a?.by ?? null) === (b?.by ?? null);
 
 // Cách sắp xếp lưu theo từng tài khoản trên trình duyệt này — mỗi người một lựa chọn, không ảnh hưởng người khác.
@@ -56,7 +52,7 @@ export async function renderAttendance({ cls, state }) {
     el.querySelector('.cell-sym').textContent = st ? SHORT[st] : '·';
     const sel = el.querySelector('select');
     if (sel) sel.value = st ?? '';
-    const who = cell?.by ? ` · ${cell.by}${cell.at ? `, ${fmtTime(cell.at)}` : ''}` : '';
+    const who = cell?.by ? ` · ${cell.by}${cell.at ? `, ${fmtWhen(cell.at)}` : ''}` : '';
     el.title = (st ? LABEL[st] : 'Chưa điểm danh') + who + (cell?.note ? ` — ${cell.note}` : '');
   };
   const flash = (el) => { el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1200); };

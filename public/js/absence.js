@@ -2,7 +2,7 @@
 // Chỉ báo NGÀY xin nghỉ của học viên đang học lớp này — không tự xác định buổi (người dùng tự biết và tự điểm danh); bấm "Đã biết" thì hết nhắc.
 // "Đã xem" lưu theo trình duyệt chỉ để tắt nhấp nháy.
 import { get, post } from './api.js';
-import { h, icon, setChildren, toast } from './ui.js';
+import { h, icon, setChildren, toast, fmtWhen } from './ui.js';
 import { classDisplayName } from './class-filter.mjs';
 
 let list = [];   // đơn chờ của lớp đang xem
@@ -12,7 +12,6 @@ const seenKey = (classId) => `absenceSeen:${classId}`;
 const readSeen = (classId) => { try { return new Set(JSON.parse(localStorage.getItem(seenKey(classId)) || '[]')); } catch { return new Set(); } };
 const saveSeen = (classId, ids) => { try { localStorage.setItem(seenKey(classId), JSON.stringify([...ids].slice(-500))); } catch { /* bỏ qua */ } };
 const fmtDay = (iso) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso ?? '')); return m ? `${m[3]}/${m[2]}/${m[1]}` : ''; };
-const fmtWhen = (iso) => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }); };
 
 export function createAbsenceNotice({ canAct }) {
   const count = h('b', { class: 'makeup-count' });

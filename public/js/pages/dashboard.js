@@ -1,5 +1,5 @@
 import { get } from '../api.js';
-import { h, pct, icon } from '../ui.js';
+import { h, pct, icon, fmtScore } from '../ui.js';
 import { classDisplayName, fmtDate, TIMING_LABEL, assignmentLabel, sortAssignments } from '../class-filter.mjs';
 import { feedbackSummaryBlock } from './feedback.js';
 
@@ -52,7 +52,6 @@ function chartBox(title, hint, emptyText) {
   return { canvas, empty: !!emptyText, el: h('div', { class: 'card' }, h('h2', {}, title), hint && h('p', { class: 'muted small' }, hint), box) };
 }
 
-const fmtScore = (n) => (n == null ? '—' : String(Math.round(n * 100) / 100));
 
 const shortcut = (href, iconName, title, text) =>
   h('a', { class: 'shortcut', href }, icon(iconName), h('b', {}, title), h('span', {}, text), h('div', { class: 'go' }, icon('arrow')));

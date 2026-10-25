@@ -1,5 +1,5 @@
 import { get, post, put, del } from '../api.js';
-import { h, toast, pct, formModal, downloadCsv, COURSE_STATUS_LABEL, COURSE_STATUS_BADGE } from '../ui.js';
+import { h, toast, pct, formModal, downloadCsv, COURSE_STATUS_LABEL, COURSE_STATUS_BADGE, fmtWhen } from '../ui.js';
 import { classDisplayName, norm } from '../class-filter.mjs';
 
 const MODE_OPTIONS = [['', '(chưa rõ)'], ['Online', 'Online'], ['Offline', 'Offline'], ['Hybrid', 'Hybrid']];
@@ -13,10 +13,6 @@ const EVENT_LABEL = {
 const GRAD_LABEL = { pending: 'Chưa xét', passed: 'Tốt nghiệp', failed: 'Chưa đạt' };
 const statusLabel = (v) => COURSE_STATUS_LABEL[v] ?? GRAD_LABEL[v] ?? v ?? '—';
 const SOURCE_LABEL = { web: 'Web', sync: 'Google Sheet', import: 'Nhập Excel' };
-const fmtWhen = (iso) => {
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: '2-digit' });
-};
 
 export async function renderStudents({ cls, state }) {
   const readOnly = state.user.role === 'guest'; // khách chỉ xem
@@ -49,7 +45,7 @@ export async function renderStudents({ cls, state }) {
     if (!p) return h('p', { class: 'muted small' }, 'Chưa có phiếu đăng ký (FORM) khớp với học viên này.');
     const show = (v) => (Array.isArray(v) ? v.join(' · ') : v);
     return h('div', { class: 'profile' },
-      h('div', { class: 'eyebrow' }, `Hồ sơ đăng ký (FORM)${p.submitted_at ? ` · ${fmtWhen(p.submitted_at)}` : ''}`),
+      h('div', { class: 'eyebrow' }, `Hồ sơ đăng ký (FORM)${p.submitted_at ? ` · ${fmtWhen(p.submitted_at, { year: true })}` : ''}`),
       h('dl', {}, PROFILE_FIELDS.filter(([k]) => (Array.isArray(p[k]) ? p[k].length : p[k])).flatMap(([k, label]) =>
         [h('dt', {}, label), h('dd', {}, show(p[k]))])));
   }
@@ -66,7 +62,7 @@ export async function renderStudents({ cls, state }) {
         ? h('div', { class: 'table-wrap' }, h('table', {},
           h('thead', {}, h('tr', {}, ['Thời điểm', 'Học viên', 'Sự kiện', 'Từ → Sang', 'Nguồn', 'Người thực hiện', 'Ghi chú'].map((x) => h('th', {}, x)))),
           h('tbody', {}, ev.map((x) => h('tr', {},
-            h('td', {}, fmtWhen(x.created_at)),
+            h('td', {}, fmtWhen(x.created_at, { year: true })),
             h('td', {}, `${x.full_name ?? ''} `, h('span', { class: 'muted small' }, x.student_code ?? '')),
             h('td', {}, EVENT_LABEL[x.event] ?? x.event),
             h('td', {}, x.from_status || x.to_status ? `${statusLabel(x.from_status)} → ${statusLabel(x.to_status)}` : '—'),
