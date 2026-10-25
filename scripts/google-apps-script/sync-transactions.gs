@@ -217,3 +217,23 @@ function findSheet_(ss, names) {
 function toHex_(bytes) {
   return bytes.map(function (b) { return ('0' + (b & 0xff).toString(16)).slice(-2); }).join('');
 }
+
+/** Ép gửi ngay (bỏ qua kiểm tra "không có gì mới"): chọn hàm này rồi bấm Run. */
+function syncForce() { syncNow(true); }
+
+/**
+ * Chẩn đoán: in ra file/tab mà script ĐANG ĐỌC làm danh sách lớp và dòng của một lớp (mặc định PBM022) — để biết sửa đúng chỗ chưa.
+ * Chạy debugCourse() rồi mở Execution log. Đổi mã lớp bằng cách sửa tham số, vd debugCourse('EBA121').
+ */
+function debugCourse(code) {
+  const want = String(code || 'PBM022').toUpperCase();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = findSheet_(ss, CONFIG.SHEET_COURSE);
+  console.log('File: ' + ss.getName() + ' | tab: ' + (sheet ? sheet.getName() : '(không thấy tab COURSE)'));
+  const t = sheet && readTable_(sheet, ALLOWED_COURSE, ['STARTDATE', 'ENDDATE'], 'COURSE ID');
+  if (!t) return;
+  console.log('Cột đọc được: ' + t.headers.join(' | '));
+  const iCourse = t.headers.indexOf('COURSE');
+  const hits = t.rows.filter(function (r) { return String(r[iCourse]).toUpperCase() === want; });
+  console.log(hits.length ? hits.map(function (r) { return JSON.stringify(r); }).join('\n') : 'Không có dòng nào của ' + want);
+}
