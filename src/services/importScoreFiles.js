@@ -58,8 +58,8 @@ function parseScoreFileRows(table) {
   return out;
 }
 
-// db: kết nối (hoặc transaction). Trả tổng kết của importPoints + số liệu ghép tên.
-async function importScoreFiles(db, table, { dryRun = false, verbose = false } = {}) {
+// Bước đọc + ghép (CHỈ ĐỌC database): trả { summary, rows (cho importPoints), details (mã học viên, bài, tổng điểm, số file) }. Dùng chung cho nhập và đối soát.
+async function resolveScoreFiles(db, table, { verbose = false } = {}) {
   const parsed = parseScoreFileRows(table);
   const groups = [...parsed.groups.values()];
   const summary = {
@@ -68,7 +68,7 @@ async function importScoreFiles(db, table, { dryRun = false, verbose = false } =
     scores_found: groups.length, capped_at_10: groups.filter((g) => g.sum > MAX_SCORE).length,
     unmatched_students: 0, ambiguous_students: 0, matched: 0, examples: { no_item: [...parsed.noItemSamples], unmatched: [] },
   };
-  if (!groups.length) return summary;
+  if (!groups.length) return { summary, rows: [], details: [] };
   const shorts = [...new Set(groups.map((g) => g.short))];
   const enr = await db.all(
     `select c.short_code, s.student_code, s.full_name from enrollments e
@@ -76,20 +76,29 @@ async function importScoreFiles(db, table, { dryRun = false, verbose = false } =
   const byName = new Map();   // "LỚP|tên chuẩn hóa" -> Set(mã học viên)
   for (const e of enr) { const k = `${e.short_code}|${normName(e.full_name)}`; (byName.get(k) ?? byName.set(k, new Set()).get(k)).add(e.student_code); }
   const knownClass = new Set(enr.map((e) => e.short_code));
-  const rows = []; const missed = new Map();
+  const rows = []; const details = []; const missed = new Map();
   for (const g of groups) {
     const codes = byName.get(`${g.short}|${g.name}`);
     if (!codes) { if (knownClass.has(g.short)) { summary.unmatched_students++; missed.set(`${g.short}|${g.name}`, g.short); } continue; }
     if (codes.size > 1) { summary.ambiguous_students++; continue; }
-    rows.push([[...codes][0], g.short, hwLabel(g), Math.min(MAX_SCORE, Math.round(g.sum * 100) / 100), null]);
+    const point = Math.min(MAX_SCORE, Math.round(g.sum * 100) / 100);
+    rows.push([[...codes][0], g.short, hwLabel(g), point, null]);
+    details.push({ short: g.short, code: [...codes][0], kind: g.kind, seq: g.seq, point, files: g.files, capped: g.sum > MAX_SCORE });
     summary.matched++;
   }
   // Tên không ghép được: đếm theo lớp (không trả tên học viên ra ngoài); chạy tay có --verbose thì liệt kê để sửa tên.
   const perClass = {}; for (const [, c] of missed) perClass[c] = (perClass[c] ?? 0) + 1;
   summary.examples.unmatched = Object.entries(perClass).map(([c, n]) => `${c}: ${n} học viên`);
   if (verbose) summary.unmatched_names = [...missed.keys()];
+  return { summary, rows, details };
+}
+
+// db: kết nối (hoặc transaction). Trả tổng kết của importPoints + số liệu ghép tên.
+async function importScoreFiles(db, table, { dryRun = false, verbose = false } = {}) {
+  const { summary, rows } = await resolveScoreFiles(db, table, { verbose });
+  if (!rows.length) return summary;
   const imported = await importPoints(db, { headers: ['STUDENTID', 'COURSE', 'HW', 'POINT', 'MODULE'], rows }, { dryRun, source: 'sharepoint', allowDelete: false });
   return { ...summary, import: imported, class_ids: imported.class_ids };
 }
 
-module.exports = { importScoreFiles, parseScoreFileRows, detectItem, normName, SCORE_FILE_COLUMNS };
+module.exports = { importScoreFiles, resolveScoreFiles, parseScoreFileRows, detectItem, normName, SCORE_FILE_COLUMNS };

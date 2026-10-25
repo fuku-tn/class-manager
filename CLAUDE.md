@@ -35,6 +35,7 @@ npm test         # node:test, Postgres trong bộ nhớ (PGlite) — KHÔNG đ�
 npm run import-points [-- file.xlsx|backup.csv] [--dry-run]   # điểm HW từ "Chấm điểm.xlsx" bảng Point_Transform (lịch 12:00: scripts/points-scheduled.cmd); trước khi nhập tự sao lưu điểm → private-data/backups/diem/ (giữ 1 bản; có cột Source = manual/excel/sharepoint để khôi phục đúng điểm gõ tay)
 npm run backup-points   # chỉ sao lưu điểm (chỉ đọc) → private-data/backups/diem/diem_<ngày_giờ>.csv, giữ 1 bản mới nhất
 npm run import-score-files -- file.csv [--dry-run] [--verbose]   # điểm từ danh sách file SharePoint (Path/Name/Point); tự sao lưu điểm trước khi nhập thật
+npm run audit-scores [-- --class BIE101] [-- --file scores.csv]   # rà điểm CHỈ ĐỌC: độ phủ theo lớp (học viên chưa có điểm, bài tick nộp chưa có điểm) + đối chiếu file với database; không in họ tên
 npm run backup   # sao lưu toàn bộ dữ liệu (chỉ đọc) → private-data/backups/<ngày_giờ>/  — xem Documents/4-van-hanh/backup.md
 npm run restore -- <thư-mục> [--dry-run]   # khôi phục, CHỈ vào database trống (RESTORE_DATABASE_URL hoặc DATABASE_URL)
 ```
@@ -94,8 +95,13 @@ Mỗi skill gồm `SKILL.md` + 3 thư mục bắt buộc `references/` (tài li�
 - `student-webapp-dev` — thêm/sửa tính năng đúng kiến trúc của project
 - `import-excel` — nhập/đối soát dữ liệu từ file Excel của lớp
 - `run-tests` — chạy và đọc kết quả kiểm thử, thêm test cho thay đổi
-- `class-manager-review` — điều phối review độc lập (agent `rules-reviewer`, `schema-guard`, `import-auditor` trong `.claude/agents/`, chỉ đọc). Dùng trước khi commit/đẩy; agent mới tạo cần **mở phiên mới** mới gọi được dạng subagent
+- `class-manager-review` — điều phối review độc lập (agent `rules-reviewer`, `schema-guard`, `import-auditor`, **`score-coverage-auditor`** (điểm có sót ai không), **`score-calc-checker`** (điểm có tính đúng quy tắc không) trong `.claude/agents/`, chỉ đọc, không in họ tên). Dùng trước khi commit/đẩy và sau mỗi lần nhập điểm; agent mới tạo cần **mở phiên mới** mới gọi được dạng subagent
 - `supabase`, `supabase-postgres-best-practices` — skill chính thức của Supabase (cài bằng `npx skills add supabase/agent-skills`; đã rà: chỉ gồm file markdown). Dùng khi đổi schema, RLS, index, truy vấn chậm, kết nối
 
 ## MCP
 - `.mcp.json` (git-ignore): máy chủ MCP Supabase của project (mã project nằm trong URL). Cần đăng nhập 1 lần: chạy `claude` rồi `/mcp` ở terminal thường. Nên thêm `&read_only=true` vào URL nếu chỉ cần đọc — database chứa dữ liệu học viên thật.
+
+## Lịch sử thay đổi harness (agent · skill)
+| Ngày | Nội dung thay đổi | Đối tượng | Lý do |
+|------|-------------------|-----------|-------|
+| 2026-10-25 | Thêm 2 agent chỉ-đọc `score-coverage-auditor`, `score-calc-checker`; thêm hàng + kịch bản vào orchestrator; thêm script `npm run audit-scores` | `.claude/agents/`, `skills/class-manager-review`, `scripts/audit-scores.js` | Điểm có 3 nguồn (Excel, danh sách file SharePoint, gõ tay) ghép theo tên → cần kiểm độc lập "không sót học viên" (độ phủ) tách khỏi "tính đúng" (quy tắc gộp/ưu tiên nguồn) |
