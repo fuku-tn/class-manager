@@ -72,3 +72,16 @@ test('sheet đổi COURSE ID của lớp (đổi ngày khai giảng trong mã): 
   const clash = await post([row('P.32', 'PBM024')], { headers: COURSE.headers, rows: [['PBM024', 'P5.SCA.P003.HY.EE.011126', '2026-10-31', '2026-11-29']] });
   assert.ok(!clash.body.renamed_classes?.length);
 });
+
+test('sheet còn cả dòng cũ lẫn dòng mới của cùng một lớp: giữ dòng cuối, đổi mã tại chỗ, lượt đồng bộ không bị hủy và có báo trong kết quả', async () => {
+  await post([row('P.41', 'PBM025')], { headers: COURSE.headers, rows: [['PBM025', 'P5.PBM.P025.HY.MM.241026', '2026-10-24', '2026-11-22']] });
+  const id = (await t.db.one("select id from classes where short_code = 'PBM025'")).id;
+  const r = await post([row('P.41', 'PBM025')], { headers: COURSE.headers, rows: [
+    ['PBM025', 'P5.PBM.P025.HY.MM.241026', '2026-10-24', '2026-11-22'],   // dòng cũ còn sót
+    ['PBM025', 'P5.PBM.P025.HY.MM.311026', '2026-10-31', '2026-11-29'],   // dòng mới thêm
+  ] });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.deepEqual([r.body.duplicate_course_rows, r.body.renamed_classes], [['PBM025'], ['PBM025']]);
+  const rows = await t.db.all("select id, code, start_date::text d from classes where short_code = 'PBM025'");
+  assert.deepEqual(rows.map((x) => [x.id, x.code, x.d]), [[id, 'P5.PBM.P025.HY.MM.311026', '2026-10-31']]);
+});

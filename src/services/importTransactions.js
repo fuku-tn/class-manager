@@ -325,6 +325,14 @@ async function importTransactions(db, { transactionsFile, curriculumFile, dryRun
       // 1b) Sheet đổi COURSE ID của một lớp (vd đổi ngày khai giảng nằm trong mã): lớp vẫn là lớp cũ (nhận diện theo mã ngắn như PBM022)
       //     → đổi mã lớp tại chỗ để KHÔNG tạo lớp trùng (trước đây báo "duplicate key … classes_short_code_key" và cả lượt đồng bộ bị hủy).
       //     Chỉ đổi khi mã ngắn xuất hiện đúng một lần trong sheet và mã mới chưa là của lớp khác.
+      //     Sheet còn dòng cũ lẫn dòng mới của cùng một lớp (hay xảy ra khi thêm dòng thay vì sửa dòng cũ): giữ dòng CUỐI (mới nhất), bỏ dòng trước
+      //     và ghi vào summary.duplicate_course_rows — thay vì làm hỏng cả lượt đồng bộ.
+      summary.duplicate_course_rows = [];
+      const lastIndex = new Map();
+      classes.forEach((c, i) => lastIndex.set(c.short_code, i));
+      for (let i = classes.length - 1; i >= 0; i--) {
+        if (lastIndex.get(classes[i].short_code) !== i) { summary.duplicate_course_rows.push(classes[i].short_code); classes.splice(i, 1); }
+      }
       const sheetCodes = new Map();
       for (const c of classes) sheetCodes.set(c.short_code, [...(sheetCodes.get(c.short_code) ?? []), c.code]);
       const known = sheetCodes.size ? await t.all('select id, code, name, short_code from classes where short_code = any($1::text[])', [[...sheetCodes.keys()]]) : [];
