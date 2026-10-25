@@ -85,7 +85,7 @@ function syncNow(forceArg) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const transactions = readTable_(findSheet_(ss, CONFIG.SHEET_TRANSACTIONS), ALLOWED_TX, [], 'STUDENT ID');
     if (!transactions) throw new Error('Không tìm thấy tab ' + CONFIG.SHEET_TRANSACTIONS.join(' / ') + ' hoặc tab trống');
-    const course = readTable_(findSheet_(ss, CONFIG.SHEET_COURSE), ALLOWED_COURSE, ['STARTDATE', 'ENDDATE'], 'COURSE ID');
+    const course = readTable_(findCourseSheet_(ss), ALLOWED_COURSE, ['STARTDATE', 'ENDDATE'], 'COURSE ID');
 
     const company = readTable_(findSheet_(ss, CONFIG.SHEET_COMPANY), ALLOWED_COMPANY, [], 'STUDENT ID');
 
@@ -214,6 +214,22 @@ function findSheet_(ss, names) {
   return null;
 }
 
+/**
+ * Tab danh sách lớp: ưu tiên theo tên (SHEET_COURSE); không thấy (vd đã đổi tên tab) thì tìm tab có các ô tiêu đề "COURSE ID" và
+ * ("START DATE" hoặc "STARTDATE") trong 10 dòng đầu — để ngày khai giảng/kết thúc không ngừng cập nhật khi tab bị đổi tên.
+ */
+function findCourseSheet_(ss) {
+  const byName = findSheet_(ss, CONFIG.SHEET_COURSE);
+  if (byName) return byName;
+  const sheets = ss.getSheets();
+  for (let i = 0; i < sheets.length; i++) {
+    const s = sheets[i];
+    if (!s.getLastRow() || !s.getLastColumn()) continue;
+    if (findHeaderRow_(s, 'COURSE ID') && (findHeaderRow_(s, 'START DATE') || findHeaderRow_(s, 'STARTDATE'))) return s;
+  }
+  return null;
+}
+
 function toHex_(bytes) {
   return bytes.map(function (b) { return ('0' + (b & 0xff).toString(16)).slice(-2); }).join('');
 }
@@ -228,8 +244,9 @@ function syncForce() { syncNow(true); }
 function debugCourse(code) {
   const want = String(code || 'PBM022').toUpperCase();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = findSheet_(ss, CONFIG.SHEET_COURSE);
-  console.log('File: ' + ss.getName() + ' | tab: ' + (sheet ? sheet.getName() : '(không thấy tab COURSE)'));
+  console.log('Các tab trong file: ' + ss.getSheets().map(function (s) { return '[' + s.getName() + ']'; }).join(' '));
+  const sheet = findCourseSheet_(ss);
+  console.log('File: ' + ss.getName() + ' | tab danh sách lớp: ' + (sheet ? sheet.getName() : '(không tìm thấy tab nào có cột COURSE ID và START DATE)'));
   const t = sheet && readTable_(sheet, ALLOWED_COURSE, ['STARTDATE', 'ENDDATE'], 'COURSE ID');
   if (!t) return;
   console.log('Cột đọc được: ' + t.headers.join(' | '));
