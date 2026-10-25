@@ -113,6 +113,18 @@ test('khớp lịch khai giảng: lớp dời khai giảng cả tuần thì dờ
   assert.deepEqual(got.map((x) => x.i), ['Bùi Trường Sơn', 'Phạm Hoài An', 'Phạm Hoài An']);
 });
 
+test('lớp chưa có dòng trong Calendar: sinh lịch dự kiến từ ngày khai giảng + thứ học; có dòng thật thì thay', async () => {
+  await t.db.run('delete from teaching_schedule');
+  const e = (await admin.post('/api/classes', { code: 'P1.EBA.P122.ON.EE.191026', session_count: 6, start_date: '2026-10-19', end_date: '2026-11-04' })).body.id;
+  await t.db.run("update classes set short_code = 'EBA122', program = 'EBA', days_of_week = '24', shift = 'evening', end_date = '2026-11-04' where id = $1", [e]);
+  assert.equal((await post([row('2026-09-06', 'S', 'BIE102', 'x', 1)])).status, 200);
+  const g = await t.db.all("select session_date::text d, session_no n, note, instructor i from teaching_schedule where short_code = 'EBA122' order by 1");
+  assert.deepEqual(g.map((x) => x.d), ['2026-10-19', '2026-10-21', '2026-10-26', '2026-10-28', '2026-11-02', '2026-11-04']);
+  assert.deepEqual([g[0].note, g[5].note, g[0].i], ['Khai giảng', 'Bế giảng', 'Phạm Hoài An']);
+  assert.equal((await post([row('2026-09-06', 'S', 'BIE102', 'x', 1), row('2026-10-20', 'T', 'EBA122', 'Thật', 1)])).status, 200);
+  assert.equal((await t.db.all("select 1 from teaching_schedule where short_code = 'EBA122'")).length, 1);
+});
+
 test('giảng viên mặc định theo chương trình/buổi; Sheet có ghi thì giữ', () => {
   const { defaultInstructor } = require('../src/services/scheduleRules');
   assert.deepEqual([['EBA122', 3], ['EBA122', null], ['PBM022', 8], ['PBM022', 9], ['PBM022', 10], ['PBM022', 11], ['PBM022', null], ['BIE102', 1], ['SCA002', 2], ['BIH103', 11], ['XYZ999', 1]]

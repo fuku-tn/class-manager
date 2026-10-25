@@ -73,7 +73,7 @@ async function importSchedule(db, table, { dryRun = false } = {}) {
   const ROLLBACK = Symbol('rollback');
   try {
     await db.tx(async (t) => {
-      const before = (await t.one('select count(*)::int as n from teaching_schedule')).n;
+      const before = (await t.one("select count(*)::int as n from teaching_schedule where content is distinct from 'Lịch dự kiến (tự sinh từ ngày khai giảng)'")).n;   // chốt chặn chỉ đếm dòng từ Sheet, không đếm dòng tự sinh
       if (before >= MIN_GUARD_ROWS && parsed.rows.length < before * MIN_KEEP_RATIO) {
         const e = new Error(`Lịch mới chỉ có ${parsed.rows.length} dòng hợp lệ so với ${before} dòng đang có — nghi Sheet lỗi, không cập nhật`);
         e.status = 409; e.expose = true; throw e;
