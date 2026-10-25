@@ -6,6 +6,7 @@
 // Sau khi ghép thì dùng lại importPoints (bí danh BIH MP3 = HW5, tạo Mini Project, giữ điểm gõ tay…), nhưng KHÔNG xóa điểm nào.
 // Tên học viên, đường dẫn, tên file chỉ xử lý trong bộ nhớ, không lưu.
 const { importPoints, parseHw, normalizeCourse } = require('./importPoints');
+const { moduleFor } = require('./scoreModules');
 
 const SCORE_FILE_COLUMNS = ['PATH', 'NAME', 'POINT'];
 const MAX_SCORE = 10;
@@ -16,6 +17,9 @@ function normName(s) {
   return String(s ?? '').normalize('NFC').replace(/đ/g, 'd').replace(/Đ/g, 'D').normalize('NFD').replace(/[̀-ͯ]/g, '')
     .replace(/^\s*\d+\s*[.\-)]\s*/, '').replace(/\(.*?\)\s*$/, '').replace(/[^A-Za-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
 }
+
+// Đảo thứ tự các từ của tên ("An Nguyen Van" ≈ "Nguyen Van An"): dùng khi tên khác nhau chỉ ở thứ tự họ–tên (lỗi hay gặp khi đối chiếu tên bằng Excel).
+const sortedTokens = (n) => n.split(' ').filter(Boolean).sort().join(' ');
 
 // Nhận diện bài từ phần đường dẫn dưới thư mục học viên (thư mục con + tên file).
 const MINI_RE = /(?:mini\s*project|(?<![a-z])mp)\s*[_\-\s]?\s*0?(\d)(?!\d)/i;
@@ -66,7 +70,7 @@ async function resolveScoreFiles(db, table, { verbose = false } = {}) {
     rows: parsed.total, skipped_no_point: parsed.skipped.no_point, skipped_bad_point: parsed.skipped.bad_point,
     skipped_bad_path: parsed.skipped.bad_path, skipped_no_item: parsed.skipped.no_item,
     scores_found: groups.length, capped_at_10: groups.filter((g) => g.sum > MAX_SCORE).length,
-    unmatched_students: 0, ambiguous_students: 0, matched: 0, examples: { no_item: [...parsed.noItemSamples], unmatched: [] },
+    unmatched_students: 0, ambiguous_students: 0, matched: 0, matched_by_reorder: 0, examples: { no_item: [...parsed.noItemSamples], unmatched: [] },
   };
   if (!groups.length) return { summary, rows: [], details: [] };
   const shorts = [...new Set(groups.map((g) => g.short))];
@@ -75,14 +79,17 @@ async function resolveScoreFiles(db, table, { verbose = false } = {}) {
        join classes c on c.id = e.class_id join students s on s.id = e.student_id where c.short_code = any($1::text[])`, [shorts]);
   const byName = new Map();   // "LỚP|tên chuẩn hóa" -> Set(mã học viên)
   for (const e of enr) { const k = `${e.short_code}|${normName(e.full_name)}`; (byName.get(k) ?? byName.set(k, new Set()).get(k)).add(e.student_code); }
+  const byTokens = new Map();   // dự phòng: "LỚP|các từ đã sắp xếp" -> Set(mã học viên)
+  for (const e of enr) { const k = `${e.short_code}|${sortedTokens(normName(e.full_name))}`; (byTokens.get(k) ?? byTokens.set(k, new Set()).get(k)).add(e.student_code); }
   const knownClass = new Set(enr.map((e) => e.short_code));
   const rows = []; const details = []; const missed = new Map();
   for (const g of groups) {
-    const codes = byName.get(`${g.short}|${g.name}`);
+    let codes = byName.get(`${g.short}|${g.name}`);
+    if (!codes) { codes = byTokens.get(`${g.short}|${sortedTokens(g.name)}`); if (codes?.size === 1) summary.matched_by_reorder++; }
     if (!codes) { if (knownClass.has(g.short)) { summary.unmatched_students++; missed.set(`${g.short}|${g.name}`, g.short); } continue; }
     if (codes.size > 1) { summary.ambiguous_students++; continue; }
     const point = Math.min(MAX_SCORE, Math.round(g.sum * 100) / 100);
-    rows.push([[...codes][0], g.short, hwLabel(g), point, null]);
+    rows.push([[...codes][0], g.short, hwLabel(g), point, moduleFor(g.short, g.kind, g.seq)]);   // Module như XLOOKUP Table_Module của Excel
     details.push({ short: g.short, code: [...codes][0], kind: g.kind, seq: g.seq, point, files: g.files, capped: g.sum > MAX_SCORE });
     summary.matched++;
   }

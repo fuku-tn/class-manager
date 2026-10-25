@@ -2,6 +2,7 @@
 // Chỉ đọc đúng 5 cột này (KHÔNG đọc cột Họ và tên). Ghép theo (mã lớp, mã học viên, HW) với ghi danh/bài tập đã có.
 // Điểm thang 10, lưu riêng ở homework_scores (không đổi trạng thái nộp bài). Bảng Sheet là bản chuẩn: điểm không còn
 // trong Sheet bị xóa (có chốt chặn nếu bỗng xóa quá nhiều).
+const { moduleFor } = require('./scoreModules');
 const POINT_COLUMNS = ['STUDENTID', 'COURSE', 'HW', 'POINT', 'MODULE'];
 const POINT_SYNC_COLUMNS = [...POINT_COLUMNS, 'STUDENT ID'];   // chấp nhận cả "Student ID"
 // Bản sao lưu CSV có thêm cột SOURCE (excel | sharepoint | manual) để khôi phục đúng nguồn/điểm gõ tay; CHỈ đọc khi khôi phục từ CSV (trustSource), không nhận từ Sheet.
@@ -75,7 +76,7 @@ function parsePointRows(table, { trustSource = false } = {}) {
     const score = parseScore(r[iPoint]);
     if (score == null) { out.skipped.bad_point++; addExample(out.badPoint, `${short} ${txt(r[iHw]) ?? ''}: ${r[iPoint] == null ? '(trống)' : r[iPoint]}`); continue; }
     const src = iSource >= 0 ? String(txt(r[iSource]) ?? '').toLowerCase() : '';
-    out.entries.set(`${short}|${sid}|${hw.kind}:${hw.seq}`, { short, sid, ...hw, score, module: (txt(iModule >= 0 ? r[iModule] : null) ?? '').slice(0, 60) || null, src: SOURCES.includes(src) ? src : null });
+    out.entries.set(`${short}|${sid}|${hw.kind}:${hw.seq}`, { short, sid, ...hw, score, module: ((txt(iModule >= 0 ? r[iModule] : null) ?? '').slice(0, 60) || moduleFor(short, raw.kind, raw.seq)), src: SOURCES.includes(src) ? src : null });
   }
   return out;
 }

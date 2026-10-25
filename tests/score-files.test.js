@@ -127,3 +127,25 @@ test('lỗi và giới hạn: thiếu cột Path/Point báo 422; bài chưa có 
   assert.match(gs, /X-Sync-Token/);
   assert.ok(!/https?:\/\/[^\s'"]*vercel\.app/.test(gs));
 });
+
+test('Module: nguồn không có Module (SharePoint) và dòng Excel trống Module đều được điền theo bảng Module như XLOOKUP của quy trình Excel; tên đảo thứ tự họ–tên vẫn ghép được', async () => {
+  const { moduleFor } = require('../src/services/scoreModules');
+  assert.equal(moduleFor('BIE101', 'hw', 2), 'Data Transformation');
+  assert.equal(moduleFor('BIH100', 'mini', 3), 'Data Problem Solving');
+  assert.equal(moduleFor('EBA118', 'capstone', 1), 'Project');
+  assert.equal(moduleFor('PBM021', 'hw', 1), null, 'chương trình chưa có bảng Module thì để trống');
+  const mod = (code, kind, seq) => t.db.one(
+    `select hs.module from homework_scores hs join enrollments e on e.id = hs.enrollment_id join students s on s.id = e.student_id
+       join assignments a on a.id = hs.assignment_id where s.student_code = $1 and a.kind = $2 and a.seq = $3`, [code, kind, seq]).then((r) => r?.module ?? null);
+  // lớp BIH096: Mini Project 3 của Excel nằm ở HW5 nhưng Module tra theo mini:3
+  assert.equal(await mod('P.8005', 'hw', 5), 'Data Problem Solving');
+  assert.equal(await mod('P.8005', 'capstone', 1), 'Project');
+  // Excel để trống Module → điền theo bảng
+  await importPoints(t.db, { headers: POINT_SYNC_COLUMNS.slice(0, 5), rows: [['P.8002', 'BIH096', 'HW3', 7, null]] });
+  assert.equal(await mod('P.8002', 'hw', 3), 'Data Modeling');
+  // tên viết đảo thứ tự (An Nguyen Van ≈ Nguyen Van An) vẫn ghép được và được đếm riêng
+  const r = await post([rowOf(P('BIH96', 'An Nguyễn Văn', 'HW4', 'k.pbix'), '6')]);
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.deepEqual([r.body.matched, r.body.matched_by_reorder], [1, 1]);
+  assert.equal((await score('P.8001', 'hw', 4)).score, 6);
+});

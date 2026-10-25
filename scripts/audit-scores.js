@@ -3,6 +3,7 @@
 //   npm run audit-scores -- --class BIE101,EBA118     → chỉ các lớp đó (mã ngắn)
 //   npm run audit-scores -- --file scores_STARTTRAIN.csv [--class …]
 //                                                     → thêm đối chiếu danh sách file SharePoint với database (thiếu / lệch / do ưu tiên nguồn)
+//   npm run audit-scores -- --vs-backup               → so điểm hiện tại với bản sao lưu điểm gần nhất (chụp ngay TRƯỚC lần nhập thật gần nhất): thêm / mất / đổi điểm / đổi nguồn theo lớp
 //   --verbose                                         → in thêm tên không ghép được (CHỈ trên máy bạn; agent không dùng)
 // Báo cáo chỉ có mã lớp, mã học viên và số đếm — không có họ tên/email/SĐT.
 const fs = require('node:fs');
@@ -11,6 +12,8 @@ const { openDb } = require('../src/db');
 const { resolveScoreFiles } = require('../src/services/importScoreFiles');
 const { applyAlias } = require('../src/services/importPoints');
 const { parseCsv } = require('../src/services/backup');
+const { moduleFor } = require('../src/services/scoreModules');
+const { snapshotScores, readPointsCsv } = require('../src/services/pointsExcel');
 
 const args = process.argv.slice(2);
 const flag = (n) => args.includes(n);
@@ -58,6 +61,54 @@ async function coverage(db) {
   console.log(`Bất thường: điểm ngoài 0–10 = ${odd.out_of_range}; điểm của học viên không còn đang học = ${odd.inactive}`);
 }
 
+// Module của từng điểm phải khớp bảng Module (như cột F "Không tìm thấy" = 0 của quy trình Excel): thiếu Module / sai Module theo chương trình
+async function moduleCheck(db) {
+  const rows = await db.all(
+    `select c.short_code, a.kind, a.seq, h.module from homework_scores h join enrollments e on e.id = h.enrollment_id
+       join classes c on c.id = e.class_id join assignments a on a.id = h.assignment_id`);
+  const inTable = (short) => ['BIE', 'EBA', 'BIH'].includes(/^([A-Z]+)/.exec(short)?.[1]);
+  let missing = 0; let wrong = 0; let noRule = 0; const perClass = new Map(); const combos = new Map();
+  for (const r of rows) {
+    if (onlyClasses && !onlyClasses.includes(r.short_code)) continue;
+    if (!inTable(r.short_code)) { noRule++; continue; }
+    const al = /^BIH/.test(r.short_code) && r.kind === 'hw' && r.seq === 5 ? { kind: 'mini', seq: 3 } : { kind: r.kind, seq: r.seq };   // bài lưu HW5 = Mini Project 3 của Excel
+    const want = moduleFor(r.short_code, al.kind, al.seq);
+    if (!r.module) { missing++; perClass.set(r.short_code, (perClass.get(r.short_code) ?? 0) + 1); }
+    else if (want && r.module !== want) { wrong++; const k = `${r.short_code.slice(0, 3)} ${al.kind}${al.seq}: app "${r.module}" ≠ bảng "${want}"`; combos.set(k, (combos.get(k) ?? 0) + 1); }
+  }
+  console.log('\n## Module của điểm (bảng Module: BIE/BIH/EBA)');
+  console.log(`thiếu Module ${missing} · sai Module ${wrong} · chương trình chưa có bảng Module (PBM/SCA…) ${noRule} điểm`);
+  if (perClass.size) console.log('thiếu Module theo lớp: ' + [...perClass].map(([k, n]) => `${k}=${n}`).join(', '));
+  for (const [k, n] of [...combos].slice(0, 8)) console.log(`  ${k} (${n} điểm)`);
+}
+
+// So điểm hiện tại với bản sao lưu điểm gần nhất — bản đó được chụp ngay trước lần nhập thật gần nhất, nên thấy được lần nhập đã thêm/đổi/làm mất gì.
+async function vsBackup(db) {
+  const dir = path.join(__dirname, '..', 'private-data', 'backups', 'diem');
+  const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => /^diem_.*\.csv$/.test(f)).sort() : [];
+  console.log('\n## So với bản sao lưu điểm gần nhất');
+  if (!files.length) { console.log('chưa có bản sao lưu điểm (chạy npm run backup-points)'); return; }
+  const old = readPointsCsv(fs.readFileSync(path.join(dir, files[files.length - 1]), 'utf8'));
+  const idx = (h, n) => h.indexOf(n);
+  const key = (r, h) => `${r[idx(h, 'STUDENTID')]}|${r[idx(h, 'COURSE')]}|${r[idx(h, 'HW')]}`;
+  const oldMap = new Map(old.rows.map((r) => [key(r, old.headers), { score: Number(r[idx(old.headers, 'POINT')]), src: r[idx(old.headers, 'SOURCE')] }]));
+  const now = await snapshotScores(db);
+  const nowMap = new Map(now.rows.map((r) => [key(r, now.headers), { score: Number(r[3]), src: r[5], course: r[1] }]));
+  const per = new Map(); const bump = (cls, k) => { const t = per.get(cls) ?? { added: 0, removed: 0, changed: 0, source: 0 }; t[k]++; per.set(cls, t); };
+  for (const [k, v] of nowMap) {
+    const o = oldMap.get(k);
+    if (onlyClasses && !onlyClasses.includes(v.course)) continue;
+    if (!o) bump(v.course, 'added');
+    else if (Math.abs(o.score - v.score) >= 0.011) bump(v.course, 'changed');
+    else if (o.src !== v.src) bump(v.course, 'source');
+  }
+  for (const [k] of oldMap) if (!nowMap.has(k)) { const c = k.split('|')[1]; if (!onlyClasses || onlyClasses.includes(c)) bump(c, 'removed'); }
+  console.log(`bản sao lưu: ${files[files.length - 1]} (${oldMap.size} điểm) → hiện tại ${nowMap.size} điểm`);
+  console.log('lớp | thêm | MẤT | đổi điểm | đổi nguồn');
+  for (const [c, t] of [...per].sort()) console.log(`${c} | ${t.added} | ${t.removed} | ${t.changed} | ${t.source}`);
+  if (!per.size) console.log('không có thay đổi');
+}
+
 async function compareFile(db) {
   const { columns, rows } = parseCsv(fs.readFileSync(path.resolve(file), 'utf8').replace(/^﻿/, ''));
   const keep = columns.filter((c) => ['PATH', 'NAME', 'POINT', 'KEY'].includes(c.trim().toUpperCase()));
@@ -65,7 +116,7 @@ async function compareFile(db) {
   const { summary, details } = await resolveScoreFiles(db, { headers, rows: rows.map((x) => keep.map((c) => x[c])) }, { verbose: flag('--verbose') });
   const useful = details.filter((d) => !onlyClasses || onlyClasses.includes(d.short));
   console.log('\n## Danh sách file SharePoint → ghép tên');
-  console.log(`dòng ${summary.rows} · có điểm → ${summary.scores_found} bài · ghép được ${summary.matched} · không ghép tên ${summary.unmatched_students} · trùng tên ${summary.ambiguous_students} · không nhận ra bài ${summary.skipped_no_item} · đường dẫn lạ ${summary.skipped_bad_path} · bị chặn ở 10 điểm ${summary.capped_at_10}`);
+  console.log(`dòng ${summary.rows} · có điểm → ${summary.scores_found} bài · ghép được ${summary.matched} (trong đó nhờ đảo thứ tự họ–tên ${summary.matched_by_reorder}) · không ghép tên ${summary.unmatched_students} · trùng tên ${summary.ambiguous_students} · không nhận ra bài ${summary.skipped_no_item} · đường dẫn lạ ${summary.skipped_bad_path} · bị chặn ở 10 điểm ${summary.capped_at_10}`);
   if (summary.examples.unmatched.length) console.log('tên không ghép được: ' + summary.examples.unmatched.join('; '));
   if (summary.examples.no_item.length) console.log('file không nhận ra bài (mẫu, đã ẩn tên): ' + summary.examples.no_item.join(' | '));
   if (summary.unmatched_names?.length) { console.log('tên không ghép được (chỉ trên máy bạn):'); for (const n of summary.unmatched_names) console.log('  ' + n); }
@@ -104,6 +155,8 @@ async function compareFile(db) {
   const db = await openDb();
   try {
     await coverage(db);
+    await moduleCheck(db);
+    if (flag('--vs-backup')) await vsBackup(db);
     if (file) await compareFile(db);
   } finally { await db.close?.(); }
 })().then(() => process.exit(0)).catch((e) => { console.error('Lỗi:', e.message); process.exit(1); });

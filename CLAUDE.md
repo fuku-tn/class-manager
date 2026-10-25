@@ -94,6 +94,8 @@ Course/
 Mỗi skill gồm `SKILL.md` + 3 thư mục bắt buộc `references/` (tài liệu tra cứu), `assets/` (mẫu, tài nguyên), `scripts/` (script hỗ trợ); thư mục còn trống giữ bằng `.gitkeep`. Skill mới cũng phải tạo đủ ba thư mục này.
 - `student-webapp-dev` — thêm/sửa tính năng đúng kiến trúc của project
 - `import-excel` — nhập/đối soát dữ liệu từ file Excel của lớp
+- `import-score-files` — điểm từ danh sách file SharePoint (Path/Name/Point)
+- `cham-diem-hw` — quy trình chấm/gom điểm HW: ánh xạ quy trình Excel thủ công ("Chấm điểm.xlsx") sang web, bảng Module, tiêu chí "xong khi"
 - `run-tests` — chạy và đọc kết quả kiểm thử, thêm test cho thay đổi
 - `class-manager-review` — điều phối review độc lập (agent `rules-reviewer`, `schema-guard`, `import-auditor`, **`score-coverage-auditor`** (điểm có sót ai không), **`score-calc-checker`** (điểm có tính đúng quy tắc không) trong `.claude/agents/`, chỉ đọc, không in họ tên). Dùng trước khi commit/đẩy và sau mỗi lần nhập điểm; agent mới tạo cần **mở phiên mới** mới gọi được dạng subagent
 - `supabase`, `supabase-postgres-best-practices` — skill chính thức của Supabase (cài bằng `npx skills add supabase/agent-skills`; đã rà: chỉ gồm file markdown). Dùng khi đổi schema, RLS, index, truy vấn chậm, kết nối
@@ -104,4 +106,5 @@ Mỗi skill gồm `SKILL.md` + 3 thư mục bắt buộc `references/` (tài li�
 ## Lịch sử thay đổi harness (agent · skill)
 | Ngày | Nội dung thay đổi | Đối tượng | Lý do |
 |------|-------------------|-----------|-------|
+| 2026-10-25 | Thêm skill `cham-diem-hw` (từ file `cham-diem-hw.skill` của chủ dự án: quy trình Excel thủ công + đối chiếu Excel↔web); agent điểm đọc skill này, thêm kiểm Module và `--vs-backup`; thêm `src/services/scoreModules.js` (bảng Module như sheet Module của Excel), ghép tên đảo thứ tự họ–tên | `skills/cham-diem-hw`, `agents/score-*`, `scripts/audit-scores.js` | Quy trình Excel cũ có các bước kiểm bắt buộc (không `Không tìm thấy` ở StudentID/Module, đối chiếu số dòng theo lớp) mà bộ nhập SharePoint chưa có |
 | 2026-10-25 | Thêm 2 agent chỉ-đọc `score-coverage-auditor`, `score-calc-checker`; thêm hàng + kịch bản vào orchestrator; thêm script `npm run audit-scores` | `.claude/agents/`, `skills/class-manager-review`, `scripts/audit-scores.js` | Điểm có 3 nguồn (Excel, danh sách file SharePoint, gõ tay) ghép theo tên → cần kiểm độc lập "không sót học viên" (độ phủ) tách khỏi "tính đúng" (quy tắc gộp/ưu tiên nguồn) |
