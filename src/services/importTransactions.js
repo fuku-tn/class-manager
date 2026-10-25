@@ -322,6 +322,21 @@ async function importTransactions(db, { transactionsFile, curriculumFile, dryRun
             c.items.map((i) => i.tools), c.items.map((i) => i.hours), c.items.map((i) => i.content)]);
       }
 
+      // 1b) Sheet đổi COURSE ID của một lớp (vd đổi ngày khai giảng nằm trong mã): lớp vẫn là lớp cũ (nhận diện theo mã ngắn như PBM022)
+      //     → đổi mã lớp tại chỗ để KHÔNG tạo lớp trùng (trước đây báo "duplicate key … classes_short_code_key" và cả lượt đồng bộ bị hủy).
+      //     Chỉ đổi khi mã ngắn xuất hiện đúng một lần trong sheet và mã mới chưa là của lớp khác.
+      const sheetCodes = new Map();
+      for (const c of classes) sheetCodes.set(c.short_code, [...(sheetCodes.get(c.short_code) ?? []), c.code]);
+      const known = sheetCodes.size ? await t.all('select id, code, name, short_code from classes where short_code = any($1::text[])', [[...sheetCodes.keys()]]) : [];
+      summary.renamed_classes = [];
+      for (const e of known) {
+        const codes = sheetCodes.get(e.short_code);
+        if (codes.length !== 1 || codes[0] === e.code) continue;
+        if (await t.one('select 1 as x from classes where code = $1', [codes[0]])) continue;
+        await t.run('update classes set code = $2, name = case when name = code then $2 else name end where id = $1', [e.id, codes[0]]);
+        summary.renamed_classes.push(e.short_code);
+      }
+
       // 2) Lớp
       const classRows = await t.all(
         `insert into classes (code, name, short_code, program, delivery_mode, shift, start_date, end_date, next_short_code, curriculum_id, days_of_week)

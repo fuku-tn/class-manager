@@ -149,7 +149,7 @@ module.exports = (db) => {
       await log(true, brief, null);
       res.json({ ok: true, ...brief, changed });
     } catch (e) {
-      await log(false, null, e.message).catch(() => {});
+      await log(false, null, e.detail ? `${e.message} — ${e.detail}` : e.message).catch(() => {});
       if (/Thiếu giáo trình/.test(e.message)) return res.status(422).json({ error: e.message });
       throw e;
     } finally {

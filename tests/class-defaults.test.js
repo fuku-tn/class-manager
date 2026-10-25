@@ -53,3 +53,22 @@ test('lớp tạo tay (BIE107, B2B) chưa có dòng COURSE vẫn nhận học vi
   assert.equal(again.status, 200);
   assert.equal((await t.db.one("select count(*)::int n from enrollments e join classes c on c.id = e.class_id where c.short_code = 'BIE107'")).n, 2);
 });
+
+test('sheet đổi COURSE ID của lớp (đổi ngày khai giảng trong mã): đổi mã tại chỗ, không tạo lớp trùng, ngày khai giảng mới được cập nhật', async () => {
+  const course = (code, start, end) => ({ headers: COURSE.headers, rows: [['PBM024', code, start, end]] });
+  const first = await post([row('P.31', 'PBM024')], course('P5.PBM.P024.HY.MM.241026', '2026-10-24', '2026-11-22'));
+  assert.equal(first.status, 200, JSON.stringify(first.body));
+  const c1 = await t.db.one("select id, code, start_date::text d from classes where short_code = 'PBM024'");
+  assert.equal(c1.d, '2026-10-24');
+  const again = await post([row('P.31', 'PBM024')], course('P5.PBM.P024.HY.MM.311026', '2026-10-31', '2026-11-29'));
+  assert.equal(again.status, 200, JSON.stringify(again.body));
+  assert.deepEqual(again.body.renamed_classes, ['PBM024']);
+  const rows = await t.db.all("select id, code, name, start_date::text d, end_date::text e from classes where short_code = 'PBM024'");
+  assert.equal(rows.length, 1);
+  assert.deepEqual([rows[0].id, rows[0].code, rows[0].d, rows[0].e], [c1.id, 'P5.PBM.P024.HY.MM.311026', '2026-10-31', '2026-11-29']);
+  assert.equal(rows[0].name, 'Practical Business Management — PBM024', 'tên hiển thị của lớp giữ nguyên');
+  assert.equal((await t.db.one("select count(*)::int n from enrollments where class_id = $1", [c1.id])).n, 1, 'ghi danh vẫn thuộc lớp cũ');
+  // mã mới đã là của lớp KHÁC → không đổi (tránh đụng khóa), lượt đồng bộ báo lỗi thay vì ghi sai
+  const clash = await post([row('P.32', 'PBM024')], { headers: COURSE.headers, rows: [['PBM024', 'P5.SCA.P003.HY.EE.011126', '2026-10-31', '2026-11-29']] });
+  assert.ok(!clash.body.renamed_classes?.length);
+});
