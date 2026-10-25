@@ -97,6 +97,29 @@ test('chốt chặn: lượt đồng bộ bỗng ít dòng hơn hẳn thì từ 
   assert.deepEqual([bad.status, bad.body.skipped_bad_date, bad.body.skipped_no_course], [200, 1, 1]);
 });
 
+test('khớp lịch khai giảng: lớp dời khai giảng cả tuần thì dời cả lịch; lệch không tròn tuần chỉ báo', async () => {
+  await t.db.run('delete from teaching_schedule');
+  const c3 = (await admin.post('/api/classes', { code: 'P2.PBM.P022.OL.AA.311026', session_count: 3, start_date: '2026-10-31' })).body.id;
+  await t.db.run("update classes set short_code = 'PBM022', program = 'PBM' where id = $1", [c3]);
+  const rows = [row('2026-10-24', 'S', 'PBM022', 'a', 1, 'Khai giảng'), row('2026-10-31', 'S', 'PBM022', 'b', 9), row('2026-11-07', 'S', 'PBM022', 'c', 10),
+    row('2026-09-15', 'T', 'BIH98', 'Metrics', 20), row('2026-08-30', 'S', 'BIE102', 'Lịch chỉ có buổi sau', 6)];
+  const r = await post(rows);
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.deepEqual([r.body.aligned_classes, r.body.misaligned_classes], [1, 0]);
+  const got = await t.db.all("select session_date::text d, session_no n, instructor i from teaching_schedule where short_code = 'PBM022' order by 1");
+  assert.deepEqual(got.map((x) => [x.d, x.n]), [['2026-10-31', 1], ['2026-11-07', 9], ['2026-11-14', 10]]);
+  // BIE102 chỉ có buổi 6 (không bắt đầu từ buổi 1) và BIH098 lệch 45 ngày → không dời
+  assert.equal((await t.db.one("select session_date::text d from teaching_schedule where short_code = 'BIE102'")).d, '2026-08-30');
+  assert.deepEqual(got.map((x) => x.i), ['Bùi Trường Sơn', 'Phạm Hoài An', 'Phạm Hoài An']);
+});
+
+test('giảng viên mặc định theo chương trình/buổi; Sheet có ghi thì giữ', () => {
+  const { defaultInstructor } = require('../src/services/scheduleRules');
+  assert.deepEqual([['EBA122', 3], ['EBA122', null], ['PBM022', 8], ['PBM022', 9], ['PBM022', 10], ['PBM022', 11], ['PBM022', null], ['BIE102', 1], ['SCA002', 2], ['BIH103', 11], ['XYZ999', 1]]
+    .map(([s, n]) => defaultInstructor(s, n)),
+  ['Phạm Hoài An', 'Phạm Hoài An', 'Bùi Trường Sơn', 'Phạm Hoài An', 'Phạm Hoài An', null, null, 'Bùi Trường Sơn', 'Bùi Trường Sơn', 'Bùi Trường Sơn', null]);
+});
+
 test('script Apps Script lịch: đúng các cột cho phép, không ghi sẵn mã bí mật, không đụng thuộc tính của script đăng ký', () => {
   const gs = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'google-apps-script', 'sync-schedule.gs'), 'utf8');
   const m = /const SCHEDULE_ALLOWED = \[([^\]]*)\]/.exec(gs);

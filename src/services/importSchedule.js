@@ -2,6 +2,7 @@
 // Sheet là bản chuẩn: mỗi lượt đồng bộ THAY TOÀN BỘ lịch (có chốt chặn nếu Sheet bỗng ít dòng hơn hẳn). Chỉ đọc các cột trong SCHEDULE_COLUMNS.
 // Không có dữ liệu học viên hay tiền. Mã khóa chuẩn hóa như điểm: "BIH98" → BIH098 (normalizeCourse).
 const { normalizeCourse } = require('./importPoints');
+const { normalizeSchedule } = require('./scheduleRules');
 
 const SCHEDULE_COLUMNS = ['NGÀY', 'BUỔI', 'KHÓA', 'NỘI DUNG', 'SỐ BUỔI', 'HÌNH THỨC', 'LOẠI', 'GHI CHÚ', 'GIẢNG VIÊN'];
 const MIN_KEEP_RATIO = 0.5;   // lượt mới ít hơn 50% số dòng đang có (khi đã có ≥ 20 dòng) → từ chối, không ghi gì
@@ -95,6 +96,7 @@ async function importSchedule(db, table, { dryRun = false } = {}) {
           [col((r) => r.class_id), col((r) => r.short), col((r) => r.date), col((r) => r.shift), col((r) => r.session_no),
             col((r) => r.content), col((r) => r.mode), col((r) => r.segment), col((r) => r.note), col((r) => r.instructor)]);
       }
+      Object.assign(summary, await normalizeSchedule(t));
       summary.inserted = parsed.rows.length;
       summary.replaced = true;
       if (dryRun) throw ROLLBACK;

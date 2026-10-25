@@ -20,6 +20,7 @@
     "import-score-files": "node --env-file-if-exists=.env --no-warnings=ExperimentalWarning scripts/import-score-files.js",
     "backup-points": "node --env-file-if-exists=.env --no-warnings=ExperimentalWarning scripts/backup-points.js",
     "audit-scores": "node --env-file-if-exists=.env --no-warnings=ExperimentalWarning scripts/audit-scores.js",
+    "fix-schedule": "node --env-file-if-exists=.env --no-warnings=ExperimentalWarning scripts/fix-schedule.js",
     "import-points": "node --env-file-if-exists=.env --no-warnings=ExperimentalWarning scripts/import-points.js",
     "backup": "node --env-file-if-exists=.env --no-warnings=ExperimentalWarning scripts/backup.js",
     "restore": "node --env-file-if-exists=.env --no-warnings=ExperimentalWarning scripts/restore.js",
