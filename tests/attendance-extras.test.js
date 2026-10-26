@@ -29,8 +29,8 @@ test('PUT điểm danh trả về % chuyên cần của học viên và hiện d
   assert.equal(r.status, 200);
   // buổi 1: 4 sĩ số, có mặt 1 + trễ 1 = 2 hiện diện, 1 có phép, 1 vắng (Dũng chưa điểm danh)
   assert.deepEqual(r.body.session, { held: true, roster: 4, attended: 2, late: 1, excused: 1, absent: 1 });
-  // Chi: 1 buổi đã diễn ra, có phép -> không có mẫu số -> null
-  assert.equal(r.body.enrollment.attendance_rate, null);
+  // Chi: 1 buổi đã diễn ra, có phép -> 0,5/1
+  assert.equal(r.body.enrollment.attendance_rate, 0.5);
   assert.equal(r.body.enrollment.excused, 1);
   // Số liệu trả về khớp với GET
   const m = (await admin.get(`${base()}/attendance`)).body;

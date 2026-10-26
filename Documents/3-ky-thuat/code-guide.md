@@ -128,7 +128,7 @@ Chỉ lưu **sự kiện đã ghi nhận**; tỉ lệ luôn được tính, khô
 - Khớp lớp: theo `classes.code`, nếu không có thì theo mã ngắn (`BIE088`); không có nữa mới tạo lớp mới (kèm cảnh báo).
 - Giáo trình: tên sheet trùng `curricula.code` (BIE-8/BIE-12) thì **đặt** `classes.curriculum_id`; số buổi = `curricula.session_count` (cột vượt số này bị bỏ + cảnh báo); tên buổi lấy từ module giáo trình (chỉ ghi đè tên còn mặc định).
 - **Không ghi đè** ô đã được sửa trực tiếp trên app (`updated_by` khác null) — được đếm là `kept_from_app`; không hạ `course_status` đã có về "đang học".
-- Cần tỉ lệ đúng khi có `excused`: nằm ở `services/stats.js` (mẫu số trừ buổi có phép), không tính lại ở nơi khác.
+- Cần tỉ lệ đúng khi có `excused`: nằm ở `services/stats.js` (có phép = 0,5 buổi, vẫn nằm trong mẫu số), không tính lại ở nơi khác.
 
 ## Nhập Transactions + giáo trình (`services/importTransactions.js`)
 - CLI: `npm run import-tx -- private-data/excel/Transacitons.xlsx private-data/excel/session-management.xlsx [--dry-run]`. `--dry-run` chạy toàn bộ trong một transaction rồi hoàn tác, chỉ in số liệu.

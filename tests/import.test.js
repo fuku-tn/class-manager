@@ -87,7 +87,7 @@ test('quy tắc ô: X/x = đi học, O = vắng có phép, trống = vắng, ch�
   assert.deepEqual(parseAttendanceCell('X\nX'), { mark: 'present' }); // gõ thừa X = một X
 });
 
-test('nhập: sheet ẩn bị bỏ qua, ô đúng quy tắc, có phép không tính vào mẫu số', async () => {
+test('nhập: sheet ẩn bị bỏ qua, ô đúng quy tắc, có phép tính nửa buổi', async () => {
   const file = await makeWorkbook();
   const { db } = await setupDb();
   const r = await importExcel(db, file);
@@ -111,8 +111,8 @@ test('nhập: sheet ẩn bị bỏ qua, ô đúng quy tắc, có phép không t�
   assert.deepEqual(data.sessions.filter((s) => s.held).map((s) => s.session_no), [1, 2, 3]);
   const stats = computeEnrollmentStats(data);
   const rateOf = (code) => stats.get(data.enrollments.find((e) => e.student_code === code).id).attendance_rate;
-  // An: 2 có mặt / (3 buổi − 1 có phép) = 1.0; Bình: 1 trễ / (3 − 1 có phép) = 0.5; Chi: 2/3; Dũng: 3/3
-  assert.equal(rateOf('P.1'), 1);
+  // An: (2 có mặt + 0,5 có phép)/3 = 0.83; Bình: (1 trễ + 0,5 có phép)/3 = 0.5; Chi: 2/3; Dũng: 3/3
+  assert.equal(rateOf('P.1'), 0.83);
   assert.equal(rateOf('P.2'), 0.5);
   assert.equal(rateOf('P.3'), 0.67);
   assert.equal(rateOf('P.4'), 1);

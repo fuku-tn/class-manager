@@ -26,7 +26,7 @@ Chủ dự án (giảng viên/quản lý đào tạo) hiện lưu danh sách h�
 - Khóa học: `active` Đang học · `deferred` Bảo lưu · `dropped` Nghỉ học · `completed` Hoàn thành
 
 ## Quy tắc nghiệp vụ (nguồn sự thật: `src/services/stats.js`)
-1. **Tỉ lệ điểm danh** = (có mặt + trễ) ÷ (số buổi đã diễn ra − số buổi có phép). Chưa có bản ghi ở buổi đã diễn ra = vắng.
+1. **Tỉ lệ điểm danh** = (có mặt + trễ + 0,5 × số buổi có phép) ÷ số buổi đã diễn ra. Có phép chỉ được nửa buổi đi học và vẫn nằm trong mẫu số. Chưa có bản ghi ở buổi đã diễn ra = vắng.
 2. **Tỉ lệ HW** = số HW `submitted` ÷ số HW đã thu. `resubmit` chưa tính. Chưa có bản ghi ở bài đã thu = thiếu.
 3. Buổi/bài **chưa diễn ra/chưa thu** không làm giảm tỉ lệ của ai. Một buổi tự chuyển sang "đã diễn ra" khi có điểm danh đầu tiên (hoặc bấm "Cả lớp ✓").
 4. Dashboard chỉ tính học viên `active` + `completed`; bảo lưu/nghỉ chỉ hiện ở số liệu tổng.
@@ -57,7 +57,7 @@ Sheet **ẩn** (`Sheet1`, `SQL`, `BIH-Pre`, `BSM`, `BSM-Pre`, `General`) là b�
 | trống | Vắng | `absent` |
 | chữ khác (`Đã báo trước`...) | Không thuộc quy tắc | `absent` + cảnh báo khi nhập |
 - Buổi **không ai có X hoặc O** = chưa diễn ra → không có bản ghi, không kéo tụt tỉ lệ.
-- **Tỉ lệ chuyên cần** = (có mặt + trễ) ÷ (số buổi đã diễn ra − số buổi có phép). Vắng có phép **không** làm giảm tỉ lệ. Cột `ATTENDANCE RATE` trong Excel tính khác (X ÷ **tổng số buổi của khóa**, coi `O` như vắng) nên sẽ không khớp app.
+- **Tỉ lệ chuyên cần** = (có mặt + trễ + 0,5 × số buổi có phép) ÷ số buổi đã diễn ra (chủ dự án chốt 26/10/2026). Vắng có phép tính **nửa buổi**, không bị loại khỏi mẫu số. Cột `ATTENDANCE RATE` trong Excel tính khác (X ÷ **tổng số buổi của khóa**, coi `O` như vắng) nên sẽ không khớp app.
 - Bài tập: `X` = đã nộp, trống = thiếu (chỉ tính bài đã có người nộp).
 - `COURSE STATUS`: `Deferred` → bảo lưu; `Canceled` → nghỉ; trống → đang học (không hạ trạng thái đã có).
 - Mã lớp trong file có thể lệch chữ `P`/`B` so với sheet Course (vd `P2.BIE.P088…` ↔ `B088`): khớp theo mã ngắn (`BIE088`).

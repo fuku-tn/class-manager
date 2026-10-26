@@ -74,7 +74,7 @@ flowchart TD
   J --> E
 ```
 
-**Ghi chú:** `✓` có mặt · `T` đi trễ · `V` vắng · `P` có phép · `·` chưa điểm danh. Ô chưa điểm danh của buổi đã diễn ra tính là **vắng**; vắng có phép **không** làm giảm tỉ lệ. Bấm "Bỏ tất cả" để xóa điểm danh của một buổi.
+**Ghi chú:** `✓` có mặt · `T` đi trễ · `V` vắng · `P` có phép · `·` chưa điểm danh. Ô chưa điểm danh của buổi đã diễn ra tính là **vắng**; vắng có phép được **nửa buổi** (vẫn nằm trong mẫu số). Bấm "Bỏ tất cả" để xóa điểm danh của một buổi.
 
 ---
 

@@ -26,7 +26,7 @@ Dùng **PGlite** (Postgres thật chạy trong bộ nhớ) với `src/schema.sql
 | `tests/frontend-children.test.js` | Quét `public/js`: `replaceChildren`/`append` không được nhận tham số dạng `a && b`, `a ? b : null` (sẽ hiện chữ "false"/"null" trên trang) — dùng `h()` hoặc `setChildren()` |
 | `tests/frontend-syntax.test.js` | Mọi file `public/js` đọc được (lỗi cú pháp một file làm hỏng cả trang) |
 | `tests/sync.test.js` | Đồng bộ Google Sheet: cần đúng mã (401/503); tạo lớp/học viên/ghi danh, bỏ cột tiền, ngày không lệch múi giờ, chạy lại không đổi; không đè sửa tay (tên, trạng thái nghỉ); "Không tham gia" → dropped; thiếu cột → 422; lớp thiếu giáo trình vẫn nhận; nhật ký chỉ admin; danh sách cột trong script khớp máy chủ và không có chữ liên quan tiền |
-| `tests/attendance-extras.test.js` | PUT trả % chuyên cần + hiện diện/sĩ số khớp GET (có phép loại khỏi mẫu số, không có mẫu số → null); "Bỏ tất cả" xóa cả buổi, 404 buổi khác lớp, khách bị 403 |
+| `tests/attendance-extras.test.js` | PUT trả % chuyên cần + hiện diện/sĩ số khớp GET (có phép tính nửa buổi, không có mẫu số → null); "Bỏ tất cả" xóa cả buổi, 404 buổi khác lớp, khách bị 403 |
 | `tests/student-sort.test.js` | Sắp xếp theo tên (từ cuối, collation tiếng Việt), họ tên, mã (số tự nhiên), tỉ lệ (trống xuống cuối), vắng nhiều, trạng thái; không đổi mảng gốc |
 | `tests/import-api.test.js` | Nhập Excel qua web: chỉ admin (401/403), từ chối file rỗng/không phải xlsx/thiếu sheet, chạy thử không đổi DB, nhập thật ghi dữ liệu và không trả về cột tiền, nhập lại không nhân đôi |
 | `tests/remind.test.js` | Nhắc bài: tin nhắn/tổng quan/cấu hình chỉ admin hoặc có quyền (người khác chỉ nhận tiến độ, không có chữ "em check HW"), khách 403, tổng quan không có tên học viên, gộp nhóm nhỏ, nhập bảng HW (chạy thử không ghi), bật/tắt quyền ở trang Người dùng, tên gọi/xưng hô |
@@ -38,12 +38,12 @@ Dùng **PGlite** (Postgres thật chạy trong bộ nhớ) với `src/schema.sql
 | `tests/lake-theme.test.js` | Bảng màu hồ chọn theo `data-theme`, hai bảng đủ khóa, màu nước hợp lệ, ban ngày sáng hơn |
 | `tests/lake-sim.test.js` | Mô phỏng sóng hồ: ổn định/tắt dần, vòng sóng dẹt, không lan lên trời, lịch giọt rơi thưa; gỡ cảnh cũ |
 | `tests/db-errors.test.js` | Phân loại lỗi cấu hình/kết nối DB; thiếu `DATABASE_URL` → đăng nhập trả 503 có lý do |
-| `tests/import.test.js` | Nhập điểm danh nhiều sheet (workbook dựng trong test): X/O/trống, có phép không tính mẫu số, bỏ sheet ẩn và cột tiền, giáo trình theo tên sheet, khớp mã lớp lệch P/B, không ghi đè ô sửa trên app, dry-run |
+| `tests/import.test.js` | Nhập điểm danh nhiều sheet (workbook dựng trong test): X/O/trống, có phép tính nửa buổi, bỏ sheet ẩn và cột tiền, giáo trình theo tên sheet, khớp mã lớp lệch P/B, không ghi đè ô sửa trên app, dry-run |
 
 ## Đã được kiểm thử tự động (221 test)
 - Chưa đăng nhập → 401; đăng nhập sai/đúng.
 - Giảng viên không truy cập được lớp chưa được phân (403), sau khi phân thì được; không tạo lớp / xem user được.
-- Tỉ lệ điểm danh: có phép không tính vào mẫu số (A=0.67, B=0.5).
+- Tỉ lệ điểm danh: có phép tính nửa buổi, vẫn nằm trong mẫu số (A=0.67, B=0.5).
 - Dữ liệu sai: trạng thái lạ → 400; buổi/học viên không tồn tại hoặc **thuộc lớp khác** → 404.
 - "Cả lớp ✓" chỉ điền ô trống, không ghi đè, chạy lại tạo 0 bản ghi.
 - HW: "Nộp lại" không tính hoàn thành; bài chưa thu không tính vào mẫu số.

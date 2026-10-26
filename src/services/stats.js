@@ -4,11 +4,11 @@ const MISSING_HW_ALERT = Number(process.env.MISSING_HW_ALERT || 2);
 
 const round = (n) => (n == null ? null : Math.round(n * 100) / 100);
 
-// NGUỒN DUY NHẤT của công thức chuyên cần: (có mặt + trễ) ÷ (số lượt đã diễn ra − số lượt vắng có phép).
-// Vắng có phép không làm giảm tỉ lệ. Trả null khi chưa có mẫu số.
+// NGUỒN DUY NHẤT của công thức chuyên cần: (có mặt + trễ + 0,5 × vắng có phép) ÷ số lượt đã diễn ra.
+// Vắng có phép chỉ được MỘT NỬA điểm của buổi đi học và vẫn nằm trong mẫu số (chủ dự án chốt 26/10/2026). Trả null khi chưa có mẫu số.
+const EXCUSED_WEIGHT = 0.5;
 function attendanceRate(attended, excused, held) {
-  const denom = held - excused;
-  return denom > 0 ? round(attended / denom) : null;
+  return held > 0 ? round((attended + EXCUSED_WEIGHT * excused) / held) : null;
 }
 
 // Tiến độ homework của một học viên: done/total, % làm tròn số nguyên 0–100 (theo bộ kit nhắc bài).

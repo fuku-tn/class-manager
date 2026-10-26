@@ -42,7 +42,7 @@ test('giảng viên chỉ thấy lớp được phân công', async () => {
   assert.equal((await gv.get('/api/users')).status, 403);
 });
 
-test('điểm danh: tính tỉ lệ, có phép không tính vào mẫu số', async () => {
+test('điểm danh: tính tỉ lệ, có phép tính nửa buổi', async () => {
   const [a, b] = students;
   const put = (e, s, status) => admin.put(`/api/classes/${classId}/attendance`, { enrollment_id: e.id, session_id: s.id, status });
   assert.equal((await put(a, sessions[0], 'present')).status, 200);
@@ -52,7 +52,7 @@ test('điểm danh: tính tỉ lệ, có phép không tính vào mẫu số', as
   assert.equal((await put(b, sessions[1], 'excused')).status, 200);
   const m = (await admin.get(`/api/classes/${classId}/attendance`)).body;
   const rate = (id) => m.rows.find((r) => r.enrollment_id === id).attendance_rate;
-  // 3 buổi đã diễn ra. A: (1+1)/3; B: present 1, excused 1, buổi 3 vắng -> 1/(3-1)
+  // 3 buổi đã diễn ra. A: (1+1)/3; B: present 1, excused 1 (0,5), buổi 3 vắng -> 1,5/3
   assert.equal(rate(a.id), 0.67);
   assert.equal(rate(b.id), 0.5);
   assert.equal(m.sessions.filter((s) => s.held).length, 3);
