@@ -3,8 +3,8 @@ import { h, toast, pct, formModal, fmtWhen, fmtScore } from '../ui.js';
 import { startLive, LIVE_LABEL } from '../live.js';
 import { classDisplayName, norm, assignmentLabel, sortAssignments } from '../class-filter.mjs';
 
-const SHORT = { submitted: '✓', resubmit: '↻', missing: '✗' };
-const LABEL = { submitted: 'Đã nộp', resubmit: 'Nộp lại', missing: 'Thiếu' };
+const SHORT = { submitted: '✓' };
+const LABEL = { submitted: 'Đã nộp' };   // chỉ còn "Đã nộp"; ô trống = chưa nộp. Có điểm = đã nộp
 
 const sameCell = (a, b) => (a?.status ?? null) === (b?.status ?? null) && (a?.note ?? null) === (b?.note ?? null)
   && !!a?.challenge === !!b?.challenge && (a?.by ?? null) === (b?.by ?? null);
@@ -42,18 +42,17 @@ export async function renderHomework({ cls, state }) {
   const pending = new Set();
 
   const scoreAt = (enr, aid) => scoreOf.get(enr)?.scores?.[aid]?.score ?? null;
-  const kindOf = new Map(data.assignments.map((a) => [a.id, a.kind]));
   const paint = (btn, cell, enr, aid) => {
     const score = hasScores ? scoreAt(enr, aid) : null;
-    // Mini Project không có tick nộp bài: có điểm nghĩa là đã nộp → hiện như "Đã nộp" (chỉ hiển thị, không ghi trạng thái, không tính % HW)
-    const st = cell?.status ?? (kindOf.get(aid) === 'mini' && score != null ? 'submitted' : null);
+    // Có điểm nghĩa là đã làm bài → hiện như "Đã nộp" dù chưa tick (máy chủ cũng tính vậy)
+    const st = cell?.status ?? (score != null ? 'submitted' : null);
     btn.className = `cell ${st ?? 'empty'}${cell?.note ? ' has-note' : ''}${mode !== 'status' && score != null ? ' scored' : ''}`;
     const mark = st ? SHORT[st] + (cell?.challenge ? '★' : '') : '·';
     if (mode === 'status' || (mode === 'both' && score == null)) btn.replaceChildren(mark);
     else if (mode === 'score') btn.replaceChildren(h('b', { class: 'cell-score' }, fmtScore(score)));
     else btn.replaceChildren(h('span', { class: 'cell-mark' }, mark), h('b', { class: 'cell-score' }, fmtScore(score)));
     const who = cell?.by ? ` · ${cell.by}${cell.at ? `, ${fmtWhen(cell.at)}` : ''}` : '';
-    btn.title = (cell?.status ? LABEL[st] : st ? 'Có điểm Mini Project' : 'Chưa ghi nhận') + (score != null ? ` · Điểm ${fmtScore(score)}/10${scoreOf.get(enr)?.scores?.[aid]?.manual ? ' (gõ tay)' : ''}` : '')
+    btn.title = (cell?.status ? LABEL[st] : st ? 'Có điểm = đã nộp' : 'Chưa nộp') + (score != null ? ` · Điểm ${fmtScore(score)}/10${scoreOf.get(enr)?.scores?.[aid]?.manual ? ' (gõ tay)' : ''}` : '')
       + (cell?.challenge ? ' · có làm Challenge' : '') + who + (cell?.note ? ` — ${cell.note}` : '');
   };
   const flash = (el) => { el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1200); };
@@ -95,7 +94,7 @@ export async function renderHomework({ cls, state }) {
     const curScore = scoreOf.get(row.enrollment_id)?.scores?.[a.id] ?? null;
     const seenScore = curScore?.score ?? null;
     const v = await formModal({ title: `${row.full_name} — ${a.title}`, fields: [
-      { name: 'status', label: 'Trạng thái', type: 'select', value: cur?.status ?? '', options: [['', '(chưa ghi nhận)'], ...Object.entries(LABEL)], full: true },
+      { name: 'status', label: 'Trạng thái', type: 'select', value: cur?.status ?? '', options: [['', '(chưa nộp)'], ...Object.entries(LABEL)], full: true },
       { name: 'challenge', label: 'Có làm bài Challenge', type: 'checkbox', value: cur?.challenge },
       ...(hasScores ? [{ name: 'score', label: `Điểm (0–10)${curScore && !curScore.manual ? ' — hiện lấy từ file Excel, gõ điểm mới để ghi đè' : ''}`, value: scoreStr(seenScore), full: true }] : []),
       { name: 'note', label: 'Ghi chú', type: 'textarea', value: cur?.note, full: true }] });
@@ -230,7 +229,7 @@ export async function renderHomework({ cls, state }) {
     h('div', { class: 'page-head' }, h('h1', {}, 'Bài tập'), h('span', { class: 'muted', title: cls.code }, classDisplayName(cls)), liveBadge),
     h('div', { class: 'legend' },
       h('span', {}, readOnly ? 'Chú thích: ' : 'Bấm ô để cập nhật: '), ...Object.entries(LABEL).map(([k, v]) => h('span', {}, h('span', { class: `cell ${k}` }, SHORT[k]), ` ${v}`)),
-      h('span', { class: 'muted' }, (readOnly ? '· Tài khoản khách chỉ xem ' : '') + '· ★ = có làm Challenge · "Nộp lại" chưa tính là hoàn thành'
+      h('span', { class: 'muted' }, (readOnly ? '· Tài khoản khách chỉ xem ' : '') + '· ★ = có làm Challenge · Có điểm = tự tính là đã nộp'
         + (hasScores ? ' · Số trong ô = điểm (thang 10, bấm ô để gõ điểm) · Bấm "Điểm TB" để sắp xếp' : '') + ' · Rê chuột để xem ai đã cập nhật')),
     summaryEl,
     h('div', { class: 'toolbar' }, search, modeChips),

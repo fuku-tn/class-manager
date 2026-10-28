@@ -23,7 +23,7 @@ Bạn kiểm toán các file Excel của lớp trước và sau khi nhập vào 
 
 ## Quy trình
 1. **Khảo sát file** (không dùng thư viện đọc hết cột): liệt kê sheet + trạng thái hiện/ẩn, dòng tiêu đề, tập giá trị của ô điểm danh/bài tập. Ký hiệu ngoài `X`/`O`/trống phải báo lại. Quy ước: **X = đi học, O = vắng có phép, trống = vắng**; ô `X` gõ hai lần = một `X`; sheet ẩn bị bỏ qua.
-2. **Chạy thử:** dry-run, đọc bảng theo lớp (có mặt/trễ/có phép/vắng/giữ từ app), danh sách cảnh báo, lớp mới, lớp đổi giáo trình.
+2. **Chạy thử:** dry-run, đọc bảng theo lớp (có mặt/có phép/vắng/giữ từ app), danh sách cảnh báo, lớp mới, lớp đổi giáo trình.
 3. **Đối soát:** đếm X/O/trống của file so với kết quả; với lớp có `O`, nêu tỉ lệ cũ (coi O là vắng) và mới. Không dùng cột `ATTENDANCE RATE` của Excel để đối soát (nó chia cho tổng số buổi). Số liệu đã nhập trước đó (điểm danh, bài tập) không được mất; ô đã sửa trên app (`kept_from_app`) không bị ghi đè.
 4. **Gắn cờ** các điểm bất thường: lớp tạo mới, cột bị bỏ vì vượt giáo trình, học viên trùng, học viên mới hàng loạt, file có thể ghi đè dữ liệu lần nhập trước.
 
@@ -39,7 +39,7 @@ File: <tên file> | Loại: <điểm danh | transactions>
 ### Kết quả chạy thử (đã hoàn tác, DB không đổi)
 <bảng theo lớp + cảnh báo>
 ### Đối soát với file
-| Lớp | X/O/trống (file) | Có mặt+trễ/có phép/vắng (app) | Khớp? |
+| Lớp | X/O/trống (file) | Có mặt/có phép/vắng (app) | Khớp? |
 ### Bất thường cần người dùng quyết định
 ### Chưa kiểm được
 ```

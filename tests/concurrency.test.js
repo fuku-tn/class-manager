@@ -33,7 +33,7 @@ test('hai người cùng thấy ô trống: người đến sau bị từ chối
   const r1 = await att(an, { status: 'present', expected: null });
   assert.equal(r1.status, 200);
   assert.equal(r1.body.cell.by, 'an');
-  const r2 = await att(binh, { status: 'late', expected: null }); // Bình vẫn thấy ô trống
+  const r2 = await att(binh, { status: 'excused', expected: null }); // Bình vẫn thấy ô trống
   assert.equal(r2.status, 409);
   assert.equal(r2.body.current.status, 'present');
   assert.equal(r2.body.current.by, 'an');
@@ -42,18 +42,18 @@ test('hai người cùng thấy ô trống: người đến sau bị từ chối
 });
 
 test('đúng trạng thái đang thấy thì ghi được; ghi nhận người sửa', async () => {
-  const r = await att(binh, { status: 'late', expected: 'present' });
+  const r = await att(binh, { status: 'excused', expected: 'present' });
   assert.equal(r.status, 200);
   const c = await cell(an);
-  assert.equal(c.status, 'late');
+  assert.equal(c.status, 'excused');
   assert.equal(c.by, 'binh');
   assert.ok(c.at);
 });
 
 test('xóa ô bằng dữ liệu cũ bị chặn; không gửi expected thì giữ hành vi cũ (ghi đè)', async () => {
-  const stale = await att(an, { status: null, expected: 'present' }); // thực tế đang là late
+  const stale = await att(an, { status: null, expected: 'present' }); // thực tế đang là excused
   assert.equal(stale.status, 409);
-  assert.equal((await cell(an)).status, 'late');
+  assert.equal((await cell(an)).status, 'excused');
   const legacy = await att(an, { status: 'absent' }); // API cũ, không có expected
   assert.equal(legacy.status, 200);
   assert.equal((await cell(binh)).status, 'absent');
@@ -68,7 +68,7 @@ test('mỗi lần ghi thành công đều phát tin realtime theo lớp; bị t�
   await att(an, { status: 'present', expected: 'absent' });
   assert.deepEqual(published.map((p) => [p.cid, p.payload.kind]), [[classId, 'attendance']]);
   published.length = 0;
-  await att(binh, { status: 'late', expected: 'absent' }); // sai expected
+  await att(binh, { status: 'excused', expected: 'absent' }); // sai expected
   assert.equal(published.length, 0);
   await an.post(`/api/classes/${classId}/sessions/${session.id}/attendance/bulk`, { status: 'present' });
   assert.equal(published.at(-1).payload.kind, 'attendance');
@@ -77,7 +77,7 @@ test('mỗi lần ghi thành công đều phát tin realtime theo lớp; bị t�
 test('bài tập: cùng cơ chế chặn ghi đè và ghi người sửa', async () => {
   const put = (c, body) => c.put(`/api/classes/${classId}/submissions`, { enrollment_id: e2, assignment_id: hw.id, ...body });
   assert.equal((await put(an, { status: 'submitted', expected: null, challenge: true })).status, 200);
-  const r = await put(binh, { status: 'missing', expected: null });
+  const r = await put(binh, { status: null, expected: null });
   assert.equal(r.status, 409);
   assert.equal(r.body.current.status, 'submitted');
   assert.equal(r.body.current.challenge, true);

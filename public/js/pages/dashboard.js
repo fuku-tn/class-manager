@@ -118,7 +118,7 @@ export async function renderDashboard({ cls, state }) {
   }
 
   const a = chartBox('Điểm danh theo buổi', 'Số học viên đang học theo từng trạng thái', d.by_session.some((x) => x.held) ? null : 'Chưa có buổi nào được điểm danh.');
-  const b = chartBox('Nộp bài tập', 'Số học viên đang học theo trạng thái nộp', d.by_assignment.some((x) => x.collected) ? null : 'Chưa thu bài tập nào.');
+  const b = chartBox('Nộp bài tập', 'Số học viên đang học đã nộp / chưa nộp', d.by_assignment.some((x) => x.collected) ? null : 'Chưa thu bài tập nào.');
   const c = chartBox('Hình thức học', 'Phân bố học viên đang học');
   root.append(h('div', { class: 'grid2' }, a.el, b.el, c.el));
 
@@ -148,14 +148,13 @@ export async function renderDashboard({ cls, state }) {
     const held = d.by_session.filter((s) => s.held);
     if (!a.empty) new Chart(a.canvas, { type: 'bar', options: opts(true), plugins: [valueLabels], data: {
       labels: held.map((s) => `B${s.session_no}`),
-      datasets: [ds('Có mặt', held.map((s) => s.present), '--ok'), ds('Đi trễ', held.map((s) => s.late), '--warn'),
+      datasets: [ds('Có mặt', held.map((s) => s.present), '--ok'),
         ds('Có phép', held.map((s) => s.excused), '--info'), ds('Vắng', held.map((s) => s.absent), '--bad')],
     } });
     const coll = sortAssignments(d.by_assignment.filter((x) => x.collected), cls);
     if (!b.empty) new Chart(b.canvas, { type: 'bar', options: opts(true), plugins: [valueLabels], data: {
       labels: coll.map((x) => assignmentLabel(x, cls, { short: true })),
-      datasets: [ds('Đã nộp', coll.map((x) => x.submitted), '--ok'), ds('Nộp lại', coll.map((x) => x.resubmit), '--warn'),
-        ds('Thiếu', coll.map((x) => x.missing), '--bad')],
+      datasets: [ds('Đã nộp', coll.map((x) => x.submitted), '--ok'), ds('Chưa nộp', coll.map((x) => x.missing), '--bad')],
     } });
     const palette = ['--cat-1', '--cat-2', '--cat-3', '--cat-4'].map(css);
     new Chart(c.canvas, { type: 'doughnut', plugins: [valueLabels], options: { responsive: true, maintainAspectRatio: false, cutout: '68%', plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } } } },

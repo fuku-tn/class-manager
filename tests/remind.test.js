@@ -187,7 +187,8 @@ test('nạp bảng: chạy thử không ghi; áp dụng chỉ ghi X, không đè
   assert.equal((await t.db.one('select count(*)::int n from submissions s join enrollments e on e.id = s.enrollment_id where e.student_id = (select student_id from enrollments where id = $1)', [enr.R3])).n, 0);
 
   // sửa tay một ô trước khi áp dụng: R5 HW2 đặt "thiếu" bằng tay → phải giữ nguyên
-  await admin.put(`${base()}/submissions`, { enrollment_id: enr.R5, assignment_id: hw[1].id, status: 'missing' });
+  const uid = (await t.db.one("select id from users where email = 'admin@x.com'")).id;   // dòng cũ do người dùng sửa tay (trạng thái cũ "thiếu" đã bỏ nhưng dữ liệu cũ còn)
+  await t.db.run("insert into submissions (enrollment_id, assignment_id, status, updated_by) values ($1, $2, 'missing', $3)", [enr.R5, hw[1].id, uid]);
   const ok = await privGv.post(`${base()}/remind/import`, { table });
   assert.equal(ok.status, 200);
   assert.equal(ok.body.kept_manual, 1);

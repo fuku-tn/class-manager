@@ -6,9 +6,9 @@ import { classDisplayName, norm, surnameInitial } from '../class-filter.mjs';
 import { createAzIndex } from '../azindex.js';
 import { openVouchers } from './vouchers.js';
 
-const STATUSES = ['present', 'late', 'absent', 'excused'];
-const SHORT = { present: '✓', late: 'T', absent: 'V', excused: 'P' };
-const LABEL = { present: 'Có mặt', late: 'Đi trễ', absent: 'Vắng', excused: 'Có phép' };
+const STATUSES = ['present', 'absent', 'excused'];
+const SHORT = { present: '✓', absent: 'V', excused: 'P' };
+const LABEL = { present: 'Có mặt', absent: 'Vắng', excused: 'Có phép' };
 const NOTE = '__note';
 
 const sameCell = (a, b) => (a?.status ?? null) === (b?.status ?? null) && (a?.note ?? null) === (b?.note ?? null) && (a?.by ?? null) === (b?.by ?? null);
@@ -64,7 +64,7 @@ export async function renderAttendance({ cls, state }) {
     if (!sum?.held) { el.textContent = '—'; el.title = 'Buổi chưa diễn ra'; el.classList.add('muted'); return; }
     el.classList.remove('muted');
     el.textContent = `${sum.attended}/${sum.roster}`;
-    el.title = `Hiện diện ${sum.attended} (đi trễ ${sum.late}) trên sĩ số ${sum.roster} · có phép ${sum.excused} · vắng ${sum.absent}`;
+    el.title = `Hiện diện ${sum.attended} trên sĩ số ${sum.roster} · có phép ${sum.excused} · vắng ${sum.absent}`;
   };
   const sessionById = (id) => data.sessions.find((s) => s.id === id);
   const applySummary = (sessionId, sum) => {
@@ -264,7 +264,7 @@ export async function renderAttendance({ cls, state }) {
     h('div', { class: 'legend' },
       h('span', {}, readOnly ? 'Chú thích: ' : 'Chọn trong ô để đổi: '),
       ...Object.entries(LABEL).map(([k, v]) => h('span', {}, h('span', { class: `cell ${k}` }, h('span', { class: 'cell-sym' }, SHORT[k])), ` ${v}`)),
-      h('span', { class: 'muted' }, `${readOnly ? '· Tài khoản khách chỉ xem ' : '· Chọn "Ghi chú…" để ghi chú '}· Số dưới tên buổi = hiện diện/sĩ số · Rê chuột vào ô để xem ai đã điểm danh · Tỉ lệ = (có mặt + trễ) / (buổi đã diễn ra − có phép)`)),
+      h('span', { class: 'muted' }, `${readOnly ? '· Tài khoản khách chỉ xem ' : '· Chọn "Ghi chú…" để ghi chú '}· Số dưới tên buổi = hiện diện/sĩ số · Rê chuột vào ô để xem ai đã điểm danh · Tỉ lệ = (có mặt + ½ có phép) / buổi đã diễn ra`)),
     h('div', { class: 'toolbar' }, search, h('label', { class: 'sort-label' }, 'Sắp xếp ', sortSelect),
       voucherBtn),
     h('div', { class: 'az-layout' }, az.el, tableWrap));

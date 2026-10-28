@@ -46,7 +46,7 @@ test('điểm danh: tính tỉ lệ, có phép tính nửa buổi', async () => 
   const [a, b] = students;
   const put = (e, s, status) => admin.put(`/api/classes/${classId}/attendance`, { enrollment_id: e.id, session_id: s.id, status });
   assert.equal((await put(a, sessions[0], 'present')).status, 200);
-  assert.equal((await put(a, sessions[1], 'late')).status, 200);
+  assert.equal((await put(a, sessions[1], 'present')).status, 200);
   assert.equal((await put(a, sessions[2], 'absent')).status, 200);
   assert.equal((await put(b, sessions[0], 'present')).status, 200);
   assert.equal((await put(b, sessions[1], 'excused')).status, 200);
@@ -87,7 +87,8 @@ test('bài tập: nộp lại không tính hoàn thành; bài chưa thu không t
   const [a, b] = students;
   const put = (e, status) => admin.put(`/api/classes/${classId}/submissions`, { enrollment_id: e.id, assignment_id: hw1.id, status, challenge: true });
   assert.equal((await put(a, 'submitted')).status, 200);
-  assert.equal((await put(b, 'resubmit')).status, 200);
+  assert.equal((await put(b, 'resubmit')).status, 400);   // đã bỏ "nộp lại"/"thiếu"
+  assert.equal((await put(b, 'missing')).status, 400);
   assert.equal((await admin.put(`/api/classes/${classId}/submissions`, { enrollment_id: a.id, assignment_id: hw1.id, status: 'xyz' })).status, 400);
   const list = (await admin.get(`/api/classes/${classId}/students`)).body;
   const byId = Object.fromEntries(list.map((s) => [s.id, s]));

@@ -21,14 +21,19 @@ before(async () => {
 });
 after(async () => { await t.close(); });
 
+test('đã bỏ trạng thái "đi trễ": chỉ có mặt / có phép / vắng', async () => {
+  const r = await put({ enrollment_id: enrolls[3].id, session_id: sessions[2].id, status: 'late' });
+  assert.equal(r.status, 400);
+});
+
 test('PUT điểm danh trả về % chuyên cần của học viên và hiện diện/sĩ số của buổi ngay lập tức', async () => {
   const [a, b, c] = enrolls;
   assert.equal((await put({ enrollment_id: a.id, session_id: sessions[0].id, status: 'present' })).status, 200);
-  assert.equal((await put({ enrollment_id: b.id, session_id: sessions[0].id, status: 'late' })).status, 200);
+  assert.equal((await put({ enrollment_id: b.id, session_id: sessions[0].id, status: 'present' })).status, 200);
   const r = await put({ enrollment_id: c.id, session_id: sessions[0].id, status: 'excused' });
   assert.equal(r.status, 200);
-  // buổi 1: 4 sĩ số, có mặt 1 + trễ 1 = 2 hiện diện, 1 có phép, 1 vắng (Dũng chưa điểm danh)
-  assert.deepEqual(r.body.session, { held: true, roster: 4, attended: 2, late: 1, excused: 1, absent: 1 });
+  // buổi 1: 4 sĩ số, 2 có mặt, 1 có phép, 1 vắng (Dũng chưa điểm danh)
+  assert.deepEqual(r.body.session, { held: true, roster: 4, attended: 2, excused: 1, absent: 1 });
   // Chi: 1 buổi đã diễn ra, có phép -> 0,5/1
   assert.equal(r.body.enrollment.attendance_rate, 0.5);
   assert.equal(r.body.enrollment.excused, 1);

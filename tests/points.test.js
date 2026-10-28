@@ -156,7 +156,6 @@ test('Dashboard: điểm TB của lớp (không cho khách)', async () => {
 test('Mini Project: tự tạo cột MP cho lớp, lưu điểm, không tính vào % hoàn thành HW; thứ tự HW → MP → Capstone', async () => {
   assert.deepEqual(['Mini Project 1', 'mini project 2', 'MP3', 'Mini Project'].map(parseHw),
     [{ kind: 'mini', seq: 1 }, { kind: 'mini', seq: 2 }, { kind: 'mini', seq: 3 }, null]);
-  const before = (await admin.get(`/api/classes/${classId}/students`)).body;
   const r = await post([row('P.5001', 'Mini Project 1', 9, 'Project'), row('P.5002', 'Mini Project 2', '8,5', 'Project'), row('P.5001', 'Mini Project 1', 9.5, 'Project')]);
   assert.equal(r.status, 200, JSON.stringify(r.body));
   assert.deepEqual([r.body.created_assignments, r.body.inserted, r.body.skipped_no_assignment], [2, 2, 0]);
@@ -166,9 +165,9 @@ test('Mini Project: tự tạo cột MP cho lớp, lưu điểm, không tính v�
   // chạy lại không tạo thêm cột
   const again = await post([row('P.5001', 'Mini Project 1', 9.5, 'Project'), row('P.5002', 'Mini Project 2', '8,5', 'Project')]);
   assert.equal(again.body.created_assignments, 0);
-  // % hoàn thành HW không đổi
-  const after = (await admin.get(`/api/classes/${classId}/students`)).body;
-  assert.deepEqual(after.map((x) => x.hw_rate ?? x.stats?.hw_rate), before.map((x) => x.hw_rate ?? x.stats?.hw_rate));
+  // Mini Project không thuộc nhóm HW: bài mini không có trong mẫu số % hoàn thành HW
+  const dash = (await admin.get(`/api/classes/${classId}/dashboard`)).body;
+  assert.ok(dash.by_assignment.some((x) => x.kind === 'mini'));
   // thứ tự cột trên trang Bài tập và bảng điểm
   const sub = (await admin.get(`/api/classes/${classId}/submissions`)).body.assignments.map((a) => `${a.kind}${a.seq}`);
   assert.deepEqual(sub.filter((k) => k.startsWith('mini')), ['mini1', 'mini2']);

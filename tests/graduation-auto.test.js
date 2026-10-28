@@ -72,7 +72,7 @@ test('không đặt kết quả tay, không "áp dụng gợi ý"; ghi chú / ch
 test('đổi tick / điểm danh thì kết quả tự đổi theo', async () => {
   await t.db.run('insert into homework_scores (enrollment_id, assignment_id, score) values ($1, $2, 7)', [enr.B1, asg.mini1.id]);
   await admin.put(`${base()}/attendance`, { enrollment_id: enr.C1, session_id: sessions[8].id, status: 'present' });
-  await admin.put(`${base()}/submissions`, { enrollment_id: enr.A1, assignment_id: asg.hw2.id, status: 'missing' });
+  await admin.put(`${base()}/submissions`, { enrollment_id: enr.A1, assignment_id: asg.hw2.id, status: null });
   const by = await byCode();
   assert.deepEqual([by.A1.result, by.B1.result, by.C1.result], ['failed', 'passed', 'passed']);
   assert.deepEqual(by.A1.missing, ['HW2']);
@@ -81,13 +81,13 @@ test('đổi tick / điểm danh thì kết quả tự đổi theo', async () =>
 
 test('lớp còn đang học (hoặc đang nộp & chấm bài): chưa đủ thì là "Đang học", chưa kết luận chưa đạt', async () => {
   await t.db.run("update classes set end_date = (now() + interval '30 days')::date where id = $1", [classId]);
-  await admin.put(`${base()}/submissions`, { enrollment_id: enr.B1, assignment_id: asg.capstone1.id, status: 'missing' });
+  await admin.put(`${base()}/submissions`, { enrollment_id: enr.B1, assignment_id: asg.capstone1.id, status: null });
   const by = await byCode();
   assert.deepEqual([by.A1.result, by.B1.result], ['passed', 'in_progress']);
   await admin.put(`${base()}/submissions`, { enrollment_id: enr.B1, assignment_id: asg.capstone1.id, status: 'submitted' });
   // trong 14 ngày nộp & chấm bài sau buổi cuối: vẫn "Đang học"
   await t.db.run("update classes set end_date = (now() - interval '3 days')::date where id = $1", [classId]);
-  await admin.put(`${base()}/submissions`, { enrollment_id: enr.B1, assignment_id: asg.capstone1.id, status: 'missing' });
+  await admin.put(`${base()}/submissions`, { enrollment_id: enr.B1, assignment_id: asg.capstone1.id, status: null });
   assert.equal((await byCode()).B1.result, 'in_progress');
   await admin.put(`${base()}/submissions`, { enrollment_id: enr.B1, assignment_id: asg.capstone1.id, status: 'submitted' });
   await t.db.run("update classes set end_date = '2026-02-01' where id = $1", [classId]);
@@ -123,7 +123,7 @@ test('có điểm thì phải ≥ 6 mới tính là làm bài; HW6 trở đi kh�
   await t.db.run('delete from homework_scores where enrollment_id = $1 and assignment_id = $2', [enr.B1, asg.hw2.id]);
   await t.db.run('update homework_scores set score = 8 where enrollment_id = $1 and assignment_id = $2', [enr.A1, asg.mini1.id]);
   // lớp không có Project: bỏ bài Capstone thì không còn bắt buộc
-  await admin.put(`${base()}/submissions`, { enrollment_id: enr.A1, assignment_id: asg.capstone1.id, status: 'missing' });
+  await admin.put(`${base()}/submissions`, { enrollment_id: enr.A1, assignment_id: asg.capstone1.id, status: null });
   assert.deepEqual((await byCode()).A1.missing, ['Capstone']);
   await t.db.run('delete from assignments where id = $1', [asg.capstone1.id]);
   by = await byCode();

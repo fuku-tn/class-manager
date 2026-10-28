@@ -4,11 +4,13 @@
 //  1b. Lớp CHƯA có dòng nào trong Calendar (và chưa kết thúc quá 14 ngày) thì sinh lịch dự kiến từ tab COURSE:
 //     từ start_date, đúng các thứ trong days_of_week (2–6 = Thứ 2–6, 7 = Thứ 7, 8 = Chủ nhật), đủ số buổi của lớp,
 //     ca = classes.shift; buổi đầu ghi chú "Khai giảng", buổi cuối "Bế giảng". Lớp không có thứ học (vd B2B) thì bỏ qua.
-//     Có dòng thật trong Calendar thì lượt đồng bộ sau tự thay thế (mỗi lượt xóa và nạp lại toàn bộ).
+//     Dòng tự sinh được XÓA VÀ SINH LẠI mỗi lần chạy nên luôn khớp ngày khai giảng/kết thúc/thứ học hiện tại của lớp; có dòng thật trong
+//     Calendar thì lớp đó không còn bị sinh. Chạy sau mỗi lượt đồng bộ lịch, đồng bộ đăng ký (đổi lớp/ngày) và khi sửa lớp — xem refreshSchedule.
 //  2. Giảng viên mặc định (chủ dự án chốt 25/10/2026) khi Sheet để trống: EBA và PBM buổi 9–10 → Phạm Hoài An;
 //     BIE, SCA, BIH và PBM buổi 1–8 → Bùi Trường Sơn. Sheet có ghi giảng viên thì giữ nguyên.
 const AN = 'Phạm Hoài An';
 const SON = 'Bùi Trường Sơn';
+const GENERATED = 'Lịch dự kiến (tự sinh từ ngày khai giảng)';   // nhận biết dòng tự sinh (xóa và sinh lại mỗi lần chạy)
 
 const programOf = (short) => /^[A-Z]+/.exec(String(short ?? '').toUpperCase())?.[0] ?? '';
 
@@ -29,6 +31,7 @@ const dayNum = (s) => Math.round(Date.parse(`${String(s).slice(0, 10)}T00:00:00Z
 // `t` là transaction (db.tx). Trả số liệu để đưa vào báo cáo đồng bộ.
 async function normalizeSchedule(t) {
   const out = { aligned_classes: 0, misaligned_classes: 0, instructors_filled: 0 };
+  await t.run('delete from teaching_schedule where content = $1', [GENERATED]);
   const firsts = await t.all(
     `select c.id, c.short_code, c.start_date::text as start_date, min(s.session_date)::text as first_date, min(s.session_no) as first_no
        from classes c join teaching_schedule s on s.class_id = c.id
@@ -74,7 +77,7 @@ async function normalizeSchedule(t) {
       `insert into teaching_schedule (class_id, short_code, session_date, shift, session_no, content, mode, segment, note)
        select * from unnest($1::bigint[], $2::text[], $3::date[], $4::text[], $5::int[], $6::text[], $7::text[], $8::text[], $9::text[])`,
       [col((r) => r.c.id), col((r) => r.c.short_code), col((r) => r.date), col((r) => r.c.shift), col((r) => r.no),
-        col(() => 'Lịch dự kiến (tự sinh từ ngày khai giảng)'), col((r) => r.c.delivery_mode), col((r) => (r.c.b2b ? 'B2B' : 'B2C')), col((r) => r.note)]);
+        col(() => GENERATED), col((r) => r.c.delivery_mode), col((r) => (r.c.b2b ? 'B2B' : 'B2C')), col((r) => r.note)]);
   }
   out.generated_rows = rows.length;
   const blanks = await t.all("select id, short_code, session_no from teaching_schedule where instructor is null or btrim(instructor) = ''");
@@ -90,4 +93,9 @@ async function normalizeSchedule(t) {
   return out;
 }
 
-module.exports = { normalizeSchedule, defaultInstructor, programOf, AN, SON };
+// Gọi sau khi lớp/ngày thay đổi (không làm hỏng thao tác chính nếu lỗi). Trả số liệu hoặc null.
+async function refreshSchedule(db) {
+  try { return await db.tx((t) => normalizeSchedule(t)); } catch (e) { console.error('[lịch giảng] không làm mới được:', e.message); return null; }
+}
+
+module.exports = { GENERATED, refreshSchedule, normalizeSchedule, defaultInstructor, programOf, AN, SON };

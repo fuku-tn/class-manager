@@ -21,13 +21,13 @@ Chủ dự án (giảng viên/quản lý đào tạo) hiện lưu danh sách h�
 | Hình thức (mode) | Online / Offline / Hybrid |
 
 ## Trạng thái
-- Điểm danh: `present` Có mặt · `late` Đi trễ · `absent` Vắng · `excused` Có phép
-- Bài tập: `submitted` Đã nộp · `resubmit` Nộp lại · `missing` Thiếu
+- Điểm danh: `present` Có mặt (đã bỏ "đi trễ" 28/10/2026) · `absent` Vắng · `excused` Có phép
+- Bài tập: chỉ `submitted` Đã nộp (ô trống = chưa nộp). Có điểm = tự tính là đã nộp
 - Khóa học: `active` Đang học · `deferred` Bảo lưu · `dropped` Nghỉ học · `completed` Hoàn thành
 
 ## Quy tắc nghiệp vụ (nguồn sự thật: `src/services/stats.js`)
-1. **Tỉ lệ điểm danh** = (có mặt + trễ + 0,5 × số buổi có phép) ÷ số buổi đã diễn ra. Có phép chỉ được nửa buổi đi học và vẫn nằm trong mẫu số. Chưa có bản ghi ở buổi đã diễn ra = vắng.
-2. **Tỉ lệ HW** = số HW `submitted` ÷ số HW đã thu. `resubmit` chưa tính. Chưa có bản ghi ở bài đã thu = thiếu.
+1. **Tỉ lệ điểm danh** = (có mặt + 0,5 × số buổi có phép) ÷ số buổi đã diễn ra. Có phép chỉ được nửa buổi đi học và vẫn nằm trong mẫu số. Chưa có bản ghi ở buổi đã diễn ra = vắng.
+2. **Tỉ lệ HW** = số HW đã nộp (tick hoặc có điểm) ÷ số HW đã giao (đã có người nộp/có điểm). Ô trống ở bài đã giao = chưa nộp.
 3. Buổi/bài **chưa diễn ra/chưa thu** không làm giảm tỉ lệ của ai. Một buổi tự chuyển sang "đã diễn ra" khi có điểm danh đầu tiên (hoặc bấm "Cả lớp ✓").
 4. Dashboard chỉ tính học viên `active` + `completed`; bảo lưu/nghỉ chỉ hiện ở số liệu tổng.
 5. "Cần chú ý": điểm danh < 80% hoặc thiếu ≥ 2 HW (cấu hình bằng biến môi trường).
@@ -52,12 +52,12 @@ Sheet **ẩn** (`Sheet1`, `SQL`, `BIH-Pre`, `BSM`, `BSM-Pre`, `General`) là b�
 ### Quy tắc ô điểm danh (chủ dự án xác nhận 2026-10-10)
 | Ô | Nghĩa | Trạng thái trong app |
 |---|---|---|
-| `X` hoặc `x` | Đi học | `present` (ghi chú có "trễ" → `late`, vẫn tính đi học) |
+| `X` hoặc `x` | Đi học | `present` (ghi chú "trễ" chỉ là ghi chú) |
 | `O` | Vắng **có phép** | `excused` |
 | trống | Vắng | `absent` |
 | chữ khác (`Đã báo trước`...) | Không thuộc quy tắc | `absent` + cảnh báo khi nhập |
 - Buổi **không ai có X hoặc O** = chưa diễn ra → không có bản ghi, không kéo tụt tỉ lệ.
-- **Tỉ lệ chuyên cần** = (có mặt + trễ + 0,5 × số buổi có phép) ÷ số buổi đã diễn ra (chủ dự án chốt 26/10/2026). Vắng có phép tính **nửa buổi**, không bị loại khỏi mẫu số. Cột `ATTENDANCE RATE` trong Excel tính khác (X ÷ **tổng số buổi của khóa**, coi `O` như vắng) nên sẽ không khớp app.
+- **Tỉ lệ chuyên cần** = (có mặt + 0,5 × số buổi có phép) ÷ số buổi đã diễn ra (chủ dự án chốt 26/10/2026). Vắng có phép tính **nửa buổi**, không bị loại khỏi mẫu số. Cột `ATTENDANCE RATE` trong Excel tính khác (X ÷ **tổng số buổi của khóa**, coi `O` như vắng) nên sẽ không khớp app.
 - Bài tập: `X` = đã nộp, trống = thiếu (chỉ tính bài đã có người nộp).
 - `COURSE STATUS`: `Deferred` → bảo lưu; `Canceled` → nghỉ; trống → đang học (không hạ trạng thái đã có).
 - Mã lớp trong file có thể lệch chữ `P`/`B` so với sheet Course (vd `P2.BIE.P088…` ↔ `B088`): khớp theo mã ngắn (`BIE088`).
@@ -122,6 +122,6 @@ Excel là bảng "rộng" (mỗi buổi = 2 cột). Cơ sở dữ liệu nên l�
 - Mỗi lớp có tab **Tốt nghiệp**: với từng học viên đang học/hoàn thành, hệ thống đưa ra **gợi ý** "Đạt/Chưa đạt" theo quy tắc của giáo trình; **kết quả cuối do người đặt** (Chưa xét / Tốt nghiệp / Chưa đạt), kèm ghi chú và thông tin chứng chỉ (trạng thái, số, ngày gửi).
 - **Quy tắc theo giáo trình** (admin sửa được): chuyên cần ≥ ngưỡng, số bài HW hoàn thành ≥ yêu cầu trong N bài đầu, có nộp Capstone. Trạng thái: **chưa có quy định** (không gợi ý, đặt kết quả thủ công), **tạm** (theo công thức Excel cũ: BIE-8 HW 2/2, BIE-12 HW 5/7, BIH-20 HW 5/5, đều kèm Capstone và chuyên cần ≥ 80%) hoặc **đã xác nhận** (admin đã lưu). BIH-11 và các lớp chưa gắn giáo trình (EBA, SIA, SCA, PBM, DDM…) hiện **chưa có quy định** — chủ dự án sẽ cung cấp điều kiện tốt nghiệp chính thức sau.
 - **Ai đặt kết quả:** mọi giảng viên được phân lớp và admin; công bố, sửa quy tắc và sửa sau khi công bố chỉ admin.
-- "Nộp lại" chưa tính là hoàn thành HW. Chưa có buổi nào được điểm danh thì "chưa đủ dữ liệu" (không gợi ý).
+- Chưa có buổi nào được điểm danh thì "chưa đủ dữ liệu" (không gợi ý).
 - **Công bố danh sách** (admin) vào giai đoạn "Công bố tốt nghiệp"; sau khi công bố giảng viên không sửa được, admin vẫn sửa và có thể hủy công bố.
 - Sắp tới: điểm từng Module sẽ được thêm vào quy tắc (chủ dự án sẽ đưa quy trình).

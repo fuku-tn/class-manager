@@ -111,7 +111,7 @@ erDiagram
 | `curricula`, `curriculum_items` | Giáo trình (BIE-8, BIE-12, BIH-20, BIH-11, EBA-6, PBM-10) | Cột `grad_*` giữ quy tắc tốt nghiệp theo giáo trình |
 | `students`, `enrollments` | Học viên (mã `P.xxxxx` / `B.xxxxx`) và ghi danh vào lớp | `enrollments`: `course_status`, `segment` (b2c/b2b), `sheet_status` (nhãn STATUS), `origin` (web/sheet/import), kết quả tốt nghiệp |
 | `sessions`, `attendance` | Buổi học, trạng thái từng học viên từng buổi | `attendance.status`: present / late / absent / excused; ô trống = vắng |
-| `assignments`, `submissions` | HW / Mini Project / Capstone, trạng thái nộp | `submitted` / `resubmit` / `missing`; cờ `challenge` |
+| `assignments`, `submissions` | HW / Mini Project / Capstone, trạng thái nộp | chỉ còn `submitted` (ô trống = chưa nộp; bỏ nộp lại/thiếu 28/10/2026); cờ `challenge`. **Có điểm trong `homework_scores` = tự tính là đã nộp** |
 | `homework_scores` | Điểm thang 10 từ Sheet điểm | Tách riêng khỏi `submissions`: không làm đổi tiến độ nộp bài |
 | `potential_students` | Người có trong PERSONAL nhưng không vào danh sách lớp | `snapshot` giữ điểm danh/bài tập để khôi phục |
 | `enrollment_events` | Nhật ký ghi danh (append-only) | Chụp mã/tên/lớp nên đọc được cả khi bản ghi gốc đã xóa |
@@ -128,7 +128,7 @@ erDiagram
 
 ### 5.1 Chuyên cần (`stats.js`)
 ```
-tỉ_lệ_chuyên_cần = (có_mặt + đi_trễ + 0,5 × số_buổi_vắng_có_phép) ÷ số_buổi_đã_diễn_ra
+tỉ_lệ_chuyên_cần = (có_mặt + 0,5 × số_buổi_vắng_có_phép) ÷ số_buổi_đã_diễn_ra
 ```
 Vắng có phép tính **nửa buổi** (0,5) và vẫn nằm trong mẫu số; mẫu số ≤ 0 thì không có giá trị (`null`). Ô chưa điểm danh của buổi đã diễn ra tính là vắng.
 

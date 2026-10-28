@@ -21,11 +21,11 @@ if (!file) {
   try {
     const r = await importExcel(db, path.resolve(file), { dryRun, sheets, classes });
     const pad = (v, n) => String(v).padEnd(n);
-    console.log(`${pad('Sheet', 8)}${pad('Lớp', 28)}${pad('HV', 5)}${pad('Buổi', 6)}${pad('Có mặt', 8)}${pad('Trễ', 5)}${pad('Có phép', 9)}${pad('Vắng', 6)}${pad('Giữ từ app', 11)}Ghi chú`);
-    const total = { students: 0, new_students: 0, present: 0, late: 0, excused: 0, absent: 0, submissions: 0, kept_from_app: 0, sessions_created: 0 };
+    console.log(`${pad('Sheet', 8)}${pad('Lớp', 28)}${pad('HV', 5)}${pad('Buổi', 6)}${pad('Có mặt', 8)}${pad('Có phép', 9)}${pad('Vắng', 6)}${pad('Giữ từ app', 11)}Ghi chú`);
+    const total = { students: 0, new_students: 0, present: 0, excused: 0, absent: 0, submissions: 0, kept_from_app: 0, sessions_created: 0 };
     for (const c of r.classes) {
       for (const k of Object.keys(total)) total[k] += c[k] ?? 0;
-      console.log(`${pad(c.sheet, 8)}${pad(c.class_code, 28)}${pad(c.students, 5)}${pad(c.sessions_held, 6)}${pad(c.present, 8)}${pad(c.late, 5)}${pad(c.excused, 9)}${pad(c.absent, 6)}${pad(c.kept_from_app, 11)}${c.new_class ? 'LỚP MỚI ' : ''}${c.curriculum_changed ? 'đổi giáo trình ' : ''}${c.new_students ? `+${c.new_students} HV mới` : ''}`);
+      console.log(`${pad(c.sheet, 8)}${pad(c.class_code, 28)}${pad(c.students, 5)}${pad(c.sessions_held, 6)}${pad(c.present, 8)}${pad(c.excused, 9)}${pad(c.absent, 6)}${pad(c.kept_from_app, 11)}${c.new_class ? 'LỚP MỚI ' : ''}${c.curriculum_changed ? 'đổi giáo trình ' : ''}${c.new_students ? `+${c.new_students} HV mới` : ''}`);
     }
     console.log('\nTổng:', JSON.stringify(total));
     console.log('Lớp:', r.classes.length, '| sheet bỏ qua:', r.skipped_sheets.join('; ') || '(không)', '| dòng không phải học viên:', r.skipped_rows);

@@ -29,7 +29,7 @@ module.exports = (db) => {
     const active = classes.filter((c) => ACTIVE_TIMINGS.includes(c.timing)); // đang học + nộp/chấm bài + công bố tốt nghiệp
     const rateRows = active.length ? await db.all(
       `select e.class_id,
-              count(*) filter (where a.status in ('present','late'))::int as att,
+              count(*) filter (where a.status = 'present')::int as att,
               count(*) filter (where a.status = 'excused')::int as exc,
               count(*)::int as total
        from enrollments e

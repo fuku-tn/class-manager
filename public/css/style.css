@@ -431,8 +431,7 @@ th .small { text-transform: none; letter-spacing: 0; font-weight: 500; color: va
 .cell { min-width: 2.5rem; padding: .22rem .45rem; font-weight: 600; border-radius: 9px; }
 .cell.empty { color: var(--muted); border-style: dashed; background: transparent; }
 .cell.present, .cell.submitted { background: var(--ok-bg); color: var(--ok); border-color: transparent; }
-.cell.late, .cell.resubmit { background: var(--warn-bg); color: var(--warn); border-color: transparent; }
-.cell.absent, .cell.missing { background: var(--bad-bg); color: var(--bad); border-color: transparent; }
+.cell.absent { background: var(--bad-bg); color: var(--bad); border-color: transparent; }
 .cell.excused { background: var(--info-bg); color: var(--info); border-color: transparent; }
 .cell.has-note::after { content: "•"; margin-left: 2px; }
 /* Ô bài tập có điểm (trang Bài tập): dấu trạng thái nhỏ + điểm in đậm; màu ô vẫn theo trạng thái */

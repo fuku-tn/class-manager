@@ -131,6 +131,14 @@ test('lỗi và giới hạn: thiếu cột Path/Point báo 422; bài chưa có 
 test('Module: nguồn không có Module (SharePoint) và dòng Excel trống Module đều được điền theo bảng Module như XLOOKUP của quy trình Excel; tên đảo thứ tự họ–tên vẫn ghép được', async () => {
   const { moduleFor } = require('../src/services/scoreModules');
   assert.equal(moduleFor('BIE101', 'hw', 2), 'Data Transformation');
+  // BIE trước BIE104 giữ Module cũ; BIE104: 6 HW; từ BIE105: bộ module mới
+  assert.equal(moduleFor('BIE101', 'hw', 5), 'Data Visualization');   // lớp cũ giữ nguyên Module
+  assert.deepEqual([5, 6].map((n) => moduleFor('BIE104', 'hw', n)), ['Data Visualization (IBCS)', 'Data Storytelling']);
+  assert.deepEqual([1, 2, 3, 4, 5].map((n) => moduleFor('BIE105', 'hw', n)),
+    ['Business Intelligence Literacy', 'Data Transformation', 'Data Modeling', 'Data Visualization (IBCS)', 'Data Storytelling']);
+  assert.equal(moduleFor('BIE108', 'capstone', 1), 'Project');
+  const { hwCountFor } = require('../src/services/scoreModules');
+  assert.deepEqual(['BIE104', 'BIE105', 'BIH100', 'EBA118'].map(hwCountFor), [6, 5, 5, null]);
   assert.equal(moduleFor('BIH100', 'mini', 3), 'Data Problem Solving');
   assert.equal(moduleFor('EBA118', 'capstone', 1), 'Project');
   assert.equal(moduleFor('PBM021', 'hw', 1), null, 'chương trình chưa có bảng Module thì để trống');

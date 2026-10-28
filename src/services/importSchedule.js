@@ -2,7 +2,7 @@
 // Sheet là bản chuẩn: mỗi lượt đồng bộ THAY TOÀN BỘ lịch (có chốt chặn nếu Sheet bỗng ít dòng hơn hẳn). Chỉ đọc các cột trong SCHEDULE_COLUMNS.
 // Không có dữ liệu học viên hay tiền. Mã khóa chuẩn hóa như điểm: "BIH98" → BIH098 (normalizeCourse).
 const { normalizeCourse } = require('./importPoints');
-const { normalizeSchedule } = require('./scheduleRules');
+const { normalizeSchedule, GENERATED } = require('./scheduleRules');
 
 const SCHEDULE_COLUMNS = ['NGÀY', 'BUỔI', 'KHÓA', 'NỘI DUNG', 'SỐ BUỔI', 'HÌNH THỨC', 'LOẠI', 'GHI CHÚ', 'GIẢNG VIÊN'];
 const MIN_KEEP_RATIO = 0.5;   // lượt mới ít hơn 50% số dòng đang có (khi đã có ≥ 20 dòng) → từ chối, không ghi gì
@@ -73,7 +73,7 @@ async function importSchedule(db, table, { dryRun = false } = {}) {
   const ROLLBACK = Symbol('rollback');
   try {
     await db.tx(async (t) => {
-      const before = (await t.one("select count(*)::int as n from teaching_schedule where content is distinct from 'Lịch dự kiến (tự sinh từ ngày khai giảng)'")).n;   // chốt chặn chỉ đếm dòng từ Sheet, không đếm dòng tự sinh
+      const before = (await t.one("select count(*)::int as n from teaching_schedule where content is distinct from $1", [GENERATED])).n;   // chốt chặn chỉ đếm dòng từ Sheet, không đếm dòng tự sinh
       if (before >= MIN_GUARD_ROWS && parsed.rows.length < before * MIN_KEEP_RATIO) {
         const e = new Error(`Lịch mới chỉ có ${parsed.rows.length} dòng hợp lệ so với ${before} dòng đang có — nghi Sheet lỗi, không cập nhật`);
         e.status = 409; e.expose = true; throw e;

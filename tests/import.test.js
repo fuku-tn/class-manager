@@ -99,7 +99,7 @@ test('nhập: sheet ẩn bị bỏ qua, ô đúng quy tắc, có phép tính n�
   const { m } = await statuses(db, 'BIE070');
   // Buổi 4 không ai có X/O → chưa diễn ra → không có bản ghi (không phải "vắng")
   assert.deepEqual(m['P.1'], { 1: 'present', 2: 'present', 3: 'excused' });
-  assert.deepEqual(m['P.2'], { 1: 'late', 2: 'excused', 3: 'absent' });  // "Vào trễ" → trễ (vẫn tính đi học)
+  assert.deepEqual(m['P.2'], { 1: 'present', 2: 'excused', 3: 'absent' });  // "Vào trễ" chỉ là ghi chú: đã bỏ trạng thái đi trễ
   assert.deepEqual(m['P.3'], { 1: 'absent', 2: 'present', 3: 'present' }); // 'abc' ở buổi 4 chưa diễn ra
   assert.deepEqual(m['P.4'], { 1: 'present', 2: 'present', 3: 'present' }); // "X\nX" → có mặt
   assert.ok(r.warnings.some((w) => /abc/.test(w)));
@@ -111,7 +111,7 @@ test('nhập: sheet ẩn bị bỏ qua, ô đúng quy tắc, có phép tính n�
   assert.deepEqual(data.sessions.filter((s) => s.held).map((s) => s.session_no), [1, 2, 3]);
   const stats = computeEnrollmentStats(data);
   const rateOf = (code) => stats.get(data.enrollments.find((e) => e.student_code === code).id).attendance_rate;
-  // An: (2 có mặt + 0,5 có phép)/3 = 0.83; Bình: (1 trễ + 0,5 có phép)/3 = 0.5; Chi: 2/3; Dũng: 3/3
+  // An: (2 có mặt + 0,5 có phép)/3 = 0.83; Bình: (1 có mặt + 0,5 có phép)/3 = 0.5; Chi: 2/3; Dũng: 3/3
   assert.equal(rateOf('P.1'), 0.83);
   assert.equal(rateOf('P.2'), 0.5);
   assert.equal(rateOf('P.3'), 0.67);
@@ -230,6 +230,6 @@ test('nhập: --classes chỉ nhập lớp được chọn; BIH073 lấy PROJECT
   assert.deepEqual(asg, [{ kind: 'capstone', seq: 1 }, { kind: 'hw', seq: 1 }]);              // không có HW6 trống
   const cap = await db.all(`select s.student_code, b.status from submissions b join assignments a on a.id = b.assignment_id
     join enrollments e on e.id = b.enrollment_id join students s on s.id = e.student_id where a.kind = 'capstone' order by 1`);
-  assert.deepEqual(cap, [{ student_code: 'P.731', status: 'submitted' }, { student_code: 'P.732', status: 'missing' }]);
+  assert.deepEqual(cap, [{ student_code: 'P.731', status: 'submitted' }]);   // ô trống = chưa nộp (không ghi dòng "thiếu")
   await db.close();
 });

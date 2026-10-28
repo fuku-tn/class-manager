@@ -133,7 +133,7 @@ Xem thêm: [sitemap.md](sitemap.md) · [user-flow.md](user-flow.md).
 │ │ ▮ ▮ ▮ ▮ ▮ ▮         │ │ ▮ ▮ ▮ ▮ ▮          │ │   ◔ 16 Hybrid    │              │
 │ │ số ghi trên từng đoạn│ │ số ghi trên cột     │ │   ● 8 Offline    │              │
 │ │ B1 B2 B3 B4 B5 B6   │ │ HW1 HW2 HW3 HW4 HW5 │ │                  │              │
-│ │ ● Có mặt ● Trễ …     │ │ ● Đã nộp ● Nộp lại │ │                  │              │
+│ │ ● Có mặt ● Có phép … │ │ ● Đã nộp ● Chưa nộp│ │                  │              │
 │ └─────────────────────┘ └─────────────────────┘ └──────────────────┘              │
 │ (admin) ┌ Hồ sơ lớp từ phiếu đăng ký ┐ ┌ Khảo sát sau khóa của lớp ┐             │
 │ CẦN CHÚ Ý — Học viên cần chú ý (24)                                              │
@@ -174,7 +174,7 @@ Xem thêm: [sitemap.md](sitemap.md) · [user-flow.md](user-flow.md).
 ```
 ┌ [Thanh trên] ─────────────────────────────────────────────────────────────────────┐
 │ Điểm danh [BIE 101]  ● Tự làm mới                                                 │
-│ Chọn trong ô để đổi:  [✓ Có mặt] [T Đi trễ] [V Vắng] [P Có phép]  · số dưới tên    │
+│ Chọn trong ô để đổi:  [✓ Có mặt] [V Vắng] [P Có phép]        · số dưới tên    │
 │ buổi = hiện diện/sĩ số                                                             │
 │ (🔍 Tìm học viên…)                                      Sắp xếp [Mặc định v]       │
 │ ┌────────────────┬────────┬────────┬────────┬────────┬── … ──┬────────┐           │
@@ -198,7 +198,7 @@ Xem thêm: [sitemap.md](sitemap.md) · [user-flow.md](user-flow.md).
 ```
 ┌ [Thanh trên] ───────────────────────────────────────────────────────────────────┐
 │ Bài tập [BIE 101]  ● Tự làm mới                                                 │
-│ Bấm ô để cập nhật: [✓ Đã nộp] [↻ Nộp lại] [✗ Thiếu]  ★ = có làm Challenge        │
+│ Bấm ô để cập nhật: [✓ Đã nộp]  ★ = có làm Challenge · có điểm = đã nộp      │
 │ (Điểm TB cả lớp 7.88 /10)  22/24 học viên có điểm · 4 bài đã có điểm  (ẩn với khách)│
 │ (🔍 Tìm học viên…)  [Trạng thái + điểm] [Chỉ điểm] [Chỉ trạng thái]              │
 │ ┌────────────────┬───────┬───────┬───────┬───────┬──────┬─────────────┬─────────┐ │

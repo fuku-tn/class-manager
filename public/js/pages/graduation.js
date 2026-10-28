@@ -5,7 +5,7 @@ import { h, toast, pct, formModal, confirmModal, downloadCsv, setChildren, fmtWh
 import { classDisplayName, fmtDate, TIMING_LABEL, norm } from '../class-filter.mjs';
 
 const DECISION = { pending: 'Chưa xét', passed: 'Tốt nghiệp', failed: 'Chưa đạt' };
-const CAPSTONE = { submitted: 'Đã nộp', resubmit: 'Nộp lại', missing: 'Thiếu' };
+const CAPSTONE = { submitted: 'Đã nộp' };
 // Xét tự động (BIE-8, BIE-12, BIH-20, BIH-11): kết quả tính từ số buổi + bài đã làm, không đặt tay
 const AUTO_RESULT = { passed: 'Tốt nghiệp', failed: 'Chưa đạt', in_progress: 'Đang học', no_data: 'Chưa đủ dữ liệu', pending: 'Chưa xét' };
 const AUTO_BADGE = { passed: 'ok', failed: 'bad', in_progress: 'warn', no_data: '', pending: '' };

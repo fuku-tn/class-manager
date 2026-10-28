@@ -2,6 +2,7 @@ const express = require('express');
 const { requireAdmin, requireClassAccess } = require('../auth');
 const { buildDashboard } = require('../services/stats');
 const realtime = require('../services/realtime');
+const { refreshSchedule } = require('../services/scheduleRules');
 const { TIMING_SQL, PHASE_DATES_SQL } = require('../services/timing');
 
 const isDate = (v) => v == null || v === '' || /^\d{4}-\d{2}-\d{2}$/.test(v);
@@ -47,6 +48,7 @@ module.exports = (db) => {
       await t.run("insert into assignments (class_id, kind, seq, title) values ($1, 'capstone', 1, 'Capstone Project')", [c.id]);
       return c;
     });
+    await refreshSchedule(db);
     res.status(201).json(created);
   });
 
@@ -58,6 +60,7 @@ module.exports = (db) => {
     if (status && !['active', 'finished', 'archived'].includes(status)) return res.status(400).json({ error: 'Trạng thái không hợp lệ' });
     const c = await db.one('update classes set name = $1, phase = $2, start_date = $3, status = $4 where id = $5 returning *',
       [name || req.cls.name, phase ?? req.cls.phase, start_date || req.cls.start_date, status || req.cls.status, req.cls.id]);
+    await refreshSchedule(db);   // đổi ngày khai giảng → lịch giảng dạy khớp lại
     res.json(c);
   });
 

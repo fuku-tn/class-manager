@@ -102,10 +102,12 @@ test('xóa điểm gõ tay: để trống; điểm bị người khác đổi tr
   assert.equal(await cell('P.7002'), null);
 });
 
-test('gõ điểm không tự tick "Đã nộp" (điểm và trạng thái nộp bài là hai việc riêng)', async () => {
+test('có điểm = đã làm bài: ô bài tập tự được ghi nhận "Đã nộp" dù chưa tick', async () => {
   const sub = (await admin.get(`${base()}/submissions`)).body;
   const row = sub.rows.find((x) => x.student_code === 'P.7001');
-  assert.equal(row.cells[asg[1]] ?? null, null, 'gõ điểm không tự tick "Đã nộp"');
+  assert.equal(row.cells[asg[1]]?.status, 'submitted', 'có điểm thì được tính là đã nộp');
+  const none = sub.rows.find((x) => x.student_code === 'P.7002');
+  assert.equal(none.cells[asg[1]] ?? null, null, 'chưa có điểm, chưa tick = chưa nộp');
 });
 
 test('schema: hai file giống nhau và có cột manual/updated_by; migration có mặt', () => {

@@ -25,6 +25,9 @@ before(async () => {
   await t.db.run("insert into curricula (code, program, name, session_count) values ('PBM-10', 'PBM', 'PBM 10', 10), ('BIE-6', 'BIE', 'BIE 6 buổi', 6)");
   const cu = await t.db.one("select id from curricula where code = 'BIE-6'");
   await t.db.run("insert into curriculum_items (curriculum_id, session_no, seq) select $1, n, 1 from generate_series(1, 6) n", [cu.id]);
+  await t.db.run("insert into curricula (code, program, name, session_count) values ('BIE-8', 'BIE', 'BIE 8 buổi', 8)");
+  const c8 = await t.db.one("select id from curricula where code = 'BIE-8'");
+  await t.db.run("insert into curriculum_items (curriculum_id, session_no, seq) select $1, n, 1 from generate_series(1, 8) n", [c8.id]);
 });
 after(async () => { delete process.env.SYNC_TOKEN; await t.close(); });
 
@@ -84,4 +87,15 @@ test('sheet còn cả dòng cũ lẫn dòng mới của cùng một lớp: giữ
   assert.deepEqual([r.body.duplicate_course_rows, r.body.renamed_classes], [['PBM025'], ['PBM025']]);
   const rows = await t.db.all("select id, code, start_date::text d from classes where short_code = 'PBM025'");
   assert.deepEqual(rows.map((x) => [x.id, x.code, x.d]), [[id, 'P5.PBM.P025.HY.MM.311026', '2026-10-31']]);
+});
+
+test('BIE104 có 6 HW; từ BIE105 là 5 HW + Capstone Project (HW tên theo Module)', async () => {
+  const course = { headers: COURSE.headers, rows: [
+    ['BIE104', 'P2.BIE.P104.HY.EE.011126', '2026-11-01', '2026-12-01'],
+    ['BIE105', 'P2.BIE.P105.HY.EE.011126', '2026-11-01', '2026-12-01'],
+  ] };
+  const r = await post([row('P.21', 'BIE104'), row('P.22', 'BIE105')], course);
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.deepEqual(await asg('BIE104'), ['hw1', 'hw2', 'hw3', 'hw4', 'hw5', 'hw6']);
+  assert.deepEqual(await asg('BIE105'), ['capstone1', 'hw1', 'hw2', 'hw3', 'hw4', 'hw5']);
 });

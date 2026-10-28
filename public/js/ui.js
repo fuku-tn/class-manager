@@ -73,12 +73,21 @@ export function formModal({ title, fields, submitLabel = 'Lưu', extra }) {
       h('div', { class: 'actions' },
         h('button', { type: 'button', onclick: () => close(null) }, 'Hủy'),
         h('button', { type: 'submit', class: 'primary' }, submitLabel)));
-    const back = h('div', { class: 'modal-back', onclick: (e) => { if (e.target === back) close(null); } },
+    const back = h('div', { class: 'modal-back' },
       h('div', { class: 'modal', role: 'dialog', 'aria-modal': 'true' }, form));
+    closeOnBackdrop(back, () => close(null));
     document.addEventListener('keydown', onKey);
     document.body.append(back);
     (Object.values(inputs)[0] || form).focus();
   });
+}
+
+// Bấm ra ngoài hộp thoại thì đóng — CHỈ khi nhấn chuột xuống cũng ở ngoài. Bôi đen chữ trong hộp thoại rồi thả chuột ra ngoài
+// (để copy email, sửa điểm…) không được làm đóng hộp thoại (sự kiện click lúc đó có đích là nền).
+export function closeOnBackdrop(back, close) {
+  let downOnBack = false;
+  back.addEventListener('mousedown', (e) => { downOnBack = e.target === back; });
+  back.addEventListener('click', (e) => { if (downOnBack && e.target === back) close(); downOnBack = false; });
 }
 
 export function confirmModal(message, okLabel = 'Xóa') {

@@ -104,17 +104,18 @@ const AUTO_SOURCE = { 'BIH-11': 'chủ dự án (chưa có trong Quy định 003
 // Số HW tối đa được xét theo chương trình: BIE, BIH có HW1–HW5 (BIH: HW5 = Mini Project 3); EBA có HW1–HW4 + Capstone.
 // HW lớn hơn còn sót trong dữ liệu cũ không xét.
 const AUTO_HW_MAX = { BIE: 5, BIH: 5, EBA: 4 };
+const AUTO_HW_MAX_BY_CLASS = { BIE104: 6 };   // BIE104 có 6 HW (HW5 Data Visualization IBCS, HW6 Data Storytelling); từ BIE105 quay lại 5 HW
 // EBA: số HW CỐ ĐỊNH phải làm đủ (chủ dự án: "đủ 4 HW và 1 Capstone"; lớp cũ 8 buổi: 3 HW + Capstone) — HW chưa có tick nào vẫn bắt buộc,
 // khớp cột ELIGIBLE trong file "KHÓA EXCEL_ĐIỂM DANH HỌC VIÊN". BIE/BIH: chỉ xét bài đã giao.
 const AUTO_FIXED_HW = { 'EBA-6': 4, 'EBA-8': 3 };
 // Có điểm thì phải ≥ 6 (thang 10) mới tính là đã làm bài (chủ dự án chốt 18/10/2026); chưa có điểm thì dựa vào tick "Đã nộp".
 const PASS_SCORE = 6;
-function autoRulesFor(cur) {
+function autoRulesFor(cur, shortCode) {
   const min = AUTO_MIN_SESSIONS[cur?.code];
   if (min == null) return null;
   return { status: 'auto', auto: true, curriculum_code: cur.code, source: 'curriculum', min_sessions: min,
     min_sessions_source: AUTO_SOURCE[cur.code] ?? SESSION_RULE_SOURCE, all_assignments: true, capstone: true, attendance_min: null,
-    hw_max: AUTO_HW_MAX[cur.program ?? String(cur.code).split('-')[0]] ?? 5, fixed_hw: AUTO_FIXED_HW[cur.code] ?? null, pass_score: PASS_SCORE };
+    hw_max: AUTO_HW_MAX_BY_CLASS[String(shortCode ?? '').toUpperCase()] ?? AUTO_HW_MAX[cur.program ?? String(cur.code).split('-')[0]] ?? 5, fixed_hw: AUTO_FIXED_HW[cur.code] ?? null, pass_score: PASS_SCORE };
 }
 
 // Tên bài hiển thị (BIH: HW5 chính là Mini Project 3 — khớp ASSIGNMENT_ALIASES trong public/js/class-filter.mjs)

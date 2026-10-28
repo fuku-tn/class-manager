@@ -2,6 +2,7 @@
 // File chỉ nằm trong bộ nhớ lúc xử lý, không lưu đĩa/database. Bộ nhập chỉ đọc cột trong danh sách cho phép (không tiền).
 const express = require('express');
 const realtime = require('../services/realtime');
+const { refreshSchedule } = require('../services/scheduleRules');
 
 const MAX_BYTES = 4 * 1024 * 1024; // Vercel giới hạn thân yêu cầu ~4,5MB
 const ZIP_MAGIC = Buffer.from([0x50, 0x4b, 0x03, 0x04]);
@@ -61,6 +62,7 @@ module.exports = (db) => {
   router.post('/transactions', (req, res) => run(req, res, async (file, dryRun) => {
     const { importTransactions } = require('../services/importTransactions');
     const { anomaly_details, class_ids = [], ...brief } = await importTransactions(db, { transactionsFile: file, curriculumFile: null, dryRun });
+    if (!dryRun) await refreshSchedule(db);   // lớp mới / đổi ngày khai giảng → lịch giảng dạy khớp lại ngay
     if (!dryRun) await realtime.publishMany(class_ids.flatMap((classId) => [{ classId, payload: { kind: 'attendance' } }, { classId, payload: { kind: 'submissions' } }]));
     return { ...brief, published: dryRun ? 0 : class_ids.length };
   }));

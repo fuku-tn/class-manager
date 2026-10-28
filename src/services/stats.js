@@ -4,7 +4,7 @@ const MISSING_HW_ALERT = Number(process.env.MISSING_HW_ALERT || 2);
 
 const round = (n) => (n == null ? null : Math.round(n * 100) / 100);
 
-// NGUỒN DUY NHẤT của công thức chuyên cần: (có mặt + trễ + 0,5 × vắng có phép) ÷ số lượt đã diễn ra.
+// NGUỒN DUY NHẤT của công thức chuyên cần: (có mặt + 0,5 × vắng có phép) ÷ số lượt đã diễn ra.
 // Vắng có phép chỉ được MỘT NỬA điểm của buổi đi học và vẫn nằm trong mẫu số (chủ dự án chốt 26/10/2026). Trả null khi chưa có mẫu số.
 const EXCUSED_WEIGHT = 0.5;
 function attendanceRate(attended, excused, held) {
@@ -60,7 +60,7 @@ const compareByName = (a, b) => viCollator.compare(a.full_name ?? '', b.full_nam
 
 const KIND_ORDER = { hw: 0, mini: 1, capstone: 2 };   // thứ tự cột bài: HW → Mini Project → Capstone
 async function loadClassData(db, classId) {
-  const [sessions, assignments, enrollments, attendance, submissions] = await Promise.all([
+  const [sessions, assignments, enrollments, attendance, rawSubmissions, scored] = await Promise.all([
     db.all('select * from sessions where class_id = $1 order by session_no', [classId]),
     db.all('select * from assignments where class_id = $1', [classId]),
     db.all(`
@@ -72,8 +72,15 @@ async function loadClassData(db, classId) {
       left join users u on u.id = a.updated_by where s.class_id = $1`, [classId]),
     db.all(`select b.*, u.name as updated_by_name from submissions b join assignments a on a.id = b.assignment_id
       left join users u on u.id = b.updated_by where a.class_id = $1`, [classId]),
+    db.all(`select hs.enrollment_id, hs.assignment_id from homework_scores hs join assignments a on a.id = hs.assignment_id where a.class_id = $1`, [classId]),
   ]);
   enrollments.sort(compareByName);
+  // Bài tập chỉ còn một trạng thái "Đã nộp" (nộp lại/thiếu đã bỏ 28/10/2026). CÓ ĐIỂM = đã làm bài: ô có điểm mà chưa tick vẫn được ghi nhận là đã nộp.
+  const submissions = rawSubmissions.filter((s) => s.status === 'submitted');
+  const ticked = new Set(submissions.map((s) => `${s.enrollment_id}:${s.assignment_id}`));
+  for (const s of scored) if (!ticked.has(`${s.enrollment_id}:${s.assignment_id}`)) submissions.push({ ...s, status: 'submitted', note: null, challenge: false, updated_by_name: null, updated_at: null, from_score: true });
+  const given = new Set(submissions.map((s) => s.assignment_id));   // bài đã có người nộp/có điểm = đã giao
+  for (const a of assignments) a.collected = !!a.collected || given.has(a.id);
   assignments.sort((a, b) => (KIND_ORDER[a.kind] ?? 9) - (KIND_ORDER[b.kind] ?? 9) || a.seq - b.seq); // HW → Mini Project → Capstone
   return { sessions, assignments, enrollments, attendance, submissions };
 }
@@ -97,7 +104,7 @@ function computeEnrollmentStats({ sessions, assignments, enrollments, attendance
     let attended = 0, excused = 0, absent = 0;
     for (const sid of heldIds) {
       const st = attIdx.get(`${e.id}:${sid}`)?.status ?? 'absent';
-      if (st === 'present' || st === 'late') attended++;
+      if (st === 'present') attended++;
       else if (st === 'excused') excused++;
       else absent++;
     }
@@ -120,10 +127,10 @@ function computeEnrollmentStats({ sessions, assignments, enrollments, attendance
 }
 
 // Hiện diện / sĩ số của từng buổi. Sĩ số = học viên đang học hoặc đã hoàn thành (cùng tập với Dashboard).
-// Buổi đã diễn ra: ô chưa điểm danh tính là vắng. Trả về Map session_id -> { held, roster, attended, late, excused, absent }.
+// Buổi đã diễn ra: ô chưa điểm danh tính là vắng. Trả về Map session_id -> { held, roster, attended, excused, absent }.
 function sessionSummaries({ sessions, enrollments, attendance }) {
   const roster = new Set(enrollments.filter((e) => e.course_status === 'active' || e.course_status === 'completed').map((e) => e.id));
-  const raw = new Map(sessions.map((s) => [s.id, { held: !!s.held, present: 0, late: 0, excused: 0 }]));
+  const raw = new Map(sessions.map((s) => [s.id, { held: !!s.held, present: 0, excused: 0 }]));
   for (const a of attendance) {
     const c = raw.get(a.session_id);
     if (c && c.held && roster.has(a.enrollment_id) && a.status in c) c[a.status]++;
@@ -131,8 +138,8 @@ function sessionSummaries({ sessions, enrollments, attendance }) {
   const out = new Map();
   for (const [id, c] of raw) {
     out.set(id, {
-      held: c.held, roster: roster.size, attended: c.present + c.late, late: c.late, excused: c.excused,
-      absent: c.held ? Math.max(0, roster.size - c.present - c.late - c.excused) : 0,
+      held: c.held, roster: roster.size, attended: c.present, excused: c.excused,
+      absent: c.held ? Math.max(0, roster.size - c.present - c.excused) : 0,
     });
   }
   return out;
@@ -146,22 +153,22 @@ async function buildDashboard(db, cls, { withScores = false } = {}) {
   const active = data.enrollments.filter((e) => e.course_status === 'active' || e.course_status === 'completed');
 
   const bySession = data.sessions.map((s) => {
-    const counts = { present: 0, late: 0, absent: 0, excused: 0 };
+    const counts = { present: 0, absent: 0, excused: 0 };
     if (s.held) {
       const recorded = new Map(data.attendance.filter((a) => a.session_id === s.id).map((a) => [a.enrollment_id, a.status]));
       for (const e of active) counts[recorded.get(e.id) ?? 'absent']++;
     }
     return {
       session_id: s.id, session_no: s.session_no, title: s.title, held: !!s.held, ...counts,
-      rate: s.held ? attendanceRate(counts.present + counts.late, counts.excused, active.length) : null,
+      rate: s.held ? attendanceRate(counts.present, counts.excused, active.length) : null,
     };
   });
 
   const byAssignment = data.assignments.map((a) => {
-    const counts = { submitted: 0, resubmit: 0, missing: 0 };
+    const counts = { submitted: 0, missing: 0 };   // missing = chưa nộp
     if (a.collected) {
-      const recorded = new Map(data.submissions.filter((x) => x.assignment_id === a.id).map((x) => [x.enrollment_id, x.status]));
-      for (const e of active) counts[recorded.get(e.id) ?? 'missing']++;
+      const done = new Set(data.submissions.filter((x) => x.assignment_id === a.id).map((x) => x.enrollment_id));
+      for (const e of active) counts[done.has(e.id) ? 'submitted' : 'missing']++;
     }
     return {
       assignment_id: a.id, kind: a.kind, seq: a.seq, title: a.title, collected: !!a.collected, ...counts,

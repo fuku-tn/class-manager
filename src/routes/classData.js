@@ -13,8 +13,8 @@ const { TIMING_SQL, PHASE_DATES_SQL } = require('../services/timing');
 
 const MODES = ['Online', 'Offline', 'Hybrid'];
 const COURSE_STATUS = ['active', 'deferred', 'dropped', 'completed'];
-const ATT_STATUS = ['present', 'late', 'absent', 'excused'];
-const SUB_STATUS = ['submitted', 'resubmit', 'missing'];
+const ATT_STATUS = ['present', 'absent', 'excused'];   // đã bỏ "đi trễ" (28/10/2026): trễ = có mặt
+const SUB_STATUS = ['submitted'];   // chỉ còn "Đã nộp" (bỏ nộp lại/thiếu 28/10/2026); ô trống = chưa nộp
 const str = (v) => (v == null || String(v).trim() === '' ? null : String(v).trim());
 const httpError = (status, message) => Object.assign(new Error(message), { status });
 const id = (v) => (Number.isSafeInteger(Number(v)) ? Number(v) : 0);
@@ -159,7 +159,7 @@ module.exports = (db) => {
     for (const e of data.enrollments) e.graduation_by_name = e.graduation_by ? names.get(e.graduation_by) ?? null : null;
     const stats = computeEnrollmentStats(data);
     // BIE-8/BIE-12/BIH-20/BIH-11: xét TỰ ĐỘNG (số buổi + đủ mọi bài kể cả Project); giáo trình khác: gợi ý + người đặt như cũ.
-    const auto = grad.autoRulesFor(cur);
+    const auto = grad.autoRulesFor(cur, cls.short_code);
     let rules; let rows;
     if (auto) {
       const scores = await db.all(`select hs.enrollment_id, hs.assignment_id, hs.score::float8 as score from homework_scores hs

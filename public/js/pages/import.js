@@ -20,20 +20,20 @@ function warningsBlock(list) {
 
 function attendanceResult(r) {
   const tot = r.classes.reduce((a, c) => {
-    for (const k of ['students', 'new_students', 'present', 'late', 'excused', 'absent', 'submissions']) a[k] += c[k] ?? 0;
+    for (const k of ['students', 'new_students', 'present', 'excused', 'absent', 'submissions']) a[k] += c[k] ?? 0;
     return a;
-  }, { students: 0, new_students: 0, present: 0, late: 0, excused: 0, absent: 0, submissions: 0 });
+  }, { students: 0, new_students: 0, present: 0, excused: 0, absent: 0, submissions: 0 });
   return h('div', {},
     h('div', { class: 'kv-grid' },
       kv('Lớp', fmt(r.classes.length)), kv('Học viên', fmt(tot.students)), kv('Học viên mới', fmt(tot.new_students)),
-      kv('Có mặt/trễ', fmt(tot.present + tot.late)), kv('Có phép', fmt(tot.excused)), kv('Vắng', fmt(tot.absent)), kv('Ô bài tập', fmt(tot.submissions))),
+      kv('Có mặt', fmt(tot.present)), kv('Có phép', fmt(tot.excused)), kv('Vắng', fmt(tot.absent)), kv('Ô bài tập', fmt(tot.submissions))),
     r.skipped_sheets?.length ? h('p', { class: 'muted small' }, `Bỏ qua sheet: ${r.skipped_sheets.join(', ')}`) : null,
     warningsBlock(r.warnings),
     h('div', { class: 'table-wrap' }, h('table', {},
-      h('thead', {}, h('tr', {}, ['Sheet', 'Lớp', 'Học viên', 'Mới', 'Buổi đã học', 'Có mặt/trễ', 'Có phép', 'Vắng', 'Giữ bản sửa trên app'].map((x) => h('th', {}, x)))),
+      h('thead', {}, h('tr', {}, ['Sheet', 'Lớp', 'Học viên', 'Mới', 'Buổi đã học', 'Có mặt', 'Có phép', 'Vắng', 'Giữ bản sửa trên app'].map((x) => h('th', {}, x)))),
       h('tbody', {}, r.classes.slice(0, 60).map((c) => h('tr', {},
         h('td', {}, c.sheet), h('td', {}, c.class_code), h('td', { class: 'num' }, fmt(c.students)), h('td', { class: 'num' }, fmt(c.new_students)),
-        h('td', { class: 'num' }, fmt(c.sessions_held)), h('td', { class: 'num' }, fmt(c.present + c.late)), h('td', { class: 'num' }, fmt(c.excused)),
+        h('td', { class: 'num' }, fmt(c.sessions_held)), h('td', { class: 'num' }, fmt(c.present)), h('td', { class: 'num' }, fmt(c.excused)),
         h('td', { class: 'num' }, fmt(c.absent)), h('td', { class: 'num' }, fmt(c.kept_from_app))))))),
     r.classes.length > 60 ? h('p', { class: 'muted small' }, `Hiển thị 60/${fmt(r.classes.length)} lớp.`) : null);
 }

@@ -8,6 +8,7 @@ const { ALLOWED_TX, ALLOWED_COURSE } = require('../services/importTransactions')
 const { FORM_COLUMNS, applyForms } = require('../services/formProfile');
 const { importPoints, POINT_SYNC_COLUMNS } = require('../services/importPoints');
 const { importSchedule } = require('../services/importSchedule');
+const { refreshSchedule } = require('../services/scheduleRules');
 const { importAbsences } = require('../services/absence');
 const { importScoreFiles, SCORE_FILE_COLUMNS } = require('../services/importScoreFiles');
 
@@ -145,6 +146,7 @@ module.exports = (db) => {
         brief.form = await applyForms(db, form);
       }
       const changed = Object.values(brief.added ?? {}).some((n) => n > 0);
+      await refreshSchedule(db);   // lớp mới / đổi ngày khai giảng → lịch giảng dạy khớp lại ngay
       if (changed) await realtime.publishMany(class_ids.flatMap((classId) => [{ classId, payload: { kind: 'attendance' } }]));
       await log(true, brief, null);
       res.json({ ok: true, ...brief, changed });

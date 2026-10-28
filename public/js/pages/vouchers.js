@@ -2,7 +2,7 @@
 // Mỗi học viên một dòng: VOUCHER GG MAPS (500.000 / 1.000.000 / 1.500.000 / 2.000.000 hoặc tự nhập), VOUCHER SENT DATE,
 // EXPIRATION DATE (dd/mm/yyyy), VOUCHER STATUS (trống = chưa dùng, "Used" = đã dùng). Tự lưu ngay khi đổi; nhập tay, không lấy từ Excel/Sheet.
 import { get, put } from '../api.js';
-import { h, toast, icon } from '../ui.js';
+import { h, toast, icon, closeOnBackdrop } from '../ui.js';
 import { classDisplayName, norm } from '../class-filter.mjs';
 
 const PRESETS = [500000, 1000000, 1500000, 2000000];
@@ -108,7 +108,7 @@ export async function openVouchers({ cls }) {
 
   const close = () => { back.remove(); document.removeEventListener('keydown', onKey); };
   const onKey = (e) => { if (e.key === 'Escape') close(); };
-  const back = h('div', { class: 'modal-back', onclick: (e) => { if (e.target === back) close(); } },
+  const back = h('div', { class: 'modal-back' },
     h('div', { class: 'modal modal-wide vc-modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Voucher Google Maps' },
       h('div', { class: 'vc-head' },
         h('div', {}, h('h2', {}, icon('ticket'), ` Voucher Google Maps — ${classDisplayName(cls)}`),
@@ -118,6 +118,7 @@ export async function openVouchers({ cls }) {
       h('div', { class: 'table-wrap vc-wrap' }, h('table', { class: 'vc-table' },
         h('thead', {}, h('tr', {}, ['Học viên', 'Voucher GG Maps (VND)', 'Voucher sent date', 'Expiration date', 'Voucher status', ''].map((x, i) => h('th', { class: i === 0 ? 'sticky' : '' }, x)))),
         body))));
+  closeOnBackdrop(back, close);
   search.addEventListener('input', renderBody);
   document.addEventListener('keydown', onKey);
   document.body.append(back);

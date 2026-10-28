@@ -8,6 +8,7 @@
 const ExcelJS = require('exceljs');
 const fs = require('node:fs');
 const { logEvents, latestEvents } = require('./history');
+const { bieHasDefaultCapstone } = require('./scoreModules');
 
 const ALLOWED_COURSE = ['COURSE', 'COURSE ID', 'STARTDATE', 'ENDDATE', 'NEXT COURSE', 'DAYS OF WEEK'];
 const ALLOWED_TX = ['STUDENT ID', 'CUSTOMER ID', 'FULL NAME', 'EMAIL', 'PHONE', 'COURSE', 'MODE', 'GENDER', 'STATUS', 'REGISTRATION SOURCE'];
@@ -36,13 +37,17 @@ const KNOWN_TEMPLATES = {
   BIE107: 'BIE-6',
 };
 // Bài tập mặc định tạo sẵn cho lớp (chỉ thêm bài còn thiếu, không xóa/ghi đè): tra theo giáo trình trước, rồi theo chương trình.
-// SCA, PBM: 4 HW (chủ dự án chốt 22/10/2026); BIE107 (BIE-6): HW1, HW2, Mini Project 1; EBA (mọi lớp): 4 HW + 1 Capstone Project (chốt 24/10/2026).
+// SCA, PBM: 4 HW (chủ dự án chốt 22/10/2026); BIE107 (BIE-6): HW1, HW2, Mini Project 1; EBA (mọi lớp): 4 HW + 1 Capstone Project (chốt 24/10/2026);
+// BIE104: 6 HW (chốt 28/10/2026). Tra theo mã lớp trước, rồi giáo trình, rồi chương trình.
 const DEFAULT_ASSIGNMENTS = {
+  BIE104: [['hw', 1], ['hw', 2], ['hw', 3], ['hw', 4], ['hw', 5], ['hw', 6]],
   'BIE-6': [['hw', 1], ['hw', 2], ['mini', 1]],
   SCA: [['hw', 1], ['hw', 2], ['hw', 3], ['hw', 4]],
   PBM: [['hw', 1], ['hw', 2], ['hw', 3], ['hw', 4]],
   EBA: [['hw', 1], ['hw', 2], ['hw', 3], ['hw', 4], ['capstone', 1]],
 };
+// Từ BIE105: 5 HW + Capstone Project (chủ dự án chốt 28/10/2026)
+const BIE_NEW_ASSIGNMENTS = [['hw', 1], ['hw', 2], ['hw', 3], ['hw', 4], ['hw', 5], ['capstone', 1]];
 const assignmentTitle = (kind, seq) => (kind === 'mini' ? `Mini Project ${seq}` : kind === 'capstone' ? 'Capstone Project' : `HW ${seq}`);
 // Lớp BI cũ chưa có mẫu: theo lớp mới gần nhất cùng chương trình.
 // EBA mặc định 6 buổi, PBM 10 buổi (chủ dự án chốt 13/10/2026; EBA069/070/072/073 trước đây 8 buổi vẫn giữ buổi đã có).
@@ -381,7 +386,7 @@ async function importTransactions(db, { transactionsFile, curriculumFile, dryRun
       // 3b) Bài tập mặc định (SCA/PBM 4 HW; BIE-6: HW1, HW2, Mini Project 1) — chỉ thêm bài còn thiếu
       const da = { c: [], kind: [], seq: [], title: [] };
       for (const c of classes) {
-        const list = DEFAULT_ASSIGNMENTS[c.template] ?? DEFAULT_ASSIGNMENTS[c.program];
+        const list = DEFAULT_ASSIGNMENTS[c.short_code] ?? DEFAULT_ASSIGNMENTS[c.template] ?? (c.program === 'BIE' && bieHasDefaultCapstone(c.short_code) ? BIE_NEW_ASSIGNMENTS : DEFAULT_ASSIGNMENTS[c.program]);
         if (!list || !classId.get(c.short_code)) continue;
         for (const [kind, seq] of list) { da.c.push(classId.get(c.short_code)); da.kind.push(kind); da.seq.push(seq); da.title.push(assignmentTitle(kind, seq)); }
       }
@@ -547,7 +552,7 @@ async function importTransactions(db, { transactionsFile, curriculumFile, dryRun
         if (r.inserted && snap) {
           if (snap.att?.length) await t.run(
             `insert into attendance (enrollment_id, session_id, status, note)
-             select $1::bigint, x.s, x.st, x.n from jsonb_to_recordset($2::jsonb) as x(s bigint, st text, n text)
+             select $1::bigint, x.s, case when x.st = 'late' then 'present' else x.st end, x.n from jsonb_to_recordset($2::jsonb) as x(s bigint, st text, n text)
               where exists (select 1 from sessions where id = x.s) on conflict do nothing`, [r.id, JSON.stringify(snap.att)]);
           if (snap.sub?.length) await t.run(
             `insert into submissions (enrollment_id, assignment_id, status, note)

@@ -46,7 +46,7 @@ Dùng **PGlite** (Postgres thật chạy trong bộ nhớ) với `src/schema.sql
 - Tỉ lệ điểm danh: có phép tính nửa buổi, vẫn nằm trong mẫu số (A=0.67, B=0.5).
 - Dữ liệu sai: trạng thái lạ → 400; buổi/học viên không tồn tại hoặc **thuộc lớp khác** → 404.
 - "Cả lớp ✓" chỉ điền ô trống, không ghi đè, chạy lại tạo 0 bản ghi.
-- HW: "Nộp lại" không tính hoàn thành; bài chưa thu không tính vào mẫu số.
+- HW: chỉ "Đã nộp" (tick hoặc có điểm); bài chưa ai nộp không tính vào mẫu số.
 - Dashboard tổng hợp; thêm trùng học viên → 409; ngày sai định dạng → 400.
 - Tên chứa HTML được lưu nguyên văn.
 - Sao lưu/khôi phục: CSV ghi rồi đọc lại khớp (kể cả chuỗi rỗng, NULL, JSON, tiếng Việt), khôi phục chỉ vào database trống, chốt chặn không chép đè database chính.

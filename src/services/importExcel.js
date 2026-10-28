@@ -3,13 +3,14 @@
 //
 // QUY TẮC Ô ĐIỂM DANH (chủ dự án xác nhận 2026-10-10):
 //   X (hoặc x) = đi học · O = vắng có phép · ô trống = vắng.
-//   Ghi chú có "trễ" ở ô X → đi trễ (vẫn tính là đi học). Tỉ lệ chuyên cần tính ở src/services/stats.js:
-//   (có mặt + trễ + 0,5 × có phép) ÷ số buổi đã diễn ra.
+//   Không còn trạng thái "đi trễ" (28/10/2026): ô X luôn là có mặt (ghi chú "trễ" chỉ là ghi chú). Tỉ lệ chuyên cần tính ở src/services/stats.js:
+//   (có mặt + 0,5 × có phép) ÷ số buổi đã diễn ra.
 // QUY TẮC TIỀN: không đọc bất kỳ cột liên quan đến tiền (VOUCHER*, EXPIRATION...). Chỉ đọc các cột trong
 //   danh sách cho phép (isAllowedHeader); cột khác không bao giờ được đưa vào bộ nhớ.
 // Idempotent: chạy lại không tạo trùng. Không ghi đè ô đã được người dùng sửa trực tiếp trên app (updated_by != null).
 const ExcelJS = require('exceljs');
 const { logEvents } = require('./history');
+const { hwCountFor } = require('./scoreModules');
 
 const ALLOWED_FIXED = ['STUDENT ID', 'CUSTOMER ID', 'FULL NAME', 'EMAIL', 'PHONE', 'COURSE ID', 'MODE', 'COURSE STATUS', 'CERTIFICATE STATUS', 'FORM'];
 const ALLOWED_PATTERNS = [/^SESSION \d+$/, /^NOTE SS\d+$/, /^HOMEWORK \d+$/, /^NOTE HW\d+$/, /^CAPSTONE PROJECT$/, /^NOTE CP$/, /^PROJECT \d+$/, /^NOTE PROJECT \d+$/];
@@ -91,7 +92,7 @@ async function importClass(t, { code, sheet, col, rows: allRows }, ctx) {
   const warn = (m) => ctx.warnings.push(`[${sheet} · ${code}] ${m}`);
   const summary = {
     sheet, class_code: code, students: 0, new_students: 0, new_class: false, curriculum_changed: false, sessions_held: 0,
-    present: 0, late: 0, excused: 0, absent: 0, submissions: 0, kept_from_app: 0, sessions_created: 0,
+    present: 0, excused: 0, absent: 0, submissions: 0, kept_from_app: 0, sessions_created: 0,
   };
 
   // Trùng STUDENT ID trong cùng lớp: lấy dòng cuối.
@@ -171,9 +172,9 @@ async function importClass(t, { code, sheet, col, rows: allRows }, ctx) {
   const [capKey, capNote] = CAPSTONE_COLUMN[cls.short_code] ?? ['CAPSTONE PROJECT', 'NOTE CP'];
   const hasCapstone = !!col[capKey];
   const assignmentId = {};
-  // BIE, BIH chỉ có HW1–HW5: cột HW6+ hoàn toàn trống thì không tạo bài (tránh cột thừa); có tick thì vẫn nhập.
-  const fiveHw = ['BIE', 'BIH'].includes(String(code.split('.')[1] ?? '').toUpperCase());
-  const asg = hwNos.filter((n) => !(fiveHw && n > 5 && !rows.some((x) => isX(x.get(`HOMEWORK ${n}`)))))
+  // BIE, BIH chỉ có HW1–HW5 (BIE104: HW1–HW6): cột HW vượt số đó mà hoàn toàn trống thì không tạo bài (tránh cột thừa); có tick thì vẫn nhập.
+  const maxHw = hwCountFor(cls.short_code);
+  const asg = hwNos.filter((n) => !(maxHw != null && n > maxHw && !rows.some((x) => isX(x.get(`HOMEWORK ${n}`)))))
     .map((n) => ({ key: `HOMEWORK ${n}`, kind: 'hw', seq: n, title: `HW ${n}` }));
   if (hasCapstone) asg.push({ key: capKey, kind: 'capstone', seq: 1, title: 'Capstone Project' });
   if (asg.length) {
@@ -234,7 +235,7 @@ async function importClass(t, { code, sheet, col, rows: allRows }, ctx) {
     const note = txt(x.get(`NOTE SS${n}`));
     const { mark } = parseAttendanceCell(x.get(`SESSION ${n}`));
     let status = 'absent';
-    if (mark === 'present') status = note && /trễ/i.test(note) ? 'late' : 'present';
+    if (mark === 'present') status = 'present';
     else if (mark === 'excused') status = 'excused';
     att.e.push(enrollmentOf(x)); att.s.push(sessionId.get(n)); att.status.push(status); att.note.push(note);
     summary[status] += 1;
@@ -253,27 +254,33 @@ async function importClass(t, { code, sheet, col, rows: allRows }, ctx) {
       [att.e, att.s, att.status, att.note]);
   }
 
-  // Bài tập (X = đã nộp, trống = thiếu; chỉ tính bài đã có người nộp)
-  const sub = { e: [], a: [], status: [], challenge: [], note: [] };
+  // Bài tập: X = đã nộp; ô trống = chưa nộp (không còn trạng thái thiếu/nộp lại). Ô trống chỉ gỡ tick do Excel ghi (updated_by trống), không đụng ô người dùng đã sửa.
+  const sub = { e: [], a: [], challenge: [], note: [] };
+  const blank = { e: [], a: [] };
   const subCols = asg.filter((a) => a.kind === 'hw').map((a) => [a.key, `NOTE HW${a.seq}`]);
   if (hasCapstone) subCols.push([capKey, capNote]);
   for (const [valName, noteName] of subCols) {
     if (!rows.some((x) => isX(x.get(valName)))) continue;
     for (const x of rows) {
+      if (!isX(x.get(valName))) { blank.e.push(enrollmentOf(x)); blank.a.push(assignmentId[valName]); continue; }
       const note = txt(x.get(noteName));
       sub.e.push(enrollmentOf(x)); sub.a.push(assignmentId[valName]); sub.note.push(note);
-      sub.status.push(isX(x.get(valName)) ? 'submitted' : 'missing');
       sub.challenge.push(!!(note && /challenge/i.test(note) && !/chưa/i.test(note)));
     }
   }
   if (sub.e.length) {
     await t.run(
       `insert into submissions (enrollment_id, assignment_id, status, challenge, note)
-       select * from unnest($1::bigint[], $2::bigint[], $3::text[], $4::boolean[], $5::text[])
-       on conflict (enrollment_id, assignment_id) do update set status = excluded.status, challenge = excluded.challenge,
+       select u.e, u.a, 'submitted', u.c, u.n from unnest($1::bigint[], $2::bigint[], $3::boolean[], $4::text[]) as u(e, a, c, n)
+       on conflict (enrollment_id, assignment_id) do update set status = 'submitted', challenge = excluded.challenge,
          note = excluded.note, updated_at = now()
          where submissions.updated_by is null`,
-      [sub.e, sub.a, sub.status, sub.challenge, sub.note]);
+      [sub.e, sub.a, sub.challenge, sub.note]);
+  }
+  if (blank.e.length) {
+    await t.run(
+      `delete from submissions s using unnest($1::bigint[], $2::bigint[]) as u(e, a)
+        where s.enrollment_id = u.e and s.assignment_id = u.a and s.updated_by is null`, [blank.e, blank.a]);
   }
   summary.submissions = sub.e.length;
   summary.students = rows.length;
