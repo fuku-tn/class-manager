@@ -4,6 +4,7 @@
 //  1b. Lớp CHƯA có dòng nào trong Calendar (và chưa kết thúc quá 14 ngày) thì sinh lịch dự kiến từ tab COURSE:
 //     từ start_date, đúng các thứ trong days_of_week (2–6 = Thứ 2–6, 7 = Thứ 7, 8 = Chủ nhật), đủ số buổi của lớp,
 //     ca = classes.shift; buổi đầu ghi chú "Khai giảng", buổi cuối "Bế giảng". Lớp không có thứ học (vd B2B) thì bỏ qua.
+//     Lớp mà Calendar mới có vài buổi đầu (chưa có "Bế giảng", chưa đủ số buổi): sinh NỐI TIẾP các buổi còn thiếu theo thứ học.
 //     Dòng tự sinh được XÓA VÀ SINH LẠI mỗi lần chạy nên luôn khớp ngày khai giảng/kết thúc/thứ học hiện tại của lớp; có dòng thật trong
 //     Calendar thì lớp đó không còn bị sinh. Chạy sau mỗi lượt đồng bộ lịch, đồng bộ đăng ký (đổi lớp/ngày) và khi sửa lớp — xem refreshSchedule.
 //  2. Giảng viên mặc định (chủ dự án chốt 25/10/2026) khi Sheet để trống: EBA và PBM buổi 9–10 → Phạm Hoài An;
@@ -46,28 +47,38 @@ async function normalizeSchedule(t) {
     out.aligned_classes++;
   }
   out.generated_classes = 0; out.generated_rows = 0;
+  // Lớp chưa có dòng nào trong Calendar → sinh cả lịch; lớp Calendar mới có VÀI buổi đầu (chưa có "Bế giảng", chưa đủ số buổi) → sinh nối tiếp các buổi còn thiếu.
   const gen = await t.all(
     `select c.id, c.short_code, c.start_date::text as start_date, c.end_date::text as end_date, c.days_of_week, c.shift, c.delivery_mode,
-            (left(split_part(c.code, '.', 3), 1) = 'B') as b2b, (select count(*)::int from sessions x where x.class_id = c.id) as n
+            (left(split_part(c.code, '.', 3), 1) = 'B') as b2b, (select count(*)::int from sessions x where x.class_id = c.id) as n,
+            sh.cnt, sh.max_no, sh.last_date::text as last_date, coalesce(sh.has_close, false) as has_close
        from classes c
+       left join (select short_code, count(*)::int as cnt, max(session_no) as max_no, max(session_date) as last_date,
+                         bool_or(note ~* 'b[ếe][[:space:]]*gi[ảa]ng') as has_close
+                    from teaching_schedule group by short_code) sh on sh.short_code = c.short_code
       where c.short_code is not null and c.start_date is not null and c.days_of_week is not null
         and coalesce(c.end_date, c.start_date) >= current_date - 14
-        and not exists (select 1 from teaching_schedule s where s.short_code = c.short_code)`);
+        and (sh.cnt is null or (sh.max_no is not null and not coalesce(sh.has_close, false)))`);
   const rows = [];
   for (const c of gen) {
     const dows = new Set([...String(c.days_of_week).matchAll(/[2-8]/g)].map((m) => (m[0] === '8' ? 0 : Number(m[0]) - 1)));
     if (!dows.size) continue;
-    const start = dayNum(c.start_date); const end = c.end_date ? dayNum(c.end_date) : null;
+    const cont = c.cnt != null;   // nối tiếp lịch có sẵn
     const total = c.n > 0 ? c.n : null;
+    if (cont && (!total || c.max_no >= total)) continue;
+    const firstNo = cont ? c.max_no + 1 : 1;
+    const start = cont ? dayNum(c.last_date) + 1 : dayNum(c.start_date);
+    const end = c.end_date ? dayNum(c.end_date) : null;
     if (!total && end == null) continue;
+    const want = total ? total - firstNo + 1 : 99;
     const dates = [];
-    for (let d = start; dates.length < (total ?? 99) && d <= (end ?? start + 366) + (total ? 60 : 0); d++) {
+    for (let d = start; dates.length < want && d <= (end ?? start + 366) + (total ? 60 : 0); d++) {
       if (dows.has(new Date(d * 864e5).getUTCDay())) dates.push(d);
       if (!total && d >= end) break;
     }
     dates.forEach((d, i) => rows.push({
-      c, no: i + 1, date: new Date(d * 864e5).toISOString().slice(0, 10),
-      note: i === 0 ? 'Khai giảng' : i === dates.length - 1 ? 'Bế giảng' : null,
+      c, no: firstNo + i, date: new Date(d * 864e5).toISOString().slice(0, 10),
+      note: (!cont && i === 0) ? 'Khai giảng' : i === dates.length - 1 ? 'Bế giảng' : null,
     }));
     if (dates.length) out.generated_classes++;
   }

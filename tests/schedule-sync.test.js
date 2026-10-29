@@ -121,7 +121,7 @@ test('lớp chưa có dòng trong Calendar: sinh lịch dự kiến từ ngày k
   const g = await t.db.all("select session_date::text d, session_no n, note, instructor i from teaching_schedule where short_code = 'EBA122' order by 1");
   assert.deepEqual(g.map((x) => x.d), ['2026-10-19', '2026-10-21', '2026-10-26', '2026-10-28', '2026-11-02', '2026-11-04']);
   assert.deepEqual([g[0].note, g[5].note, g[0].i], ['Khai giảng', 'Bế giảng', 'Phạm Hoài An']);
-  assert.equal((await post([row('2026-09-06', 'S', 'BIE102', 'x', 1), row('2026-10-20', 'T', 'EBA122', 'Thật', 1)])).status, 200);
+  assert.equal((await post([row('2026-09-06', 'S', 'BIE102', 'x', 1), row('2026-10-20', 'T', 'EBA122', 'Thật', 1, 'Bế giảng')])).status, 200);
   assert.equal((await t.db.all("select 1 from teaching_schedule where short_code = 'EBA122'")).length, 1);
 });
 
@@ -136,6 +136,19 @@ test('đổi ngày khai giảng của lớp trên web → lịch dự kiến t�
   const dates = await first();
   assert.equal(dates.length, 6);
   assert.deepEqual(dates.slice(0, 2), ['2026-10-26', '2026-10-28']);
+});
+
+test('Calendar mới có vài buổi đầu → sinh nối tiếp các buổi còn thiếu theo thứ học (đến Bế giảng)', async () => {
+  await t.db.run('delete from teaching_schedule');
+  const e = (await admin.post('/api/classes', { code: 'P5.PBM.P922.HY.MM.311026', session_count: 10, start_date: '2026-10-31' })).body.id;
+  await t.db.run("update classes set short_code = 'PBM922', program = 'PBM', days_of_week = 'S78', shift = 'morning', end_date = '2026-11-29' where id = $1", [e]);
+  const r = await post([row('2026-10-31', 'S', 'PBM922', 'Sale Analysis', 1, 'Khai giảng'), row('2026-11-01', 'S', 'PBM922', 'Sale Analysis', 2), row('2026-11-07', 'S', 'PBM922', 'Sale Analysis', 3)]);
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  const got = await t.db.all("select session_date::text d, session_no n, note, instructor i from teaching_schedule where short_code = 'PBM922' order by session_no");
+  assert.deepEqual(got.map((x) => [x.n, x.d]), [[1, '2026-10-31'], [2, '2026-11-01'], [3, '2026-11-07'], [4, '2026-11-08'], [5, '2026-11-14'], [6, '2026-11-15'], [7, '2026-11-21'], [8, '2026-11-22'], [9, '2026-11-28'], [10, '2026-11-29']]);
+  assert.deepEqual([got[9].note, got[3].i, got[8].i], ['Bế giảng', 'Bùi Trường Sơn', 'Phạm Hoài An']);   // buổi 9–10 PBM → Phạm Hoài An
+  await post([row('2026-10-31', 'S', 'PBM922', 'Sale Analysis', 1, 'Khai giảng'), row('2026-11-01', 'S', 'PBM922', 'Sale Analysis', 2), row('2026-11-07', 'S', 'PBM922', 'Sale Analysis', 3)]);
+  assert.equal((await t.db.all("select 1 from teaching_schedule where short_code = 'PBM922'")).length, 10);   // chạy lại không nhân đôi
 });
 
 test('giảng viên mặc định theo chương trình/buổi; Sheet có ghi thì giữ', () => {
