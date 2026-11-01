@@ -8,21 +8,27 @@ import { classDisplayName } from '../class-filter.mjs';
 const MODE_LABEL = { Online: 'Online', Offline: 'Offline', Hybrid: 'Hybrid' };
 const shortName = (s) => (s.length > 22 ? `${s.slice(0, 20)}…` : s);
 
+// Màu lấy từ biến CSS của giao diện đang dùng (tối/sáng) để biểu đồ cùng tông với trang.
+const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const withAlpha = (hex, a) => { const m = /^#([0-9a-f]{6})$/i.exec(hex); return m ? `rgba(${parseInt(m[1].slice(0, 2), 16)}, ${parseInt(m[1].slice(2, 4), 16)}, ${parseInt(m[1].slice(4), 16)}, ${a})` : hex; };
+
 function radar(canvas, modules) {
   if (!window.Chart) return null;
   const labels = modules.map((m) => shortName(m.name));
   const data = modules.map((m) => m.score ?? 0);
-  const accent = '#e8365d';
+  const accent = cssVar('--gold') || '#c9a46a';
+  const muted = cssVar('--muted') || '#8a8a96';
+  const grid = cssVar('--border') || 'rgba(128,128,128,.25)';
   const common = { responsive: true, maintainAspectRatio: false, animation: { duration: 500 }, plugins: { legend: { display: false },
     tooltip: { callbacks: { label: (c) => ` ${modules[c.dataIndex].score == null ? 'Chưa có điểm' : `${modules[c.dataIndex].score}/10`}` } } } };
   if (modules.length < 3) {   // radar cần ≥ 3 trục; ít hơn thì vẽ cột
     return new window.Chart(canvas, { type: 'bar', data: { labels, datasets: [{ data, backgroundColor: accent, borderRadius: 6, maxBarThickness: 28 }] },
-      options: { ...common, scales: { y: { min: 0, max: 10, ticks: { stepSize: 5, color: '#8a8a96' }, grid: { color: 'rgba(0,0,0,.06)' } }, x: { ticks: { color: '#8a8a96' }, grid: { display: false } } } } });
+      options: { ...common, scales: { y: { min: 0, max: 10, ticks: { stepSize: 5, color: muted }, grid: { color: grid } }, x: { ticks: { color: muted }, grid: { display: false } } } } });
   }
-  return new window.Chart(canvas, { type: 'radar', data: { labels, datasets: [{ data, backgroundColor: 'rgba(232, 54, 93, .18)', borderColor: accent, borderWidth: 2,
+  return new window.Chart(canvas, { type: 'radar', data: { labels, datasets: [{ data, backgroundColor: withAlpha(accent, 0.22), borderColor: accent, borderWidth: 2,
     pointBackgroundColor: accent, pointRadius: 3 }] },
-  options: { ...common, scales: { r: { min: 0, max: 10, ticks: { stepSize: 5, display: false }, grid: { color: 'rgba(0,0,0,.09)' }, angleLines: { color: 'rgba(0,0,0,.09)' },
-    pointLabels: { color: '#6b6b78', font: { size: 9 } } } } } });
+  options: { ...common, scales: { r: { min: 0, max: 10, ticks: { stepSize: 5, display: false }, grid: { color: grid }, angleLines: { color: grid },
+    pointLabels: { color: muted, font: { size: 9 } } } } } });
 }
 
 export async function openTopPerformance({ cls }) {
@@ -59,7 +65,7 @@ export async function openTopPerformance({ cls }) {
     const max = list.scrollWidth - list.clientWidth;
     bar.firstChild.style.width = `${max > 0 ? 18 + (list.scrollLeft / max) * 82 : 100}%`;
   });
-  const back = h('div', { class: 'modal-back tp-back' },
+  const back = h('div', { class: 'modal-back' },
     h('div', { class: 'tp-window', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Top Performance' },
       h('div', { class: 'tp-dots' }, h('i'), h('i'), h('i'), h('button', { type: 'button', class: 'tp-close', 'aria-label': 'Đóng', onclick: close }, '✕')),
       h('div', { class: 'tp-head' },
