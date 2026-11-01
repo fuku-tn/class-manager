@@ -7,6 +7,7 @@ const { logEvents, latestEvents } = require('../services/history');
 const { tally } = require('../services/formProfile');
 const feedback = require('../services/feedback');
 const grad = require('../services/graduation');
+const gpaSvc = require('../services/gpa');
 const { makeupsFor } = require('../services/makeup');
 const { absencesFor } = require('../services/absence');
 const { TIMING_SQL, PHASE_DATES_SQL } = require('../services/timing');
@@ -147,7 +148,7 @@ module.exports = (db) => {
 
   const isAutoClass = async (cls) => !!(cls.curriculum_id && grad.autoRulesFor(await db.one('select code from curricula where id = $1', [cls.curriculum_id])));
 
-  async function gradPayload(cls) {
+  async function gradPayload(cls, { guest = false } = {}) {
     const [data, cur, meta] = await Promise.all([
       loadClassData(db, cls.id),
       cls.curriculum_id ? db.one('select * from curricula where id = $1', [cls.curriculum_id]) : null,
@@ -160,18 +161,18 @@ module.exports = (db) => {
     const stats = computeEnrollmentStats(data);
     // BIE-8/BIE-12/BIH-20/BIH-11: xét TỰ ĐỘNG (số buổi + đủ mọi bài kể cả Project); giáo trình khác: gợi ý + người đặt như cũ.
     const auto = grad.autoRulesFor(cur, cls.short_code);
+    const gpaMap = gpaSvc.classGpa(data, cls.short_code);   // GPA đến hiện tại theo trọng số từng chương trình (gpa.js)
     let rules; let rows;
     if (auto) {
-      const scores = await db.all(`select hs.enrollment_id, hs.assignment_id, hs.score::float8 as score from homework_scores hs
-        join enrollments e on e.id = hs.enrollment_id where e.class_id = $1`, [cls.id]);
       rules = auto;
-      rows = grad.buildAutoRows(data, stats, auto, { scores, program: cls.program, open: ['upcoming', 'running', 'grading'].includes(meta.timing) });
-      // Kết quả hiệu lực: chưa công bố → kết quả tự động (đổi theo tick/điểm danh); đã công bố → kết quả đã chốt lúc công bố.
-      for (const r of rows) r.result = published(cls) && r.decision.status !== 'pending' ? r.decision.status : r.auto.result;
+      rows = grad.buildAutoRows(data, stats, auto, { program: cls.program, open: ['upcoming', 'running', 'grading'].includes(meta.timing), gpaMap });
+      // Kết quả hiệu lực: admin đã chỉnh tay → giữ; chưa công bố → kết quả tự động (đổi theo điểm/điểm danh); đã công bố → kết quả đã chốt lúc công bố.
+      for (const r of rows) r.result = r.decision.override || (published(cls) && r.decision.status !== 'pending') ? r.decision.status : r.auto.result;
     } else {
       rules = grad.withSessionRule(grad.rulesFromCurriculum(cur), cls.program, cur);
-      rows = grad.buildGraduationRows(data, stats, rules);
+      rows = grad.buildGraduationRows(data, stats, rules, { gpaMap });
     }
+    if (guest) for (const r of rows) Object.assign(r, { gpa: null, classification: null, gpa_modules: [] });   // khách không xem điểm
     return {
       class: { id: cls.id, published_at: cls.graduation_published_at ?? null, published_by: meta.published_by_name ?? null,
         timing: meta.timing, last_session_date: meta.last_session_date, grading_until: meta.grading_until, graduation_on: meta.graduation_on,
@@ -180,7 +181,23 @@ module.exports = (db) => {
     };
   }
 
-  router.get('/graduation', async (req, res) => { res.json(await gradPayload(req.cls)); });
+  router.get('/graduation', async (req, res) => { res.json(await gradPayload(req.cls, { guest: req.user.role === 'guest' })); });
+
+  // ---------- Top Performance: top 10% theo điểm các bài đến hiện tại + chuyên cần (giống Value Filter Top 10% của Excel), có ít nhất 1 học viên Offline ----------
+  // Admin + giảng viên của lớp; khách không xem điểm nên bị chặn. Công thức nằm ở gpa.js (topPerformers).
+  router.get('/top-performance', async (req, res) => {
+    if (req.user.role === 'guest') return res.status(403).json({ error: 'Tài khoản khách không xem được điểm' });
+    const data = await loadClassData(db, req.cls.id);
+    const stats = computeEnrollmentStats(data);
+    const gpaMap = gpaSvc.classGpa(data, req.cls.short_code);
+    const people = data.enrollments.filter((e) => e.course_status === 'active' || e.course_status === 'completed').map((e) => ({
+      enrollment_id: e.id, student_code: e.student_code, full_name: e.full_name, mode: e.mode ?? null,
+      attendance_rate: stats.get(e.id).attendance_rate, gpa: gpaMap.get(e.id).gpa, classification: gpaMap.get(e.id).classification, modules: gpaMap.get(e.id).modules,
+    }));
+    const top = gpaSvc.topPerformers(people);
+    res.json({ class: { id: req.cls.id, code: req.cls.code, short_code: req.cls.short_code, program: req.cls.program },
+      percent: gpaSvc.TOP_PERCENT, weights: { gpa: gpaSvc.GPA_SHARE, attendance: 1 - gpaSvc.GPA_SHARE }, ...top });
+  });
 
   // Học bù: học viên lớp khác được ghi chú điểm danh "Bù <mã lớp này>" (vd "Bù EBA122") — để lớp này biết có ai đến học bù buổi nào.
   router.get('/makeups', async (req, res) => { res.json(await makeupsFor(db, req.cls)); });
@@ -257,7 +274,9 @@ module.exports = (db) => {
     if (published(req.cls) && req.user.role !== 'admin') return res.status(403).json({ error: 'Danh sách đã công bố, chỉ admin được sửa' });
     const b = req.body;
     if (b.status !== undefined && !GRAD_STATUS.includes(b.status)) return res.status(400).json({ error: 'Kết quả tốt nghiệp không hợp lệ' });
-    if (b.status !== undefined && await isAutoClass(req.cls)) return res.status(409).json({ error: 'Lớp này xét tốt nghiệp tự động theo số buổi và bài tập — không đặt kết quả tay' });
+    // Lớp xét tự động: chỉ ADMIN được chỉnh tay kết quả (vì có lúc điểm chấm sai ở một số bài); 'pending' = trả về kết quả tự động.
+    const autoClass = b.status !== undefined && await isAutoClass(req.cls);
+    if (autoClass && req.user.role !== 'admin') return res.status(409).json({ error: 'Lớp này xét tốt nghiệp tự động theo số buổi, bài tập và GPA — chỉ admin chỉnh tay được kết quả' });
     if (!isoDate(b.certificate_sent_date)) return res.status(400).json({ error: 'Ngày gửi chứng chỉ phải dạng yyyy-mm-dd' });
     await db.tx(async (t) => {
       const e = await findEnrollment(t, req.cls.id, req.params.enrollmentId);
@@ -266,16 +285,18 @@ module.exports = (db) => {
       const changed = status !== e.graduation_status;
       await t.run(
         `update enrollments set graduation_status = $1, graduation_note = $2, certificate_status = $3, certificate_number = $4,
-           certificate_sent_date = $5, graduation_by = $6, graduation_at = now() where id = $7`,
+           certificate_sent_date = $5, graduation_by = $6, graduation_at = now(), graduation_override = $8 where id = $7`,
         [status, b.note === undefined ? e.graduation_note : str(b.note)?.slice(0, 500) ?? null,
           b.certificate_status === undefined ? e.certificate_status : str(b.certificate_status)?.slice(0, 40) ?? null,
           b.certificate_number === undefined ? e.certificate_number : str(b.certificate_number)?.slice(0, 60) ?? null,
-          b.certificate_sent_date === undefined ? e.certificate_sent_date : (b.certificate_sent_date || null), req.user.id, e.id]);
+          b.certificate_sent_date === undefined ? e.certificate_sent_date : (b.certificate_sent_date || null), req.user.id, e.id,
+          autoClass ? status !== 'pending' : !!e.graduation_override]);
       if (changed) {
         const stu = await t.one('select student_code, full_name from students where id = $1', [e.student_id]);
         await logEvents(t, [{ enrollment_id: e.id, class_id: req.cls.id, class_code: req.cls.code, student_id: e.student_id,
           student_code: stu.student_code, full_name: stu.full_name, event: 'graduation', from_status: e.graduation_status,
-          to_status: status, source: 'web', actor_id: req.user.id, actor_name: req.user.name, note: str(b.note)?.slice(0, 500) ?? null }]);
+          to_status: status, source: 'web', actor_id: req.user.id, actor_name: req.user.name,
+          note: str(b.note)?.slice(0, 500) ?? (autoClass ? (status === 'pending' ? 'Trả về kết quả tự động' : 'Admin chỉnh tay kết quả tự động') : null) }]);
       }
     });
     res.json({ ok: true });
@@ -311,6 +332,7 @@ module.exports = (db) => {
       if (p) {
         const ev = [];
         for (const r of p.rows) {
+          if (r.decision.override) continue;   // kết quả admin đã chỉnh tay giữ nguyên
           const to = r.auto.result === 'passed' || r.auto.result === 'failed' ? r.auto.result : 'pending';
           if (to === r.decision.status) continue;
           await t.run('update enrollments set graduation_status = $1, graduation_by = $2, graduation_at = now() where id = $3', [to, req.user.id, r.enrollment_id]);

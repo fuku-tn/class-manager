@@ -3,6 +3,7 @@
 //
 // Quy tắc lấy từ Excel gốc (cột ELIGIBLE): chuyên cần ≥ ngưỡng, số bài HW hoàn thành ≥ yêu cầu, có nộp Capstone.
 // Tỉ lệ chuyên cần lấy từ stats.js (công thức chỉ nằm ở đó); ở đây chỉ SO SÁNH với ngưỡng.
+const { PASS_GPA } = require('./gpa');
 const DEFAULT_RULES = { attendance_min: 0.8, hw_pool: null, hw_min: null, capstone: false };
 
 // status: 'none' = chưa có quy định (KHÔNG gợi ý, chỉ đặt kết quả thủ công); 'provisional' = tạm theo Excel cũ; 'confirmed' = admin đã xác nhận.
@@ -44,6 +45,13 @@ function sessionsCheck(min, { attended = 0, excused = 0, held = 0, total = 0 } =
   return { value: have, min, sessions: true, ok };
 }
 
+// Các cột dùng chung của mọi dòng danh sách (hiển thị + xuất CSV): số buổi có mặt, HW đã làm, HW Rate, GPA, xếp loại.
+// gp = kết quả computeGpa của học viên (gpa.js) hoặc undefined.
+const extraColumns = (st, gp) => ({
+  sessions_attended: st.attended, hw_count: st.hw_done, hw_rate: st.hw_rate,
+  gpa: gp?.gpa ?? null, classification: gp?.classification ?? null, gpa_modules: gp?.modules ?? [],
+});
+
 function evaluateGraduation(rules, { attendanceRate, hwStatuses, capstoneStatus, attendance }) {
   if (rules.status === 'none' && rules.min_sessions == null) return { eligible: null, reasons: [], checks: { attendance: { ok: null }, hw: { done: 0, pool: 0, ok: null }, capstone: { ok: null } } };
   const pool = rules.hw_pool ? hwStatuses.slice(0, rules.hw_pool) : hwStatuses;
@@ -71,7 +79,7 @@ function evaluateGraduation(rules, { attendanceRate, hwStatuses, capstoneStatus,
 }
 
 // data: kết quả loadClassData; stats: computeEnrollmentStats(data) (Map enrollment_id -> thống kê)
-function buildGraduationRows(data, stats, rules) {
+function buildGraduationRows(data, stats, rules, { gpaMap } = {}) {
   const hwList = data.assignments.filter((a) => a.kind === 'hw').sort((a, b) => a.seq - b.seq);
   const capstone = data.assignments.find((a) => a.kind === 'capstone');
   const sub = new Map(data.submissions.map((s) => [`${s.enrollment_id}:${s.assignment_id}`, s.status]));
@@ -86,7 +94,7 @@ function buildGraduationRows(data, stats, rules) {
       return {
         enrollment_id: e.id, student_code: e.student_code, full_name: e.full_name, course_status: e.course_status,
         segment: e.segment, company_name: e.company_name,
-        attendance_rate: st.attendance_rate, sessions_present: ev.checks.attendance.sessions ? ev.checks.attendance.value : null,
+        attendance_rate: st.attendance_rate, ...extraColumns(st, gpaMap?.get(e.id)), sessions_present: ev.checks.attendance.sessions ? ev.checks.attendance.value : null,
         hw_done: ev.checks.hw.done, hw_pool: ev.checks.hw.pool, capstone_status: capStatus,
         suggestion: { eligible: ev.eligible, reasons: ev.reasons },
         decision: { status: e.graduation_status ?? 'pending', note: e.graduation_note ?? null, by: e.graduation_by_name ?? null, at: e.graduation_at ?? null },
@@ -129,7 +137,7 @@ const KIND_RANK = { hw: 0, mini: 1, capstone: 2 };
 // Bài bắt buộc: HW1–HW5 / Mini Project đã giao (đã có tick ở ít nhất 1 học viên — collected — hoặc đã có điểm) + Capstone
 // (bắt buộc nếu lớp có bài Capstone; lớp không có Project thì không có bài này).
 // Hoàn thành một bài: có điểm → điểm ≥ 6; chưa có điểm → tick "Đã nộp" (Mini Project không có tick, chỉ có điểm).
-function buildAutoRows(data, stats, rules, { scores = [], program, open = false } = {}) {
+function buildAutoRows(data, stats, rules, { scores = data.scores ?? [], program, open = false, gpaMap } = {}) {
   const scoreOf = new Map(scores.map((s) => [`${s.enrollment_id}:${s.assignment_id}`, s.score == null ? null : Number(s.score)]));
   const scored = new Set(scoreOf.keys());
   const scoredAsg = new Set(scores.map((s) => s.assignment_id));
@@ -158,11 +166,14 @@ function buildAutoRows(data, stats, rules, { scores = [], program, open = false 
         if (scoreOf.has(k)) { if (!(scoreOf.get(k) >= passScore)) low.push(`${a.name} (${scoreOf.get(k)})`); }
         else if (sub.get(k) !== 'submitted') missing.push(a.name);
       }
+      const gp = gpaMap?.get(e.id);
+      const gpaLow = gp?.gpa != null && gp.gpa < PASS_GPA;   // GPA < 2.5 = không tốt nghiệp dù học đủ, làm đủ (admin có thể chỉnh tay)
       const reasons = [];
       if (sess.ok === false || (sess.ok === null && open)) reasons.push(`Có mặt ${sess.value}/${rules.min_sessions} buổi`);
       if (missing.length) reasons.push(`Thiếu ${missing.join(', ')}`);
       if (low.length) reasons.push(`Dưới ${passScore} điểm: ${low.join(', ')}`);
-      const passed = sess.ok === true && !missing.length && !low.length;
+      if (gpaLow) reasons.push(`GPA dưới ${PASS_GPA}`);
+      const passed = sess.ok === true && !missing.length && !low.length && !gpaLow;
       // Lớp còn đang học / trong thời gian nộp & chấm bài: chưa đủ thì là "Đang học", chưa kết luận "Chưa đạt".
       // Lớp đã qua thời gian chấm mà không có dữ liệu điểm danh: "Chưa đủ dữ liệu".
       const result = passed ? 'passed' : open ? 'in_progress' : sess.ok === null ? 'no_data' : 'failed';
@@ -170,12 +181,12 @@ function buildAutoRows(data, stats, rules, { scores = [], program, open = false 
       return {
         enrollment_id: e.id, student_code: e.student_code, full_name: e.full_name, course_status: e.course_status,
         segment: e.segment, company_name: e.company_name,
-        attendance_rate: st.attendance_rate, sessions_present: sess.value, sessions_min: rules.min_sessions,
+        attendance_rate: st.attendance_rate, ...extraColumns(st, gp), sessions_present: sess.value, sessions_min: rules.min_sessions,
         hw_done: required.length - missing.length - low.length, hw_pool: required.length, missing, low,
         capstone_status: capstone ? (sub.get(`${e.id}:${capstone.id}`) ?? (scored.has(`${e.id}:${capstone.id}`) ? 'submitted' : null)) : null,
         auto: { result, reasons },
         suggestion: { eligible: result === 'passed' ? true : result === 'failed' ? false : null, reasons },
-        decision: { status: e.graduation_status ?? 'pending', note: e.graduation_note ?? null, by: e.graduation_by_name ?? null, at: e.graduation_at ?? null },
+        decision: { status: e.graduation_status ?? 'pending', note: e.graduation_note ?? null, by: e.graduation_by_name ?? null, at: e.graduation_at ?? null, override: !!e.graduation_override },
         certificate: { status: e.certificate_status ?? null, number: e.certificate_number ?? null, sent_date: e.certificate_sent_date ?? null },
       };
     });

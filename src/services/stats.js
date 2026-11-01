@@ -72,7 +72,7 @@ async function loadClassData(db, classId) {
       left join users u on u.id = a.updated_by where s.class_id = $1`, [classId]),
     db.all(`select b.*, u.name as updated_by_name from submissions b join assignments a on a.id = b.assignment_id
       left join users u on u.id = b.updated_by where a.class_id = $1`, [classId]),
-    db.all(`select hs.enrollment_id, hs.assignment_id from homework_scores hs join assignments a on a.id = hs.assignment_id where a.class_id = $1`, [classId]),
+    db.all(`select hs.enrollment_id, hs.assignment_id, hs.score::float8 as score from homework_scores hs join assignments a on a.id = hs.assignment_id where a.class_id = $1`, [classId]),
   ]);
   enrollments.sort(compareByName);
   // Bài tập chỉ còn một trạng thái "Đã nộp" (nộp lại/thiếu đã bỏ 28/10/2026). CÓ ĐIỂM = đã làm bài: ô có điểm mà chưa tick vẫn được ghi nhận là đã nộp.
@@ -82,7 +82,7 @@ async function loadClassData(db, classId) {
   const given = new Set(submissions.map((s) => s.assignment_id));   // bài đã có người nộp/có điểm = đã giao
   for (const a of assignments) a.collected = !!a.collected || given.has(a.id);
   assignments.sort((a, b) => (KIND_ORDER[a.kind] ?? 9) - (KIND_ORDER[b.kind] ?? 9) || a.seq - b.seq); // HW → Mini Project → Capstone
-  return { sessions, assignments, enrollments, attendance, submissions };
+  return { sessions, assignments, enrollments, attendance, submissions, scores: scored };
 }
 
 function indexBy(rows, keyFn) {

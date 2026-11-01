@@ -70,7 +70,7 @@ test('không đặt kết quả tay, không "áp dụng gợi ý"; ghi chú / ch
 });
 
 test('đổi tick / điểm danh thì kết quả tự đổi theo', async () => {
-  await t.db.run('insert into homework_scores (enrollment_id, assignment_id, score) values ($1, $2, 7)', [enr.B1, asg.mini1.id]);
+  await t.db.run('insert into homework_scores (enrollment_id, assignment_id, score) values ($1, $2, 9)', [enr.B1, asg.mini1.id]);
   await admin.put(`${base()}/attendance`, { enrollment_id: enr.C1, session_id: sessions[8].id, status: 'present' });
   await admin.put(`${base()}/submissions`, { enrollment_id: enr.A1, assignment_id: asg.hw2.id, status: null });
   const by = await byCode();
@@ -116,7 +116,12 @@ test('có điểm thì phải ≥ 6 mới tính là làm bài; HW6 trở đi kh�
   assert.equal(by.A1.result, 'failed');
   assert.deepEqual(by.A1.low, ['MP1 (5.5)']);
   assert.match(by.A1.auto.reasons.join(' '), /Dưới 6 điểm: MP1 \(5\.5\)/);
-  assert.deepEqual([by.B1.result, by.B1.hw_pool], ['passed', 7]);                       // HW6 không nằm trong danh sách xét
+  // B1 đúng 6 điểm HW2 → vẫn tính là làm bài (không nằm trong "dưới 6"), nhưng GPA (D = 1.0 ở module Data Transformation) < 2.5 nên chưa đạt
+  assert.deepEqual([by.B1.low, by.B1.hw_pool], [[], 7]);                                // HW6 không nằm trong danh sách xét
+  assert.equal(by.B1.result, 'failed');
+  assert.ok(by.B1.auto.reasons.includes('GPA dưới 2.5'));
+  await t.db.run('update homework_scores set score = 8 where enrollment_id = $1 and assignment_id = $2', [enr.B1, asg.hw2.id]);
+  assert.equal((await byCode()).B1.result, 'passed');                                   // 8 điểm → GPA ≥ 2.5
   // điểm thấp nhưng có tick "Đã nộp": vẫn chưa đạt (điểm quyết định khi đã có điểm)
   await t.db.run('update homework_scores set score = 4 where enrollment_id = $1 and assignment_id = $2', [enr.B1, asg.hw2.id]);
   assert.equal((await byCode()).B1.result, 'failed');

@@ -3,12 +3,19 @@
 import { get, put, post, del } from '../api.js';
 import { h, toast, pct, formModal, confirmModal, downloadCsv, setChildren, fmtWhen } from '../ui.js';
 import { classDisplayName, fmtDate, TIMING_LABEL, norm } from '../class-filter.mjs';
+import { openTopPerformance } from './top-performance.js';
 
 const DECISION = { pending: 'Chưa xét', passed: 'Tốt nghiệp', failed: 'Chưa đạt' };
 const CAPSTONE = { submitted: 'Đã nộp' };
 // Xét tự động (BIE-8, BIE-12, BIH-20, BIH-11): kết quả tính từ số buổi + bài đã làm, không đặt tay
 const AUTO_RESULT = { passed: 'Tốt nghiệp', failed: 'Chưa đạt', in_progress: 'Đang học', no_data: 'Chưa đủ dữ liệu', pending: 'Chưa xét' };
 const AUTO_BADGE = { passed: 'ok', failed: 'bad', in_progress: 'warn', no_data: '', pending: '' };
+
+// Ô GPA: điểm hệ 4 + xếp loại; rê chuột xem điểm từng Module. Khách không xem điểm nên ô trống.
+const gpaCell = (r) => (r.gpa == null
+  ? h('td', { class: 'num' }, h('span', { class: 'muted small' }, '—'))
+  : h('td', { class: 'num', title: r.gpa_modules.filter((m) => !m.pending).map((m) => `${m.name}: ${m.score ?? 0}/10 (${m.letter})`).join(String.fromCharCode(10)) },
+    h('b', { class: r.gpa < 2.5 ? 'text-bad' : '' }, r.gpa.toFixed(2)), h('div', { class: 'muted small' }, r.classification)));
 
 const ruleText = (r) => [
   r.min_sessions != null ? `Có mặt ≥ ${r.min_sessions} buổi (vắng có phép không bị trừ)` : `Chuyên cần ≥ ${Math.round(r.attendance_min * 100)}%`,
@@ -38,7 +45,7 @@ export async function renderGraduation({ cls, state }) {
 
   async function reload() { d = await get(`${base}/graduation`); paint(); }
 
-  async function decide(r, status) {
+  async function decide(r, status) {   // status 'pending' ở lớp xét tự động = trả về kết quả tự động
     try {
       await put(`${base}/graduation/${r.enrollment_id}`, { status });
       await reload();
@@ -95,20 +102,13 @@ export async function renderGraduation({ cls, state }) {
     catch (e) { toast(e.message, true); }
   }
 
+  // Cột bắt buộc: mã học viên, tên, mã lớp, số buổi, attendance rate, số HW đã làm, HW rate, GPA, Overall_Classification; sau đó là kết quả và chứng chỉ.
   function exportCsv() {
-    if (isAuto()) {
-      downloadCsv(`${cls.code}-tot-nghiep.csv`, [
-        ['Mã', 'Họ tên', 'Số buổi có mặt', 'Tối thiểu', 'Bài đã làm', 'Còn thiếu', 'Dưới điểm đạt', 'Kết quả', 'Ghi chú', 'Chứng chỉ', 'Số chứng chỉ', 'Ngày gửi'],
-        ...d.rows.map((r) => [r.student_code, r.full_name, r.sessions_present, r.sessions_min, `${r.hw_done}/${r.hw_pool}`, r.missing.join(', '), r.low.join(', '),
-          AUTO_RESULT[r.result], r.decision.note ?? '', r.certificate.status ?? '', r.certificate.number ?? '', r.certificate.sent_date ?? '']),
-      ]);
-      return;
-    }
+    const result = (r) => (isAuto() ? AUTO_RESULT[r.result] : DECISION[r.decision.status]) ?? '';
     downloadCsv(`${cls.code}-tot-nghiep.csv`, [
-      ['Mã', 'Họ tên', 'Chuyên cần', 'HW hoàn thành', 'Capstone', 'Gợi ý', 'Kết quả', 'Ghi chú', 'Chứng chỉ', 'Số chứng chỉ', 'Ngày gửi'],
-      ...d.rows.map((r) => [r.student_code, r.full_name, pct(r.attendance_rate), `${r.hw_done}/${r.hw_pool}`, CAPSTONE[r.capstone_status] ?? '',
-        r.suggestion.eligible === null ? 'Chưa đủ dữ liệu' : r.suggestion.eligible ? 'Đạt' : `Chưa đạt: ${r.suggestion.reasons.join('; ')}`,
-        DECISION[r.decision.status], r.decision.note ?? '', r.certificate.status ?? '', r.certificate.number ?? '', r.certificate.sent_date ?? '']),
+      ['student_id', 'student_name', 'class_code', 'sessions_attended', 'attendance_rate', 'hw_done', 'hw_rate', 'gpa', 'overall_classification', 'result', 'note', 'certificate_status', 'certificate_no', 'certificate_sent'],
+      ...d.rows.map((r) => [r.student_code, r.full_name, cls.short_code ?? cls.code, r.sessions_attended, pct(r.attendance_rate), r.hw_count, pct(r.hw_rate),
+        r.gpa == null ? '' : r.gpa.toFixed(2), r.classification ?? '', result(r), r.decision.note ?? '', r.certificate.status ?? '', r.certificate.number ?? '', r.certificate.sent_date ?? '']),
     ]);
   }
 
@@ -117,14 +117,14 @@ export async function renderGraduation({ cls, state }) {
     const s = d.summary;
     const st = d.rules.status;
     rulesEl.textContent = isAuto()
-      ? `Xét tự động: có mặt ≥ ${d.rules.min_sessions} buổi (vắng có phép không bị trừ; theo ${d.rules.min_sessions_source}) + làm đủ TẤT CẢ bài đã giao (HW1–HW5, Mini Project, Capstone Project): có điểm thì phải ≥ ${d.rules.pass_score} điểm, chưa có điểm thì cần tick "Đã nộp". Kết quả tự cập nhật khi tick bài/điểm danh thay đổi${c.published_at ? '; danh sách đã công bố nên kết quả đang được chốt.' : '; khi admin công bố, kết quả được chốt.'}`
+      ? `Xét tự động: có mặt ≥ ${d.rules.min_sessions} buổi (vắng có phép không bị trừ; theo ${d.rules.min_sessions_source}) + làm đủ TẤT CẢ bài đã giao (HW1–HW5, Mini Project, Capstone Project): có điểm thì phải ≥ ${d.rules.pass_score} điểm, chưa có điểm thì cần tick "Đã nộp"; và GPA ≥ 2.5 (dưới 2.5 là chưa đạt dù học đủ, làm đủ). Admin có thể chỉnh tay kết quả khi điểm chấm sai. Kết quả tự cập nhật khi tick bài/điểm/điểm danh thay đổi${c.published_at ? '; danh sách đã công bố nên kết quả đang được chốt.' : '; khi admin công bố, kết quả được chốt.'}`
       : st === 'none'
       ? `Chưa có quy định tốt nghiệp cho ${d.rules.source === 'default' ? 'lớp này (chưa gắn giáo trình)' : 'giáo trình này'} — chưa có gợi ý, bạn đặt kết quả thủ công.`
       : `Điều kiện gợi ý: ${ruleText(d.rules)}${d.rules.min_sessions != null ? ` — số buổi theo ${d.rules.min_sessions_source}` : ''}${
         st === 'partial' ? '; bài tập/điểm chưa có quy định nên chưa xét' : st === 'provisional' ? '; phần bài tập tạm theo công thức Excel cũ, chờ xác nhận chính thức' : ''}`;
     setChildren(headEl, h('tr', {}, (isAuto()
-      ? ['Học viên', 'Số buổi có mặt', 'Bài đã làm', 'Kết quả', 'Chứng chỉ / ghi chú', '']
-      : ['Học viên', 'Chuyên cần', 'HW', 'Capstone', 'Gợi ý', 'Kết quả', 'Chứng chỉ / ghi chú', '']).map((x) => h('th', {}, x))));
+      ? ['Học viên', 'Số buổi có mặt', 'Bài đã làm', 'GPA', 'Kết quả', 'Chứng chỉ / ghi chú', '']
+      : ['Học viên', 'Chuyên cần', 'HW', 'Capstone', 'GPA', 'Gợi ý', 'Kết quả', 'Chứng chỉ / ghi chú', '']).map((x) => h('th', {}, x))));
     if (isAuto()) setChildren(summaryEl,
       h('span', { class: 'badge ok' }, `Tốt nghiệp ${s.passed}`),
       h('span', { class: 'badge bad' }, `Chưa đạt ${s.failed}`),
@@ -143,6 +143,7 @@ export async function renderGraduation({ cls, state }) {
         locked() || readOnly ? '' : ' — admin có thể sửa hoặc hủy công bố.') : null);
     setChildren(buttonsEl,
       !readOnly && !isAuto() && d.rules.status !== 'none' && h('button', { type: 'button', disabled: !canEdit(), onclick: applySuggestions, title: 'Chỉ đặt cho học viên chưa xét' }, 'Áp dụng gợi ý'),
+      !readOnly && h('button', { type: 'button', onclick: () => openTopPerformance({ cls }), title: 'Top 10% theo điểm các bài đến hiện tại + chuyên cần' }, '🏆 Top Performance'),
       h('button', { type: 'button', onclick: exportCsv }, 'Xuất CSV'),
       admin && d.class.has_curriculum && !isAuto() && h('button', { type: 'button', onclick: editRules }, d.rules.status === 'none' ? 'Thiết lập quy tắc' : 'Sửa quy tắc'),
       admin && (c.published_at
@@ -167,6 +168,7 @@ export async function renderGraduation({ cls, state }) {
         h('td', { class: 'num' }, pct(r.attendance_rate)),
         h('td', { class: 'num' }, r.hw_pool ? `${r.hw_done}/${r.hw_pool}` : '—'),
         h('td', {}, d.rules.capstone || r.capstone_status ? (CAPSTONE[r.capstone_status] ?? '—') : '—'),
+        gpaCell(r),
         h('td', {}, sg.eligible === null
           ? h('span', { class: 'muted small' }, d.rules.status === 'none' ? '—' : 'Chưa đủ dữ liệu')
           : h('span', { class: `badge ${sg.eligible ? 'ok' : 'bad'}`, title: sg.reasons.join(' · ') }, sg.eligible ? 'Đạt' : 'Chưa đạt'),
@@ -180,6 +182,15 @@ export async function renderGraduation({ cls, state }) {
     if (!list.length) body.append(h('tr', {}, h('td', { colspan: 7, class: 'empty-state' }, d.rows.length ? 'Không có học viên khớp tìm kiếm.' : 'Lớp chưa có học viên đang học.')));
   }
 
+  // Admin chỉnh tay kết quả của lớp xét tự động (điểm có thể chấm sai ở một số bài); "Theo hệ thống" = trả về kết quả tự động.
+  function overrideSelect(r) {
+    const sel = h('select', { class: 'grad-sel', 'aria-label': `Chỉnh kết quả của ${r.full_name}` },
+      h('option', { value: 'auto' }, 'Theo hệ thống'), h('option', { value: 'passed' }, 'Chỉnh: Tốt nghiệp'), h('option', { value: 'failed' }, 'Chỉnh: Chưa đạt'));
+    sel.value = r.decision.override ? r.decision.status : 'auto';
+    sel.addEventListener('change', () => decide(r, sel.value === 'auto' ? 'pending' : sel.value));
+    return sel;
+  }
+
   // Một dòng ở chế độ xét tự động: số buổi, bài đã làm (kèm bài còn thiếu), kết quả + lý do
   function autoRow(r) {
     const okSess = r.sessions_present >= r.sessions_min;
@@ -189,8 +200,11 @@ export async function renderGraduation({ cls, state }) {
       h('td', { class: 'num' }, h('b', { class: r.missing.length || r.low.length ? 'text-bad' : '' }, r.hw_pool ? `${r.hw_done}/${r.hw_pool}` : '—'),
         r.missing.length ? h('div', { class: 'muted small' }, `Thiếu ${r.missing.join(', ')}`) : null,
         r.low.length ? h('div', { class: 'muted small' }, `Dưới ${d.rules.pass_score} điểm: ${r.low.join(', ')}`) : null),
+      gpaCell(r),
       h('td', {}, h('span', { class: `badge ${AUTO_BADGE[r.result] ?? ''}`, title: r.auto.reasons.join(' · ') }, AUTO_RESULT[r.result] ?? r.result),
-        r.result !== 'passed' && r.auto.reasons.length ? h('div', { class: 'muted small' }, r.auto.reasons.join(' · ')) : null),
+        r.decision.override ? h('span', { class: 'badge warn', title: `Admin đã chỉnh tay (kết quả tự động: ${AUTO_RESULT[r.auto.result] ?? r.auto.result})` }, '✎ chỉnh tay') : null,
+        r.result !== 'passed' && r.auto.reasons.length ? h('div', { class: 'muted small' }, r.auto.reasons.join(' · ')) : null,
+        admin ? overrideSelect(r) : null),
       h('td', {}, r.certificate.status || r.certificate.number
         ? h('span', { class: 'small' }, [r.certificate.status, r.certificate.number].filter(Boolean).join(' · ')) : h('span', { class: 'muted small' }, '—'),
       r.decision.note ? h('div', { class: 'muted small', title: r.decision.note }, `“${r.decision.note.slice(0, 40)}${r.decision.note.length > 40 ? '…' : ''}”`) : null),

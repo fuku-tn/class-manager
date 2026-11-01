@@ -780,3 +780,35 @@ span.cell[role="button"] { cursor: pointer; }
 @media (max-width: 1000px) {
   [data-theme="light"] .scene-vignette { background: linear-gradient(180deg, rgba(246, 249, 253, .85) 0%, rgba(246, 249, 253, .45) 55%, rgba(246, 249, 253, .1) 100%); }
 }
+
+/* ---- Top Performance (popup trong trang Tốt nghiệp): thẻ xếp hạng kiểu kính mờ, nền sáng cố định ở cả hai giao diện ---- */
+.tp-back { background: linear-gradient(160deg, #e9c8f3 0%, #f4d9d4 38%, #f7e4a6 62%, #5b6cb8 100%); backdrop-filter: none; }
+.tp-window { --tp-ink: #1c1c28; --tp-mute: #8a8a96; width: min(1020px, 100%); max-height: 92vh; overflow: auto; background: rgba(250, 250, 253, .92); color: var(--tp-ink);
+  border-radius: 14px; box-shadow: 0 30px 70px rgba(40, 30, 90, .35); padding: .8rem 1.6rem 1.4rem; }
+.tp-dots { display: flex; align-items: center; gap: .4rem; height: 1.6rem; }
+.tp-dots i { width: .7rem; height: .7rem; border-radius: 50%; background: #ff5f57; }
+.tp-dots i:nth-child(2) { background: #febc2e; } .tp-dots i:nth-child(3) { background: #28c840; }
+.tp-close { margin-left: auto; border: 0; background: transparent; color: var(--tp-mute); font-size: 1rem; cursor: pointer; padding: .2rem .5rem; }
+.tp-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin: 1rem 0 1.2rem; }
+.tp-head h2 { font-size: 1.9rem; font-weight: 700; letter-spacing: -.01em; margin: 0 0 .3rem; color: var(--tp-ink); }
+.tp-head p { margin: 0; font-size: .82rem; color: var(--tp-mute); max-width: 52ch; }
+.tp-date { display: flex; align-items: center; gap: .45rem; color: var(--tp-mute); font-weight: 300; white-space: nowrap; }
+.tp-date b { font-size: 2.1rem; font-weight: 300; } .tp-date span { font-size: .72rem; line-height: 1.25; text-transform: capitalize; }
+.tp-row { display: flex; gap: 1rem; overflow-x: auto; scroll-snap-type: x proximity; padding: .2rem .1rem 1rem; scrollbar-width: none; }
+.tp-row::-webkit-scrollbar { display: none; }
+.tp-card { position: relative; flex: 0 0 15rem; scroll-snap-align: start; background: #fff; border-radius: 12px; padding: 1.1rem 1.1rem 1rem; box-shadow: 0 6px 22px rgba(60, 50, 110, .10); }
+.tp-no { font-size: 2.4rem; font-weight: 700; color: #8c8c96; line-height: 1; letter-spacing: .02em; }
+.tp-dash { display: block; width: 1.1rem; height: 3px; background: #e8365d; margin: .55rem 0 1.1rem; border-radius: 2px; }
+.tp-card h3 { font-size: 1.02rem; font-weight: 500; margin: 0; color: var(--tp-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tp-sub { margin: .15rem 0 .8rem; font-size: .76rem; color: var(--tp-mute); }
+.tp-chart { height: 11rem; border-radius: 10px; background: linear-gradient(180deg, #fbf3f6, #f2f1fb); padding: .3rem; }
+.tp-stats { display: flex; justify-content: space-between; gap: .4rem; margin-top: .8rem; }
+.tp-stats span { display: flex; flex-direction: column; min-width: 0; }
+.tp-stats small { font-size: .62rem; text-transform: uppercase; letter-spacing: .06em; color: var(--tp-mute); }
+.tp-stats b { font-size: .88rem; font-weight: 600; color: var(--tp-ink); white-space: nowrap; }
+.tp-strong { margin: .7rem 0 0; font-size: .74rem; color: #5b5b68; min-height: 1.1rem; }
+.tp-tag { position: absolute; top: 1rem; right: 1rem; font-size: .66rem; color: #e8365d; border: 1px solid #e8365d; border-radius: 999px; padding: .1rem .5rem; }
+.tp-progress { height: 2px; background: rgba(0, 0, 0, .1); border-radius: 2px; margin-top: .3rem; }
+.tp-progress i { display: block; height: 100%; width: 18%; background: #e8365d; border-radius: 2px; transition: width .15s; }
+.tp-note, .tp-empty { margin: .8rem 0 0; font-size: .78rem; color: var(--tp-mute); }
+@media (max-width: 640px) { .tp-window { padding: .6rem 1rem 1rem; } .tp-head h2 { font-size: 1.4rem; } .tp-card { flex-basis: 13.5rem; } }

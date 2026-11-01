@@ -149,6 +149,7 @@ create table if not exists enrollments (
   graduation_note    text,
   graduation_by      bigint references users(id) on delete set null,
   graduation_at      timestamptz,
+  graduation_override boolean not null default false,   -- admin chỉnh tay kết quả của lớp xét tự động (giữ nguyên khi công bố/hủy công bố)
   certificate_number text,
   certificate_sent_date date,
   created_at         timestamptz not null default now(),
