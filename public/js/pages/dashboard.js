@@ -159,7 +159,8 @@ export async function renderDashboard({ cls, state }) {
     const held = d.by_session.filter((s) => s.held);
     if (!a.empty) new Chart(a.canvas, { type: 'line', plugins: [valueLabels], options: {
       responsive: true, maintainAspectRatio: false, layout: { padding: { top: 18 } }, interaction: { mode: 'index', intersect: false },
-      scales: { x: { grid: { display: false } }, y: { beginAtZero: true, ticks: { precision: 0, maxTicksLimit: 5 }, grid: { color: css('--border') }, border: { display: false } } },
+      // trục Y: bỏ số (đã ghi số trên từng điểm), giữ vạch kẻ mờ
+      scales: { x: { grid: { display: false } }, y: { beginAtZero: true, ticks: { display: false, precision: 0, maxTicksLimit: 5 }, grid: { color: css('--border') }, border: { display: false } }, },
       plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } } },
     }, data: {
       labels: held.map((s) => `B${s.session_no}`),
