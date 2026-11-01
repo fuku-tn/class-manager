@@ -4,6 +4,7 @@ description: Chạy, đọc kết quả và viết thêm test cho webapp Class M
 ---
 
 # Kiểm thử
+Viết test mới theo skill `test-driven-development` (đỏ trước, xanh sau); báo kết quả theo skill `verification-before-completion`.
 
 ## Chạy
 `npm test` — dùng PGlite (Postgres trong bộ nhớ), không đụng Supabase, ~15 giây. Chi tiết chiến lược: `Documents/3-ky-thuat/testing.md`.
