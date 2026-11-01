@@ -59,10 +59,13 @@ const viCollator = new Intl.Collator('vi', { sensitivity: 'base', numeric: true 
 const compareByName = (a, b) => viCollator.compare(a.full_name ?? '', b.full_name ?? '') || viCollator.compare(a.student_code ?? '', b.student_code ?? '');
 
 const KIND_ORDER = { hw: 0, mini: 1, capstone: 2 };   // thứ tự cột bài: HW → Mini Project → Capstone
-async function loadClassData(db, classId) {
+// attendanceOnly: chỉ nạp buổi học + học viên + điểm danh (3 truy vấn thay vì 6) cho nơi chỉ cần chuyên cần (trang Điểm danh, số liệu sau khi ghi một ô);
+// khi đó bài tập/điểm là mảng rỗng nên hw_* không dùng được.
+async function loadClassData(db, classId, { attendanceOnly = false } = {}) {
+  const none = Promise.resolve([]);
   const [sessions, assignments, enrollments, attendance, rawSubmissions, scored] = await Promise.all([
     db.all('select * from sessions where class_id = $1 order by session_no', [classId]),
-    db.all('select * from assignments where class_id = $1', [classId]),
+    attendanceOnly ? none : db.all('select * from assignments where class_id = $1', [classId]),
     db.all(`
       select e.*, s.student_code, s.full_name, s.email, s.phone, s.gender, s.honorific, s.call_name
       from enrollments e
@@ -70,9 +73,9 @@ async function loadClassData(db, classId) {
       where e.class_id = $1 order by lower(s.full_name), s.id`, [classId]),
     db.all(`select a.*, u.name as updated_by_name from attendance a join sessions s on s.id = a.session_id
       left join users u on u.id = a.updated_by where s.class_id = $1`, [classId]),
-    db.all(`select b.*, u.name as updated_by_name from submissions b join assignments a on a.id = b.assignment_id
+    attendanceOnly ? none : db.all(`select b.*, u.name as updated_by_name from submissions b join assignments a on a.id = b.assignment_id
       left join users u on u.id = b.updated_by where a.class_id = $1`, [classId]),
-    db.all(`select hs.enrollment_id, hs.assignment_id, hs.score::float8 as score from homework_scores hs join assignments a on a.id = hs.assignment_id where a.class_id = $1`, [classId]),
+    attendanceOnly ? none : db.all(`select hs.enrollment_id, hs.assignment_id, hs.score::float8 as score from homework_scores hs join assignments a on a.id = hs.assignment_id where a.class_id = $1`, [classId]),
   ]);
   enrollments.sort(compareByName);
   // Bài tập chỉ còn một trạng thái "Đã nộp" (nộp lại/thiếu đã bỏ 28/10/2026). CÓ ĐIỂM = đã làm bài: ô có điểm mà chưa tick vẫn được ghi nhận là đã nộp.

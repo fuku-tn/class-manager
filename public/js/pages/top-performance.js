@@ -2,7 +2,7 @@
 // luôn có ít nhất 1 học viên Offline. Mỗi thẻ có biểu đồ Radar điểm từng Module để thấy học viên mạnh Module nào.
 // Công thức xếp hạng nằm ở máy chủ (gpa.js); trang chỉ hiển thị.
 import { get } from '../api.js';
-import { h, toast, pct, closeOnBackdrop } from '../ui.js';
+import { h, toast, pct, closeOnBackdrop, loadChart } from '../ui.js';
 import { classDisplayName } from '../class-filter.mjs';
 
 const MODE_LABEL = { Online: 'Online', Offline: 'Offline', Hybrid: 'Hybrid' };
@@ -79,7 +79,8 @@ export async function openTopPerformance({ cls }) {
   closeOnBackdrop(back, close);
   document.addEventListener('keydown', onKey);
   document.body.append(back);
-  // Chart cần canvas đã nằm trong DOM
+  // Chart cần canvas đã nằm trong DOM (và thư viện được tải khi cần)
+  await loadChart().catch(() => null);
   d.rows.forEach((r, i) => { const c = radar(cards[i].querySelector('canvas'), r.modules.filter((m) => !m.pending)); if (c) charts.push(c); });
   list.dispatchEvent(new Event('scroll'));
 }

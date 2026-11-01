@@ -21,6 +21,20 @@ export function setChildren(el, ...kids) {
   el.replaceChildren(...kids.flat(Infinity).filter((c) => c != null && c !== false));
 }
 
+// Chart.js (~200KB) chỉ tải khi trang cần vẽ biểu đồ (Dashboard, Top Performance) — không tải ở trang đăng nhập/danh sách.
+let chartLoading = null;
+export function loadChart() {
+  if (window.Chart) return Promise.resolve(window.Chart);
+  chartLoading ??= new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = '/vendor/chart.umd.min.js';
+    s.onload = () => resolve(window.Chart);
+    s.onerror = () => { chartLoading = null; reject(new Error('Không tải được thư viện biểu đồ')); };
+    document.head.append(s);
+  });
+  return chartLoading;
+}
+
 export function toast(message, bad = false) {
   const t = h('div', { class: `toast${bad ? ' bad' : ''}` }, message);
   document.getElementById('toasts').append(t);

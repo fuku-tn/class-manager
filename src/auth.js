@@ -32,6 +32,7 @@ function parseCookies(header = '') {
 async function createSession(db, userId) {
   const token = crypto.randomBytes(32).toString('hex');
   const expires = new Date(Date.now() + SESSION_DAYS * 864e5).toISOString();
+  await db.run('delete from auth_sessions where expires_at < now()');   // dọn phiên hết hạn (mỗi lần đăng nhập) để bảng không phình
   await db.run('insert into auth_sessions (token_hash, user_id, expires_at) values ($1, $2, $3)', [sha256(token), userId, expires]);
   return token;
 }

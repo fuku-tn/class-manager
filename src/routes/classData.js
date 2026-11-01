@@ -149,9 +149,9 @@ module.exports = (db) => {
 
   const isAutoClass = async (cls) => !!(cls.curriculum_id && grad.autoRulesFor(await db.one('select code from curricula where id = $1', [cls.curriculum_id])));
 
-  async function gradPayload(cls, { guest = false } = {}) {
+  async function gradPayload(cls, { guest = false, data: preloaded } = {}) {   // preloaded: dùng lại dữ liệu đã tải để đỡ vòng tới database
     const [data, cur, meta] = await Promise.all([
-      loadClassData(db, cls.id),
+      preloaded ?? loadClassData(db, cls.id),
       cls.curriculum_id ? db.one('select * from curricula where id = $1', [cls.curriculum_id]) : null,
       db.one(`select ${TIMING_SQL} as timing, ${PHASE_DATES_SQL}, u.name as published_by_name
               from classes c left join users u on u.id = c.graduation_published_by where c.id = $1`, [cls.id]),
@@ -203,9 +203,10 @@ module.exports = (db) => {
   // ---------- Xuất Transcript (CSV) theo mẫu thư mục transcripts/: BIE, BIH, EBA — chỉ admin (có email, số chứng chỉ). scope=graduates (mặc định) | all ----------
   router.get('/transcript', requireAdmin, async (req, res) => {
     const scope = req.query.scope === 'all' ? 'all' : 'graduates';
-    const p = await gradPayload(req.cls);   // kết quả hiệu lực của trang Tốt nghiệp (kể cả admin chỉnh tay)
+    const data = await loadClassData(db, req.cls.id);
+    const p = await gradPayload(req.cls, { data });   // kết quả hiệu lực của trang Tốt nghiệp (kể cả admin chỉnh tay)
     const passed = new Set(p.rows.filter((r) => (r.result ?? r.decision.status) === 'passed').map((r) => r.enrollment_id));
-    const t = buildTranscript(req.cls, await loadClassData(db, req.cls.id), passed, { scope });
+    const t = buildTranscript(req.cls, data, passed, { scope });
     res.json({ ...t, scope, filename: `Transcript-${req.cls.short_code ?? req.cls.code}${scope === 'all' ? '-ca-lop' : ''}.csv` });
   });
 
@@ -401,7 +402,7 @@ module.exports = (db) => {
 
   // Số liệu sau khi ghi: % chuyên cần của học viên + hiện diện/sĩ số của buổi (tính bằng đúng hàm của stats.js).
   async function snapshot(classId, enrollmentId, sessionId) {
-    const data = await loadClassData(db, classId);
+    const data = await loadClassData(db, classId, { attendanceOnly: true });
     const stats = computeEnrollmentStats(data).get(enrollmentId);
     const sess = sessionSummaries(data).get(sessionId);
     return {
@@ -412,7 +413,7 @@ module.exports = (db) => {
 
   // ---------- Điểm danh ----------
   router.get('/attendance', async (req, res) => {
-    const data = await loadClassData(db, req.cls.id);
+    const data = await loadClassData(db, req.cls.id, { attendanceOnly: true });
     const stats = computeEnrollmentStats(data);
     const cells = new Map();
     for (const a of data.attendance) cells.set(`${a.enrollment_id}:${a.session_id}`, cellView(a));

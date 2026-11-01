@@ -1,5 +1,5 @@
 import { get } from '../api.js';
-import { h, pct, icon, fmtScore } from '../ui.js';
+import { h, pct, icon, fmtScore, loadChart } from '../ui.js';
 import { classDisplayName, fmtDate, TIMING_LABEL, assignmentLabel, sortAssignments } from '../class-filter.mjs';
 import { feedbackSummaryBlock } from './feedback.js';
 
@@ -134,8 +134,8 @@ export async function renderDashboard({ cls, state }) {
   }
 
   // Chart cần canvas đã nằm trong DOM → vẽ ở tick sau.
-  setTimeout(() => {
-    if (!window.Chart) return;
+  setTimeout(async () => {
+    if (!await loadChart().catch(() => null)) return;
     Chart.defaults.color = css('--muted'); Chart.defaults.borderColor = css('--border');
     Chart.defaults.font.family = getComputedStyle(document.body).fontFamily; Chart.defaults.font.size = 12;
     const opts = (stacked) => ({

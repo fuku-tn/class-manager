@@ -9,7 +9,7 @@ Webapp chạy được trên Vercel: Express trở thành một Vercel Function,
 | Đổi tên `src/app.js` → `src/create-app.js`, `src/server.js` → `src/dev-server.js` | Vercel tự tìm `app/index/server` trong `src/`; tránh nhập nhằng với điểm vào thật. Chạy máy nhà vẫn là `npm start` |
 | Chart.js chép vào `public/vendor/chart.umd.min.js` (`npm run vendor` để cập nhật) | `express.static()` **bị bỏ qua** trên Vercel và `node_modules` không phải file tĩnh |
 | `trust proxy` khi có biến `VERCEL` | Bộ giới hạn đăng nhập sai lấy đúng IP khách |
-| `vercel.json` → `regions: ["hnd1"]` (Tokyo) | Chọn khi Supabase ở Tokyo. Từ 14/10/2026 database ở **Seoul** (`ap-northeast-2`) → nên đổi sang `icn1` để cùng vùng (chưa đổi) |
+| `vercel.json` → `regions: ["icn1"]` (Seoul) | Cùng vùng với database Supabase ở **Seoul** (`ap-northeast-2`) — mỗi truy vấn tiết kiệm vài chục ms (đổi từ `hnd1` Tokyo ngày 1/11/2026) |
 | `.vercelignore` | Không đưa test, tài liệu, Excel, `.env` vào bản triển khai |
 | Pool kết nối nhỏ hơn khi chạy trên Vercel | Mỗi instance serverless chỉ giữ ít kết nối |
 
