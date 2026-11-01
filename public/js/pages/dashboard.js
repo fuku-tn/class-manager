@@ -149,10 +149,13 @@ export async function renderDashboard({ cls, state }) {
       scales: { x: { stacked, grid: { display: false } }, y: { display: false, stacked, beginAtZero: true } }, // bỏ giá trị trục Y, ghi số lên cột
       plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } } },
     });
-    const ds = (label, data, color) => ({ label, data, backgroundColor: css(color), borderRadius: 5, borderSkipped: false, maxBarThickness: 38 });
-    // Màu lấy từ bảng màu của giao diện đang chọn (--cat-*: vàng chủ đạo, xanh dương, xám xanh), không dùng xanh lá/đỏ riêng của biểu đồ.
-    const line = (label, data, color, fill = false) => ({ label, data, borderColor: css(color), backgroundColor: css('--gold-soft'), fill, tension: 0.3,
-      borderWidth: 2.5, pointRadius: 4, pointHoverRadius: 6, pointBackgroundColor: css('--solid'), pointBorderColor: css(color), pointBorderWidth: 2 });
+    // Màu: tên biến CSS của giao diện (--cat-1…) hoặc mã màu cố định. Trắng đậm 30% = #b3b3b3, trắng đậm 50% = #808080 (chủ dự án chốt 1/11/2026).
+    const col = (c) => (c.startsWith('--') ? css(c) : c);
+    const WHITE_D30 = '#b3b3b3'; const WHITE_D50 = '#808080';
+    const ds = (label, data, color) => ({ label, data, backgroundColor: col(color), borderRadius: 5, borderSkipped: false, maxBarThickness: 38 });
+    // Có mặt / Đã nộp dùng vàng chủ đạo của giao diện; Có phép / Chưa nộp / Vắng dùng các mức "trắng đậm".
+    const line = (label, data, color) => ({ label, data, borderColor: col(color), fill: false, tension: 0.3,   // chỉ đường, không tô vùng
+      borderWidth: 2.5, pointRadius: 4, pointHoverRadius: 6, pointBackgroundColor: css('--solid'), pointBorderColor: col(color), pointBorderWidth: 2 });
     const held = d.by_session.filter((s) => s.held);
     if (!a.empty) new Chart(a.canvas, { type: 'line', plugins: [valueLabels], options: {
       responsive: true, maintainAspectRatio: false, layout: { padding: { top: 18 } }, interaction: { mode: 'index', intersect: false },
@@ -160,12 +163,12 @@ export async function renderDashboard({ cls, state }) {
       plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } } },
     }, data: {
       labels: held.map((s) => `B${s.session_no}`),
-      datasets: [line('Có mặt', held.map((s) => s.present), '--cat-1', true), line('Có phép', held.map((s) => s.excused), '--cat-2'), line('Vắng', held.map((s) => s.absent), '--cat-3')],
+      datasets: [line('Có mặt', held.map((s) => s.present), '--cat-1'), line('Có phép', held.map((s) => s.excused), WHITE_D30), line('Vắng', held.map((s) => s.absent), WHITE_D50)],
     } });
     const coll = sortAssignments(d.by_assignment.filter((x) => x.collected), cls);
     if (!b.empty) new Chart(b.canvas, { type: 'bar', options: opts(true), plugins: [valueLabels], data: {
       labels: coll.map((x) => assignmentLabel(x, cls, { short: true })),
-      datasets: [ds('Đã nộp', coll.map((x) => x.submitted), '--cat-1'), ds('Chưa nộp', coll.map((x) => x.missing), '--cat-3')],
+      datasets: [ds('Đã nộp', coll.map((x) => x.submitted), '--cat-1'), ds('Chưa nộp', coll.map((x) => x.missing), WHITE_D30)],
     } });
     const palette = ['--cat-1', '--cat-2', '--cat-3', '--cat-4'].map(css);
     new Chart(c.canvas, { type: 'doughnut', plugins: [valueLabels], options: { responsive: true, maintainAspectRatio: false, cutout: '68%', plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } } } },
