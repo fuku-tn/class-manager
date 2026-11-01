@@ -33,7 +33,12 @@ const valueLabels = {
         if (!v) return;
         let x; let y;
         if (chart.config.type === 'doughnut') { ({ x, y } = el.tooltipPosition()); }
-        else {
+        else if (chart.config.type === 'line') {   // số ngay trên điểm, cùng màu với đường
+          x = el.x; y = el.y - 12;
+          ctx.fillStyle = ds.borderColor;
+          ctx.fillText(String(v), x, y);
+          return;
+        } else {
           if (Math.abs(el.base - el.y) < 14) return; // đoạn cột quá thấp: không đủ chỗ ghi số
           x = el.x; y = (el.y + el.base) / 2;
         }
@@ -117,7 +122,7 @@ export async function renderDashboard({ cls, state }) {
     return root;
   }
 
-  const a = chartBox('Điểm danh theo buổi', 'Số học viên đang học theo từng trạng thái', d.by_session.some((x) => x.held) ? null : 'Chưa có buổi nào được điểm danh.');
+  const a = chartBox('Điểm danh theo buổi', 'Số học viên đang học theo từng trạng thái qua các buổi', d.by_session.some((x) => x.held) ? null : 'Chưa có buổi nào được điểm danh.');
   const b = chartBox('Nộp bài tập', 'Số học viên đang học đã nộp / chưa nộp', d.by_assignment.some((x) => x.collected) ? null : 'Chưa thu bài tập nào.');
   const c = chartBox('Hình thức học', 'Phân bố học viên đang học');
   root.append(h('div', { class: 'grid2' }, a.el, b.el, c.el));
@@ -145,16 +150,22 @@ export async function renderDashboard({ cls, state }) {
       plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } } },
     });
     const ds = (label, data, color) => ({ label, data, backgroundColor: css(color), borderRadius: 5, borderSkipped: false, maxBarThickness: 38 });
+    // Màu lấy từ bảng màu của giao diện đang chọn (--cat-*: vàng chủ đạo, xanh dương, xám xanh), không dùng xanh lá/đỏ riêng của biểu đồ.
+    const line = (label, data, color, fill = false) => ({ label, data, borderColor: css(color), backgroundColor: css('--gold-soft'), fill, tension: 0.3,
+      borderWidth: 2.5, pointRadius: 4, pointHoverRadius: 6, pointBackgroundColor: css('--solid'), pointBorderColor: css(color), pointBorderWidth: 2 });
     const held = d.by_session.filter((s) => s.held);
-    if (!a.empty) new Chart(a.canvas, { type: 'bar', options: opts(true), plugins: [valueLabels], data: {
+    if (!a.empty) new Chart(a.canvas, { type: 'line', plugins: [valueLabels], options: {
+      responsive: true, maintainAspectRatio: false, layout: { padding: { top: 18 } }, interaction: { mode: 'index', intersect: false },
+      scales: { x: { grid: { display: false } }, y: { beginAtZero: true, ticks: { precision: 0, maxTicksLimit: 5 }, grid: { color: css('--border') }, border: { display: false } } },
+      plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } } },
+    }, data: {
       labels: held.map((s) => `B${s.session_no}`),
-      datasets: [ds('Có mặt', held.map((s) => s.present), '--ok'),
-        ds('Có phép', held.map((s) => s.excused), '--info'), ds('Vắng', held.map((s) => s.absent), '--bad')],
+      datasets: [line('Có mặt', held.map((s) => s.present), '--cat-1', true), line('Có phép', held.map((s) => s.excused), '--cat-2'), line('Vắng', held.map((s) => s.absent), '--cat-3')],
     } });
     const coll = sortAssignments(d.by_assignment.filter((x) => x.collected), cls);
     if (!b.empty) new Chart(b.canvas, { type: 'bar', options: opts(true), plugins: [valueLabels], data: {
       labels: coll.map((x) => assignmentLabel(x, cls, { short: true })),
-      datasets: [ds('Đã nộp', coll.map((x) => x.submitted), '--ok'), ds('Chưa nộp', coll.map((x) => x.missing), '--bad')],
+      datasets: [ds('Đã nộp', coll.map((x) => x.submitted), '--cat-1'), ds('Chưa nộp', coll.map((x) => x.missing), '--cat-3')],
     } });
     const palette = ['--cat-1', '--cat-2', '--cat-3', '--cat-4'].map(css);
     new Chart(c.canvas, { type: 'doughnut', plugins: [valueLabels], options: { responsive: true, maintainAspectRatio: false, cutout: '68%', plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } } } },
