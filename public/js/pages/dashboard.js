@@ -32,8 +32,7 @@ const valueLabels = {
         const v = ds.data[j];
         if (!v) return;
         let x; let y;
-        if (chart.config.type === 'doughnut') { ({ x, y } = el.tooltipPosition()); }
-        else if (chart.config.type === 'line') {   // số ngay trên điểm, cùng màu với đường
+        if (chart.config.type === 'line') {   // số ngay trên điểm, cùng màu với đường
           x = el.x; y = el.y - 12;
           ctx.fillStyle = ds.borderColor;
           ctx.fillText(String(v), x, y);
@@ -46,6 +45,36 @@ const valueLabels = {
         ctx.fillStyle = luminance(bg) > 0.6 ? '#101827' : '#ffffff';
         ctx.fillText(String(v), x, y);
       });
+    });
+    ctx.restore();
+  },
+};
+
+// Biểu đồ tròn: ghi thẳng "Tên / % (số người)" lên từng cung (thay cho chú giải). Cung quá hẹp thì ghi ngay bên ngoài vòng.
+const donutLabels = {
+  id: 'donutLabels',
+  afterDatasetsDraw(chart) {
+    const { ctx } = chart;
+    const ds = chart.data.datasets[0];
+    const total = ds.data.reduce((a, b) => a + b, 0);
+    if (!total) return;
+    const family = getComputedStyle(document.body).fontFamily;
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    chart.getDatasetMeta(0).data.forEach((el, j) => {
+      const v = ds.data[j];
+      if (!v) return;
+      const mid = (el.startAngle + el.endAngle) / 2;
+      const rMid = (el.innerRadius + el.outerRadius) / 2;
+      const outside = (el.endAngle - el.startAngle) * rMid < 78;   // cung hẹp: không đủ chỗ ghi trong vòng
+      const r = outside ? el.outerRadius + 24 : rMid;
+      const x = el.x + Math.cos(mid) * r; const y = el.y + Math.sin(mid) * r;
+      ctx.fillStyle = outside ? css('--text') : (luminance(ds.backgroundColor[j]) > 0.6 ? '#101827' : '#ffffff');
+      ctx.font = `700 12px ${family}`;
+      ctx.fillText(chart.data.labels[j], x, y - 8);
+      ctx.font = `600 11px ${family}`;
+      ctx.fillText(`${Math.round((v / total) * 100)}% (${v})`, x, y + 7);
     });
     ctx.restore();
   },
@@ -171,9 +200,12 @@ export async function renderDashboard({ cls, state }) {
       labels: coll.map((x) => assignmentLabel(x, cls, { short: true })),
       datasets: [ds('Đã nộp', coll.map((x) => x.submitted), '--cat-1'), ds('Chưa nộp', coll.map((x) => x.missing), WHITE_D30)],
     } });
-    const palette = ['--cat-1', '--cat-2', '--cat-3', '--cat-4'].map(css);
-    new Chart(c.canvas, { type: 'doughnut', plugins: [valueLabels], options: { responsive: true, maintainAspectRatio: false, cutout: '68%', plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } } } },
-      data: { labels: d.by_mode.map((m) => m.mode), datasets: [{ data: d.by_mode.map((m) => m.count), backgroundColor: palette, borderColor: css('--solid'), borderWidth: 3 }] } });
+    // Hình thức học: nhóm lớn nhất màu vàng chủ đạo; các nhóm nhỏ hơn màu trắng đậm 60% (#666666) rồi nhạt dần theo tỷ trọng giảm dần.
+    const modes = [...d.by_mode].sort((x, y) => y.count - x.count);
+    const grey = (k) => { const n = Math.min(102 + (k - 1) * 34, 200).toString(16).padStart(2, '0'); return `#${n}${n}${n}`; };
+    const palette = modes.map((_, k) => (k === 0 ? css('--cat-1') : grey(k)));
+    new Chart(c.canvas, { type: 'doughnut', plugins: [donutLabels], options: { responsive: true, maintainAspectRatio: false, cutout: '40%', layout: { padding: 30 }, plugins: { legend: { display: false } } },
+      data: { labels: modes.map((m) => m.mode), datasets: [{ data: modes.map((m) => m.count), backgroundColor: palette, borderColor: css('--solid'), borderWidth: 3 }] } });
   }, 0);
 
   const riskCard = h('div', { class: 'card' }, riskAnchor,
