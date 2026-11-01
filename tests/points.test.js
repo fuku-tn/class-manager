@@ -38,7 +38,7 @@ const scores = () => t.db.all(`select s.student_code, a.kind, a.seq, hs.score::f
   join enrollments e on e.id = hs.enrollment_id join students s on s.id = e.student_id join assignments a on a.id = hs.assignment_id
   order by 1, 2, 3`);
 
-test('đọc nhãn bài và điểm: HW2/HW 2/Homework 2, Capstone; điểm dấu phẩy; ngoài 0–10 bị loại', () => {
+test('đọc nhãn bài và điểm: HW2/HW 2/Homework 2, Capstone; điểm dấu phẩy; điểm > 10 bị chặn ở 10, âm/vô lý bị loại', () => {
   assert.deepEqual([parseHw('HW2'), parseHw('hw 12'), parseHw('Homework 3'), parseHw('Capstone Project'), parseHw('Quiz')],
     [{ kind: 'hw', seq: 2 }, { kind: 'hw', seq: 12 }, { kind: 'hw', seq: 3 }, { kind: 'capstone', seq: 1 }, null]);
   // ô HW chỉ ghi số thứ tự (ô số hoặc chữ), các kiểu viết khác; số 0 / số lẻ / chữ lạ thì không nhận
@@ -47,8 +47,8 @@ test('đọc nhãn bài và điểm: HW2/HW 2/Homework 2, Capstone; điểm dấ
   const { normalizeCourse } = require('../src/services/importPoints');
   assert.deepEqual(['BIE102', 'bie 102', 'BIE-102', 'BIE95', 'P2.BIE.P102.HY.AA.260726', 'P1.EBA.B084.HY.MA.180925', ' EBA120 ', '', null].map(normalizeCourse),
     ['BIE102', 'BIE102', 'BIE102', 'BIE095', 'BIE102', 'EBA084', 'EBA120', null, null]);
-  assert.deepEqual([parseScore(8.8), parseScore('9,5'), parseScore('10'), parseScore(0), parseScore(11), parseScore(-1), parseScore('x'), parseScore(null)],
-    [8.8, 9.5, 10, 0, null, null, null, null]);
+  assert.deepEqual([parseScore(8.8), parseScore('9,5'), parseScore('10'), parseScore(0), parseScore(12.5), parseScore(-1), parseScore(150), parseScore('x'), parseScore(null)],
+    [8.8, 9.5, 10, 0, 10, null, null, null, null]);   // điểm > 10 (tổng nhiều file) bị chặn ở 10 như công thức MIN($M$1, SUMIFS) của file Chấm điểm; số vô lý thì bỏ
 });
 
 test('đồng bộ điểm: cần mã; ghép theo StudentID + Course + HW; không lưu họ tên; chạy lại không đổi', async () => {
@@ -73,7 +73,7 @@ test('đồng bộ điểm: cần mã; ghép theo StudentID + Course + HW; khôn
 test('sửa điểm trong Sheet thì cập nhật; điểm bị xóa khỏi Sheet thì bị xóa; dòng sai được đếm, không làm hỏng', async () => {
   const r = await post([
     row('P.5001', 'HW1', 9), row('P.5001', 'HW2', 8.8), row('P.5003', 'HW2', 7.5, 'Data Modeling'),   // P.5002 HW1 bị xóa; P.5001 HW1 sửa 8 → 9
-    row('#N/A', 'HW1', 5), row('P.5002', 'Quiz', 5), row('P.5002', 'HW1', 15), row('P.5002', 'HW1', 6, 'X', 'XXX999'),   // sai mã / nhãn / điểm / lớp lạ
+    row('#N/A', 'HW1', 5), row('P.5002', 'Quiz', 5), row('P.5002', 'HW1', 150), row('P.5002', 'HW1', 6, 'X', 'XXX999'),   // sai mã / nhãn / điểm / lớp lạ
     row('P.9999', 'HW1', 5),      // không có ghi danh
     row('P.5001', 'HW9', 5),      // lớp không có HW9
   ]);
@@ -81,7 +81,7 @@ test('sửa điểm trong Sheet thì cập nhật; điểm bị xóa khỏi Shee
   assert.deepEqual([r.body.updated, r.body.deleted, r.body.skipped_bad_student_id, r.body.skipped_bad_hw, r.body.skipped_bad_point,
     r.body.skipped_unknown_class, r.body.skipped_no_enrollment, r.body.skipped_no_assignment], [1, 1, 1, 1, 1, 1, 1, 1]);
   // ví dụ giá trị bị bỏ qua (để sửa Sheet): chỉ nhãn HW / mã lớp, không có mã học viên hay tên
-  assert.deepEqual(r.body.examples, { bad_hw: ['Quiz'], bad_point: ['PTS101 HW1: 15'], unknown_class: ['XXX999'], no_assignment: ['PTS101 HW9'], no_enrollment: ['PTS101 HW1'] });
+  assert.deepEqual(r.body.examples, { bad_hw: ['Quiz'], bad_point: ['PTS101 HW1: 150'], unknown_class: ['XXX999'], no_assignment: ['PTS101 HW9'], no_enrollment: ['PTS101 HW1'] });
   assert.ok(!JSON.stringify(r.body.examples).includes('P.'));
   const s = await scores();
   assert.equal(s.find((x) => x.student_code === 'P.5001' && x.seq === 1).score, 9);

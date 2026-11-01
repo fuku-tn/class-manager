@@ -157,3 +157,14 @@ test('Module: nguồn không có Module (SharePoint) và dòng Excel trống Mod
   assert.deepEqual([r.body.matched, r.body.matched_by_reorder], [1, 1]);
   assert.equal((await score('P.8001', 'hw', 4)).score, 6);
 });
+
+test('BIH: file ghi "Project N" là Mini Project N; chương trình khác "Project N" vẫn không nhận ra; "Project" trơn vẫn là Capstone', () => {
+  const { parseScoreFileRows } = require('../src/services/importScoreFiles');
+  const mk = (path) => parseScoreFileRows({ headers: ['Path', 'Name', 'Point'], rows: [[`Shared Documents/STARTTRAIN/${path}`, 'x', 8]] });
+  const key = (r) => [...r.groups.values()].map((g) => `${g.short} ${g.kind}${g.seq}`);
+  assert.deepEqual(key(mk('BIH/BIH098/Nguyen Van A/BIH98 - Project 2.pbix')), ['BIH098 mini2']);
+  assert.deepEqual(key(mk('BIH/BIH098/Nguyen Van A/Project 1/file.pbix')), ['BIH098 mini1']);
+  assert.deepEqual(key(mk('BIH/BIH098/Nguyen Van A/HW3/Project 2 data.xlsx')), ['BIH098 hw3']);   // thư mục HW thắng
+  assert.equal(mk('EBA/EBA117/Nguyen Van A/Project 2.xlsx').skipped.no_item, 1);
+  assert.deepEqual(key(mk('BIH/BIH098/Nguyen Van A/Capstone Project.pbix')), ['BIH098 capstone1']);
+});

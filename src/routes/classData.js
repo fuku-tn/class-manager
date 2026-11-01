@@ -8,6 +8,7 @@ const { tally } = require('../services/formProfile');
 const feedback = require('../services/feedback');
 const grad = require('../services/graduation');
 const gpaSvc = require('../services/gpa');
+const { buildTranscript } = require('../services/transcript');
 const { makeupsFor } = require('../services/makeup');
 const { absencesFor } = require('../services/absence');
 const { TIMING_SQL, PHASE_DATES_SQL } = require('../services/timing');
@@ -197,6 +198,15 @@ module.exports = (db) => {
     const top = gpaSvc.topPerformers(people);
     res.json({ class: { id: req.cls.id, code: req.cls.code, short_code: req.cls.short_code, program: req.cls.program },
       percent: gpaSvc.TOP_PERCENT, weights: { gpa: gpaSvc.GPA_SHARE, attendance: 1 - gpaSvc.GPA_SHARE }, ...top });
+  });
+
+  // ---------- Xuất Transcript (CSV) theo mẫu thư mục transcripts/: BIE, BIH, EBA — chỉ admin (có email, số chứng chỉ). scope=graduates (mặc định) | all ----------
+  router.get('/transcript', requireAdmin, async (req, res) => {
+    const scope = req.query.scope === 'all' ? 'all' : 'graduates';
+    const p = await gradPayload(req.cls);   // kết quả hiệu lực của trang Tốt nghiệp (kể cả admin chỉnh tay)
+    const passed = new Set(p.rows.filter((r) => (r.result ?? r.decision.status) === 'passed').map((r) => r.enrollment_id));
+    const t = buildTranscript(req.cls, await loadClassData(db, req.cls.id), passed, { scope });
+    res.json({ ...t, scope, filename: `Transcript-${req.cls.short_code ?? req.cls.code}${scope === 'all' ? '-ca-lop' : ''}.csv` });
   });
 
   // Học bù: học viên lớp khác được ghi chú điểm danh "Bù <mã lớp này>" (vd "Bù EBA122") — để lớp này biết có ai đến học bù buổi nào.

@@ -43,8 +43,9 @@ function normalizeCourse(raw) {
 function parseScore(raw) {
   if (raw == null || raw === '') return null;
   const n = typeof raw === 'number' ? raw : Number(String(raw).trim().replace(',', '.'));
-  if (!Number.isFinite(n) || n < 0 || n > 10) return null;
-  return Math.round(n * 100) / 100;
+  // Điểm bài = tổng điểm các file nhưng TỐI ĐA 10 (bản mới của file Chấm điểm đã sửa công thức thành MIN($M$1, SUMIFS(...))): 12.5 → 10. Số quá vô lý (> 100) vẫn bị bỏ.
+  if (!Number.isFinite(n) || n < 0 || n > 100) return null;
+  return Math.round(Math.min(n, 10) * 100) / 100;
 }
 
 // Bài tương đương theo chương trình (theo chữ đầu mã lớp): BIH "Mini Project 3" chính là HW5 → lưu vào bài HW5 của lớp

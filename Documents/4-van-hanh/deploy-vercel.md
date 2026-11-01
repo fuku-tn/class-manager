@@ -35,6 +35,7 @@ Từ bản này, màn hình đăng nhập tự báo lý do nếu là lỗi datab
 | `thiếu biến DATABASE_URL` | Chưa đặt biến, hoặc đặt nhưng chưa **Redeploy** / sai môi trường (Production/Preview) | Settings → Environment Variables → thêm cho **Production** → Deployments → Redeploy |
 | `sai mật khẩu database` | Mật khẩu sai, hoặc còn nguyên chữ `[YOUR-PASSWORD]` | Thay bằng mật khẩu thật (bỏ cả dấu `[ ]`); ký tự đặc biệt phải mã hóa URL (`@` → `%40`) hoặc đặt lại mật khẩu chỉ gồm chữ và số |
 | `không đúng định dạng` | Dán sai chuỗi | Dán lại nguyên chuỗi từ Supabase › Connect |
+| `database hết kết nối` (max clients reached) | Chuỗi Session pooler (5432) cạn slot khi nhiều instance Vercel chạy cùng lúc | Từ 1/11/2026 mã tự đổi 5432 → 6543 khi chạy trên Vercel (`serverlessUrl` trong `src/db.js`; tắt bằng `DB_KEEP_SESSION_POOLER=1`); nên đặt thẳng chuỗi Transaction pooler (6543) cho `DATABASE_URL` trên Vercel |
 | `không kết nối được` / `sai tên người dùng` | Sai mã project hoặc vùng (`aws-0-ap-northeast-1`) | Copy lại chuỗi **Transaction pooler** từ Supabase |
 | `chưa tạo bảng` | Chưa chạy `supabase/schema.sql` | Chạy trong SQL Editor |
 Sau khi sửa biến môi trường **phải Redeploy** thì mới có hiệu lực. Endpoint này chỉ trả về loại lỗi, không lộ chuỗi kết nối. Code cũng tự bỏ qua dấu nháy/khoảng trắng dán thừa và tham số `?pgbouncer=true`.

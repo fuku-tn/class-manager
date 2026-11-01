@@ -21,6 +21,18 @@ function wrap(exec) {
   };
 }
 
+// Trên Vercel (serverless) mỗi lượt gọi có thể mở instance mới → chuỗi Session pooler (cổng 5432) rất nhanh hết slot ("max clients reached").
+// Cùng máy chủ pooler của Supabase có sẵn Transaction pooler ở cổng 6543 (nhiều client hơn, kết nối chỉ giữ trong lúc chạy lệnh/transaction),
+// nên khi chạy trên Vercel mà DATABASE_URL đang trỏ cổng 5432 của pooler thì tự đổi sang 6543. Đặt DB_KEEP_SESSION_POOLER=1 để tắt.
+function serverlessUrl(url, env = process.env) {
+  if (!env.VERCEL || env.DB_KEEP_SESSION_POOLER) return url;
+  try {
+    const u = new URL(url);
+    if (/\.pooler\.supabase\.com$/.test(u.hostname) && (u.port === '' || u.port === '5432')) { u.port = '6543'; return u.toString(); }
+  } catch { /* để pg báo lỗi rõ */ }
+  return url;
+}
+
 async function openDb({ memory = false, url = process.env.DATABASE_URL } = {}) {
   if (memory) {
     const { PGlite } = require('@electric-sql/pglite'); // devDependency
@@ -37,12 +49,13 @@ async function openDb({ memory = false, url = process.env.DATABASE_URL } = {}) {
   // Chịu được lỗi dán cấu hình: khoảng trắng, dấu nháy bao quanh, tên biến bị dán kèm, tham số kiểu Prisma.
   url = url.trim().replace(/^DATABASE_URL\s*=\s*/, '').replace(/^["']+|["']+$/g, '');
   try { const u = new URL(url); u.searchParams.delete('pgbouncer'); u.searchParams.delete('connection_limit'); url = u.toString(); } catch { /* để pg báo lỗi rõ */ }
+  url = serverlessUrl(url);
   types.setTypeParser(DATE_OID, (v) => v);
   types.setTypeParser(TIMESTAMPTZ_OID, (v) => v);
   types.setTypeParser(INT8_OID, (v) => Number(v));
   const local = /localhost|127\.0\.0\.1/.test(url);
   // Serverless (Vercel): mỗi instance giữ ít kết nối; dùng Supabase Transaction pooler (cổng 6543) để không cạn kết nối.
-  const pool = new Pool({ connectionString: url, max: process.env.VERCEL ? 3 : 5, idleTimeoutMillis: 10000, ssl: local ? false : { rejectUnauthorized: false } });
+  const pool = new Pool({ connectionString: url, max: process.env.VERCEL ? 2 : 5, idleTimeoutMillis: process.env.VERCEL ? 3000 : 10000, ssl: local ? false : { rejectUnauthorized: false } });
   pool.on('error', (e) => console.error('Lỗi kết nối Postgres:', e.message));
   await pool.query('select 1'); // báo lỗi sớm nếu sai URL/mật khẩu
   return {
@@ -94,4 +107,4 @@ function describeDbError(e) {
   return null;
 }
 
-module.exports = { openDb, openDbLazy, describeDbError };
+module.exports = { openDb, openDbLazy, describeDbError, serverlessUrl };

@@ -112,6 +112,20 @@ export async function renderGraduation({ cls, state }) {
     ]);
   }
 
+  // Xuất Transcript theo mẫu thư mục transcripts/ (BIE, BIH, EBA): 1 dòng/học viên, các cột module_N_*, GPA, xếp loại. Chỉ admin.
+  async function exportTranscript() {
+    const v = await formModal({ title: 'Xuất Transcript (CSV)', submitLabel: 'Xuất file', fields: [
+      { name: 'scope', label: 'Danh sách', type: 'select', value: 'graduates', full: true,
+        options: [['graduates', 'Chỉ học viên tốt nghiệp (để làm chứng chỉ)'], ['all', 'Cả lớp (người chưa đạt ghi INCOMPLETE)']] }],
+    extra: h('p', { class: 'muted small' }, 'Theo đúng cấu trúc các file Transcript: tên IN HOA không dấu, module_N_name/grade/interpretation/result, GPA dạng "2.62 / 4.00". Ngày sinh để trống (hệ thống không lưu).') });
+    if (!v) return;
+    try {
+      const t = await get(`${base}/transcript?scope=${encodeURIComponent(v.scope)}`);
+      downloadCsv(t.filename, [t.columns, ...t.rows]);
+      toast(`Đã xuất ${t.count} học viên. ${t.warnings.filter((w) => !w.startsWith('date_of_birth')).join(' · ')}`.trim());
+    } catch (e) { toast(e.message, true); }
+  }
+
   function paint() {
     const c = d.class;
     const s = d.summary;
@@ -145,6 +159,7 @@ export async function renderGraduation({ cls, state }) {
       !readOnly && !isAuto() && d.rules.status !== 'none' && h('button', { type: 'button', disabled: !canEdit(), onclick: applySuggestions, title: 'Chỉ đặt cho học viên chưa xét' }, 'Áp dụng gợi ý'),
       !readOnly && h('button', { type: 'button', onclick: () => openTopPerformance({ cls }), title: 'Top 10% theo điểm các bài đến hiện tại + chuyên cần' }, '🏆 Top Performance'),
       h('button', { type: 'button', onclick: exportCsv }, 'Xuất CSV'),
+      admin && h('button', { type: 'button', onclick: exportTranscript, title: 'Bảng điểm (Transcript) theo mẫu BIE/BIH/EBA' }, 'Xuất Transcript'),
       admin && d.class.has_curriculum && !isAuto() && h('button', { type: 'button', onclick: editRules }, d.rules.status === 'none' ? 'Thiết lập quy tắc' : 'Sửa quy tắc'),
       admin && (c.published_at
         ? h('button', { type: 'button', class: 'danger', onclick: () => publish(false) }, 'Hủy công bố')

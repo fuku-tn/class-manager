@@ -25,10 +25,14 @@ const sortedTokens = (n) => n.split(' ').filter(Boolean).sort().join(' ');
 const MINI_RE = /(?:mini\s*project|(?<![a-z])mp)\s*[_\-\s]?\s*0?(\d)(?!\d)/i;
 const HW_RE = /(?:hw|homework|b[àa]i\s*t[ậa]p|(?<![a-z])bt)\s*[_\-\s]?\s*(?:(?:week|tu[ầa]n)\s*)?0?(\d)(?!\d)/i;
 const CAPSTONE_RE = /capstone|(?<![a-z])project(?![\s_\-]*\d)|đồ\s*án/i;
-function detectItem(rest) {
+// BIH: file ghi "Project N" là Mini Project N (chủ dự án chốt 1/11/2026: BIH98 "Project 2" = Mini Project 2).
+const BIH_PROJECT_N_RE = /(?<![a-z])project[\s_\-]*0?(\d)(?!\d)/i;
+function detectItem(rest, short = '') {
   const s = rest.normalize('NFC');
   const mini = MINI_RE.exec(s);
   if (mini) return { kind: 'mini', seq: Number(mini[1]) };
+  const bihProject = /^BIH/i.test(short) ? BIH_PROJECT_N_RE.exec(s) : null;
+  if (bihProject && !/(?:hw|homework)\s*\d/i.test(s)) return { kind: 'mini', seq: Number(bihProject[1]) };
   const hw = HW_RE.exec(s);
   if (hw && Number(hw[1]) >= 1) return { kind: 'hw', seq: Number(hw[1]) };
   if (CAPSTONE_RE.test(s)) return { kind: 'capstone', seq: 1 };
@@ -52,7 +56,7 @@ function parseScoreFileRows(table) {
     const [prog, cls, student, ...rest] = i >= 0 ? parts.slice(i + 1) : [];
     const short = prog && PROGRAMS.test(prog.toUpperCase()) && cls && /^[A-Za-z]{2,5}\s*0*\d{1,4}$/.test(cls) ? normalizeCourse(cls) : null;
     if (!short || !student || !rest.length) { out.skipped.bad_path++; continue; }
-    const item = detectItem(rest.join('/'));
+    const item = detectItem(rest.join('/'), short);
     if (!item) { out.skipped.no_item++; if (out.noItemSamples.size < 10) out.noItemSamples.add(`${short} ${rest[rest.length - 1].replace(/\.[A-Za-z0-9]{2,5}$/, '').slice(0, 40)}`.replace(student, '<HV>')); continue; }
     const key = `${short}|${normName(student)}|${item.kind}:${item.seq}`;
     const g = out.groups.get(key) ?? { short, name: normName(student), ...item, sum: 0, files: 0 };
