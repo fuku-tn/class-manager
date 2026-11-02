@@ -59,8 +59,8 @@ test('đồng bộ: tạo lớp, học viên, ghi danh; bỏ cột tiền; chạ
   assert.equal(again.body.added.students, 0);
 });
 
-test('đồng bộ không đè sửa tay: tên, trạng thái "đã nghỉ"; vẫn nhận học viên mới và "Không tham gia"', async () => {
-  await t.db.run("update students set full_name = 'Tên sửa tay' where student_code = 'P.1'");
+test('đồng bộ: họ tên theo Sheet (sửa tên ở Sheet thì app cập nhật); không đè trạng thái "đã nghỉ"; vẫn nhận học viên mới và "Không tham gia"', async () => {
+  await t.db.run("update students set full_name = 'Greenfeed' where student_code = 'P.1'");
   await t.db.run("update enrollments set course_status = 'dropped' where student_id = (select id from students where student_code = 'P.1')");
   const C = ['P.3', 'C3', 'Lê Chi', 'chi@x.com', '0903333333', 'BIE104', 'Hybrid', 'Female', null, 'Form'];
   const Bdrop = [...B]; Bdrop[8] = 'Không tham gia';
@@ -68,7 +68,7 @@ test('đồng bộ không đè sửa tay: tên, trạng thái "đã nghỉ"; v�
   assert.equal(r.status, 200, JSON.stringify(r.body));
   assert.equal(r.body.added.students, 1);
   const q = (code) => t.db.one(`select s.full_name, e.course_status from students s join enrollments e on e.student_id = s.id where s.student_code = $1`, [code]);
-  assert.deepEqual(await q('P.1'), { full_name: 'Tên sửa tay', course_status: 'dropped' });
+  assert.deepEqual(await q('P.1'), { full_name: 'Nguyễn An', course_status: 'dropped' });
   assert.equal((await q('P.2')).course_status, 'deferred');   // sheet báo không tham gia (hiển thị giống bảo lưu)
   assert.equal((await q('P.3')).course_status, 'active');
 });

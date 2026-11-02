@@ -400,8 +400,8 @@ async function importTransactions(db, { transactionsFile, curriculumFile, dryRun
         `insert into students (student_code, full_name, email, phone, gender)
          select * from unnest($1::text[], $2::text[], $3::text[], $4::text[], $5::text[])
          on conflict (student_code) do update set ${preserveManual
-    ? `full_name = case when students.full_name is null or students.full_name = students.student_code
-                            then coalesce(excluded.full_name, students.full_name) else students.full_name end,
+    ? `full_name = case when excluded.full_name is null or excluded.full_name = excluded.student_code
+                            then students.full_name else excluded.full_name end,
              email = coalesce(students.email, excluded.email), phone = coalesce(students.phone, excluded.phone),
              gender = coalesce(students.gender, excluded.gender)`
     : `full_name = coalesce(excluded.full_name, students.full_name), email = coalesce(excluded.email, students.email),
