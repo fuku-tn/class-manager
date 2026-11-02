@@ -88,14 +88,14 @@ test('đồng bộ: sai mã bị từ chối; ghép theo tên (bỏ dấu, lớp
   assert.equal((await score('P.8005', 'capstone', 1)).score, 6);
 });
 
-test('thứ tự ưu tiên: gõ tay > Excel > SharePoint; SharePoint tự cập nhật điểm của chính nó; Excel không xóa điểm SharePoint', async () => {
-  // gõ tay cho An HW1; Excel cho Bình HW2 = 6
+test('thứ tự ưu tiên: gõ tay trên hết; Excel và SharePoint chỉ NÂNG điểm của nhau (lấy bản cao hơn); mỗi nguồn tự cập nhật điểm của chính nó; Excel không xóa điểm SharePoint', async () => {
+  // gõ tay cho An HW1; Excel cho Bình HW2 = 6 (ở bước này Bình đã có điểm SharePoint 9.5 từ các test trước)
   await admin.put(`/api/classes/${classId}/scores`, { enrollment_id: (await t.db.one("select e.id from enrollments e join students s on s.id = e.student_id where s.student_code = 'P.8001'")).id,
     assignment_id: (await t.db.one("select a.id from assignments a where a.class_id = $1 and a.kind = 'hw' and a.seq = 1", [classId])).id, score: 2 });
   await importPoints(t.db, { headers: POINT_SYNC_COLUMNS.slice(0, 5), rows: [['P.8002', 'BIH096', 'HW2', 6, 'Module A']] });
   assert.deepEqual([(await score('P.8001')).score, (await score('P.8001')).manual], [2, true]);
-  assert.deepEqual([(await score('P.8002', 'hw', 2)).score, (await score('P.8002', 'hw', 2)).source], [6, 'excel'], 'Excel ghi đè điểm SharePoint');
-  // SharePoint chạy lại với điểm khác: không đè gõ tay, không đè Excel; điểm SharePoint của Dũng được cập nhật
+  assert.deepEqual([(await score('P.8002', 'hw', 2)).score, (await score('P.8002', 'hw', 2)).source], [9.5, 'sharepoint'], 'Excel thấp hơn (thiếu file) không hạ điểm SharePoint cao hơn');
+  // SharePoint chạy lại với điểm khác: không đè gõ tay; điểm Excel (6) được NÂNG lên 9.5 vì Excel có thể thiếu file (tổng các file); điểm SharePoint của Dũng được cập nhật
   const r = await post([
     rowOf(P('BIH96', 'Nguyễn Văn An', 'HW1', 'a.pbix'), '9'),
     rowOf(P('BIH96', 'Trần Thị Bình', 'HW2', 'c.xlsx'), '9.5'),
@@ -103,8 +103,13 @@ test('thứ tự ưu tiên: gõ tay > Excel > SharePoint; SharePoint tự cập 
   ]);
   assert.equal(r.status, 200);
   assert.equal((await score('P.8001')).score, 2);
-  assert.equal((await score('P.8002', 'hw', 2)).score, 6);
+  assert.deepEqual([(await score('P.8002', 'hw', 2)).score, (await score('P.8002', 'hw', 2)).source], [9.5, 'sharepoint']);
   assert.equal((await score('P.8005', 'capstone', 1)).score, 8.5);
+  // Excel chạy tiếp với điểm THẤP hơn (thiếu file): không hạ điểm đã nâng; Excel chạy với điểm CAO hơn thì nâng tiếp
+  await importPoints(t.db, { headers: POINT_SYNC_COLUMNS.slice(0, 5), rows: [['P.8002', 'BIH096', 'HW2', 6, 'Module A']] });
+  assert.equal((await score('P.8002', 'hw', 2)).score, 9.5);
+  await importPoints(t.db, { headers: POINT_SYNC_COLUMNS.slice(0, 5), rows: [['P.8002', 'BIH096', 'HW2', 10, 'Module A']] });
+  assert.deepEqual([(await score('P.8002', 'hw', 2)).score, (await score('P.8002', 'hw', 2)).source], [10, 'excel']);
   // Excel chạy tiếp (không có điểm của Dũng): không xóa điểm SharePoint
   const ex = await importPoints(t.db, { headers: POINT_SYNC_COLUMNS.slice(0, 5), rows: [['P.8002', 'BIH096', 'HW2', 6, 'Module A']] });
   assert.equal(ex.deleted, 0);

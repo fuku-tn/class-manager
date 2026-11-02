@@ -147,7 +147,8 @@ async function importPoints(db, table, { dryRun = false, source = 'excel', allow
              where ($7::boolean and (homework_scores.score is distinct from excluded.score or homework_scores.module is distinct from excluded.module   -- khôi phục từ bản sao lưu CSV: bản sao lưu là chuẩn (cả điểm gõ tay và nguồn)
                                      or homework_scores.manual is distinct from excluded.manual or homework_scores.source is distinct from excluded.source))
                 or (homework_scores.manual is false   -- điểm gõ tay trên web được giữ nguyên: nguồn tự động chỉ điền ô còn trống / cập nhật điểm tự động
-                    and (excluded.source = 'excel' or homework_scores.source = 'sharepoint')   -- ưu tiên: gõ tay > Excel > SharePoint (SharePoint không đè điểm Excel)
+                    and (homework_scores.source = excluded.source   -- nguồn nào cập nhật điểm của chính nó (tăng hoặc giảm)
+                     or excluded.score > homework_scores.score)   -- nguồn KHÁC chỉ được NÂNG điểm: điểm bài = tổng điểm các file, nguồn nào thiếu file thì ra thấp hơn → lấy bản cao hơn (gõ tay vẫn trên hết)
                     and (homework_scores.score is distinct from excluded.score or homework_scores.module is distinct from excluded.module
                          or homework_scores.source is distinct from excluded.source))
            returning (xmax = 0) as inserted`,
