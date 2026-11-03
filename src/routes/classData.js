@@ -12,6 +12,7 @@ const { buildTranscript } = require('../services/transcript');
 const { makeupsFor } = require('../services/makeup');
 const { absencesFor } = require('../services/absence');
 const { TIMING_SQL, PHASE_DATES_SQL } = require('../services/timing');
+const gradSync = require('../services/graduationSync');
 
 const MODES = ['Online', 'Offline', 'Hybrid'];
 const COURSE_STATUS = ['active', 'deferred', 'dropped', 'completed'];
@@ -310,6 +311,7 @@ module.exports = (db) => {
           note: str(b.note)?.slice(0, 500) ?? (autoClass ? (status === 'pending' ? 'Trả về kết quả tự động' : 'Admin chỉnh tay kết quả tự động') : null) }]);
       }
     });
+    await gradSync.safe(gradSync.syncClass(db, req.cls.id));   // trả về "Theo hệ thống" → lưu lại kết quả tự động
     res.json({ ok: true });
   });
 
@@ -466,6 +468,7 @@ module.exports = (db) => {
 
     if (out.conflict) return conflict(res, out.conflict.updated_by_name, cellView(out.conflict));
     await realtime.publish(req.cls.id, { kind: 'attendance' });
+    await gradSync.safe(gradSync.syncClass(db, req.cls.id));   // lớp đã qua giai đoạn chấm bài: lưu kết quả tốt nghiệp theo dữ liệu mới
     res.json({ ok: true, cell: out.cell, ...(await snapshot(req.cls.id, e.id, s.id)) });
   });
 
@@ -483,6 +486,7 @@ module.exports = (db) => {
       return n;
     });
     await realtime.publish(req.cls.id, { kind: 'attendance' });
+    await gradSync.safe(gradSync.syncClass(db, req.cls.id));   // lớp đã qua giai đoạn chấm bài: lưu kết quả tốt nghiệp theo dữ liệu mới
     res.json({ created });
   });
 
@@ -496,6 +500,7 @@ module.exports = (db) => {
       return n;
     });
     await realtime.publish(req.cls.id, { kind: 'attendance' });
+    await gradSync.safe(gradSync.syncClass(db, req.cls.id));   // lớp đã qua giai đoạn chấm bài: lưu kết quả tốt nghiệp theo dữ liệu mới
     res.json({ deleted });
   });
 
@@ -562,6 +567,7 @@ module.exports = (db) => {
     });
     if (out.conflict !== undefined) return res.status(409).json({ error: 'Điểm ô này vừa được người khác đổi, đã tải lại giá trị mới', current: { score: out.conflict?.score ?? null, manual: !!out.conflict?.manual } });
     await realtime.publish(req.cls.id, { kind: 'scores' });
+    await gradSync.safe(gradSync.syncClass(db, req.cls.id));   // lớp đã qua giai đoạn chấm bài: lưu kết quả tốt nghiệp theo dữ liệu mới
     res.json({ ok: true, ...out });
   });
 
@@ -615,6 +621,7 @@ module.exports = (db) => {
 
     if (out.conflict) return conflict(res, out.conflict.updated_by_name, { ...cellView(out.conflict), challenge: !!out.conflict.challenge });
     await realtime.publish(req.cls.id, { kind: 'submissions' });
+    await gradSync.safe(gradSync.syncClass(db, req.cls.id));   // lớp đã qua giai đoạn chấm bài: lưu kết quả tốt nghiệp theo dữ liệu mới
     res.json({ ok: true, cell: out.cell });
   });
 

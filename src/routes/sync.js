@@ -10,6 +10,7 @@ const { importPoints, POINT_SYNC_COLUMNS } = require('../services/importPoints')
 const { importSchedule } = require('../services/importSchedule');
 const { refreshSchedule } = require('../services/scheduleRules');
 const { importAbsences } = require('../services/absence');
+const gradSync = require('../services/graduationSync');
 const { importScoreFiles, SCORE_FILE_COLUMNS } = require('../services/importScoreFiles');
 
 // Tab COURSE của Google Sheet dùng tên cột "START DATE"/"EXPECTED END DATE" (Excel/Power Query đổi thành STARTDATE/ENDDATE).
@@ -147,6 +148,7 @@ module.exports = (db) => {
       }
       const changed = Object.values(brief.added ?? {}).some((n) => n > 0);
       await refreshSchedule(db);   // lớp mới / đổi ngày khai giảng → lịch giảng dạy khớp lại ngay
+      await gradSync.safe(gradSync.syncRecent(db));   // lớp vừa qua giai đoạn chấm bài → lưu kết quả tốt nghiệp
       if (changed) await realtime.publishMany(class_ids.flatMap((classId) => [{ classId, payload: { kind: 'attendance' } }]));
       await log(true, brief, null);
       res.json({ ok: true, ...brief, changed });
@@ -176,6 +178,7 @@ module.exports = (db) => {
       if (brief.inserted + brief.updated + brief.deleted > 0) {
         await realtime.publishMany(class_ids.map((classId) => ({ classId, payload: { kind: 'scores' } })));
       }
+      await gradSync.safe(gradSync.syncClasses(db, class_ids));
       await log(true, brief, null, 'google-sheet-points');
       res.json({ ok: true, ...brief, changed: brief.inserted + brief.updated + brief.deleted > 0 });
     } catch (e) {
@@ -220,6 +223,7 @@ module.exports = (db) => {
       const { class_ids = [], import: imp, ...brief } = await importScoreFiles(db, table);
       if (imp && imp.inserted + imp.updated > 0) await realtime.publishMany(class_ids.map((classId) => ({ classId, payload: { kind: 'scores' } })));
       const out = { ...brief, inserted: imp?.inserted ?? 0, updated: imp?.updated ?? 0, skipped_no_assignment: imp?.skipped_no_assignment ?? 0, examples: { ...brief.examples, no_assignment: imp?.examples?.no_assignment ?? [] } };
+      await gradSync.safe(gradSync.syncClasses(db, class_ids ?? []));
       await log(true, out, null, 'google-sheet-scorefiles');
       res.json({ ok: true, ...out, changed: out.inserted + out.updated > 0 });
     } catch (e) {

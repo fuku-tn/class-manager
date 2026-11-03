@@ -79,6 +79,25 @@ test('đổi tick / điểm danh thì kết quả tự đổi theo', async () =>
   await admin.put(`${base()}/submissions`, { enrollment_id: enr.A1, assignment_id: asg.hw2.id, status: 'submitted' });
 });
 
+const stored = async () => Object.fromEntries((await t.db.all('select s.student_code, e.graduation_status from enrollments e join students s on s.id = e.student_id where e.class_id = $1', [classId])).map((x) => [x.student_code, x.graduation_status]));
+
+test('tự lưu kết quả: đủ điều kiện → lưu "passed" ngay (chưa công bố); không còn đủ → về "pending"; không bao giờ lưu "failed"; admin chỉnh tay thì giữ', async () => {
+  assert.deepEqual(await stored(), { A1: 'passed', B1: 'passed', C1: 'passed' });        // đã lưu theo các lần sửa điểm danh/tick ở test trước
+  await admin.put(`${base()}/submissions`, { enrollment_id: enr.A1, assignment_id: asg.hw2.id, status: null });
+  assert.equal((await stored()).A1, 'pending');                                          // thiếu HW2: không lưu failed, chỉ bỏ "passed"
+  await admin.put(`${base()}/submissions`, { enrollment_id: enr.A1, assignment_id: asg.hw2.id, status: 'submitted' });
+  assert.equal((await stored()).A1, 'passed');
+  // admin chỉnh tay thành failed → giữ nguyên dù tick đổi; trả về "Theo hệ thống" thì lưu lại kết quả tự động
+  assert.equal((await admin.put(`${base()}/graduation/${enr.A1}`, { status: 'failed' })).status, 200);
+  await admin.put(`${base()}/submissions`, { enrollment_id: enr.A1, assignment_id: asg.hw3.id, status: null });
+  await admin.put(`${base()}/submissions`, { enrollment_id: enr.A1, assignment_id: asg.hw3.id, status: 'submitted' });
+  assert.equal((await stored()).A1, 'failed');
+  assert.equal((await admin.put(`${base()}/graduation/${enr.A1}`, { status: 'pending' })).status, 200);
+  assert.equal((await stored()).A1, 'passed');
+  const ev = await t.db.all("select source, note from enrollment_events where class_id = $1 and event = 'graduation' and source = 'sync'", [classId]);
+  assert.ok(ev.length >= 2 && ev.every((x) => /^Tự lưu/.test(x.note)));
+});
+
 test('lớp còn đang học (hoặc đang nộp & chấm bài): chưa đủ thì là "Đang học", chưa kết luận chưa đạt', async () => {
   await t.db.run("update classes set end_date = (now() + interval '30 days')::date where id = $1", [classId]);
   await admin.put(`${base()}/submissions`, { enrollment_id: enr.B1, assignment_id: asg.capstone1.id, status: null });
@@ -99,8 +118,8 @@ test('công bố: chốt kết quả vào enrollments + ghi lịch sử; sau đ�
   assert.equal((await admin.post(`${base()}/graduation-publish`)).status, 200);
   const st = Object.fromEntries((await t.db.all('select id, graduation_status from enrollments where class_id = $1', [classId])).map((x) => [x.id, x.graduation_status]));
   assert.deepEqual([st[enr.A1], st[enr.B1], st[enr.C1]], ['passed', 'passed', 'failed']);
-  const ev = await t.db.all("select to_status, note from enrollment_events where class_id = $1 and event = 'graduation' order by id", [classId]);
-  assert.equal(ev.length, 3);
+  const ev = await t.db.all("select to_status, note from enrollment_events where class_id = $1 and event = 'graduation' and note like 'Xét tự động khi công bố%' order by id", [classId]);
+  assert.equal(ev.length, 1);   // A1, B1 đã được tự lưu 'passed' trước đó; công bố chỉ chốt thêm C1
   assert.match(ev.find((x) => x.to_status === 'failed').note, /Có mặt 8\/9 buổi/);
   await admin.put(`${base()}/attendance`, { enrollment_id: enr.C1, session_id: sessions[8].id, status: 'present' });
   assert.equal((await byCode()).C1.result, 'failed');                                   // đã chốt

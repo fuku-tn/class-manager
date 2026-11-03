@@ -3,6 +3,7 @@
 const express = require('express');
 const realtime = require('../services/realtime');
 const { refreshSchedule } = require('../services/scheduleRules');
+const gradSync = require('../services/graduationSync');
 
 const MAX_BYTES = 4 * 1024 * 1024; // Vercel giới hạn thân yêu cầu ~4,5MB
 const ZIP_MAGIC = Buffer.from([0x50, 0x4b, 0x03, 0x04]);
@@ -54,6 +55,7 @@ module.exports = (db) => {
     const { importExcel } = require('../services/importExcel'); // nạp khi dùng: máy chủ không tốn bộ nhớ cho exceljs lúc khởi động
     const s = await importExcel(db, file, { dryRun });
     const classIds = s.classes.map((c) => c.class_id).filter(Boolean);
+    if (!dryRun) await gradSync.safe(gradSync.syncRecent(db));
     if (!dryRun) await realtime.publishMany(classIds.flatMap((classId) => [{ classId, payload: { kind: 'attendance' } }, { classId, payload: { kind: 'submissions' } }]));
     return { ...s, classes: s.classes.map(({ class_id, ...c }) => c), published: dryRun ? 0 : classIds.length };
   }));
@@ -63,6 +65,7 @@ module.exports = (db) => {
     const { importTransactions } = require('../services/importTransactions');
     const { anomaly_details, class_ids = [], ...brief } = await importTransactions(db, { transactionsFile: file, curriculumFile: null, dryRun });
     if (!dryRun) await refreshSchedule(db);   // lớp mới / đổi ngày khai giảng → lịch giảng dạy khớp lại ngay
+    if (!dryRun) await gradSync.safe(gradSync.syncRecent(db));
     if (!dryRun) await realtime.publishMany(class_ids.flatMap((classId) => [{ classId, payload: { kind: 'attendance' } }, { classId, payload: { kind: 'submissions' } }]));
     return { ...brief, published: dryRun ? 0 : class_ids.length };
   }));

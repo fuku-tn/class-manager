@@ -47,6 +47,8 @@ async function backupScores(db) {
     if (s.inserted + s.updated + s.deleted + (s.created_assignments ?? 0) > 0) {
       await realtime.publishMany(class_ids.map((classId) => ({ classId, payload: { kind: 'scores' } })));
     }
+    const g = await require('../src/services/graduationSync').syncRecent(db, { days: 100000 }).catch((e) => { console.error('Lưu kết quả tốt nghiệp lỗi:', e.message); return { changed: 0 }; });   // quét mọi lớp (chạy máy cá nhân, không bị giới hạn thời gian)
+    if (g.changed) console.log(`Tốt nghiệp: lưu thêm/đổi ${g.changed} kết quả.`);
     console.log(`Xong trong ${((Date.now() - t0) / 1000).toFixed(1)} giây.`);
   } catch (e) {
     if (!dryRun) await db.run('insert into sync_runs (source, ok, error) values ($1, false, $2)', ['excel-points', String(e.message).slice(0, 300)]).catch(() => {});

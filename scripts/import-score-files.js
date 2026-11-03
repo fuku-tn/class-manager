@@ -29,5 +29,6 @@ const realtime = require('../src/services/realtime');
     if (names?.length) { console.log('Tên không ghép được (lớp|tên đã bỏ dấu):'); for (const n of names) console.log('  ' + n); }
     if (dryRun) console.log('\n>>> CHẠY THỬ: đã hoàn tác, database không đổi.');
     else if (class_ids?.length) await realtime.publishMany(class_ids.map((classId) => ({ classId, payload: { kind: 'scores' } }))).catch(() => {});
+    if (!dryRun) await require('../src/services/graduationSync').syncRecent(db, { days: 100000 }).catch((e) => console.error('Lưu kết quả tốt nghiệp lỗi:', e.message));
   } finally { await db.close?.(); }
 })().catch((e) => { console.error(e.message); process.exit(1); });
