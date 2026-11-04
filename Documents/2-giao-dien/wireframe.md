@@ -161,7 +161,7 @@ Xem thêm: [sitemap.md](sitemap.md) · [user-flow.md](user-flow.md).
 │ │P.1301│ Trần Bình    │ …          │ …       │ Online │[Bảo lưu]    │ —     │ —│  —     │
 │ └──────┴──────────────┴────────────┴─────────┴────────┴─────────────┴───────┴──┴────────┘
 │  Hàng bấm được → hộp thoại sửa (không có với khách)                              │
-│ ▸ Lịch sử thay đổi của lớp                                                       │
+│ [Lịch sử thay đổi] mở hộp thoại riêng (nút cạnh "Xuất CSV" ở đầu trang)         │
 │   Thời điểm │ Học viên │ Sự kiện │ Từ → Sang │ Nguồn │ Người │ Ghi chú            │
 └─────────────────────────────────────────────────────────────────────────────────┘
  Lớp chưa khai giảng: nhãn trạng thái là "Lớp chưa diễn ra".

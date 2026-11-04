@@ -1,5 +1,5 @@
 import { get, post, put, del } from '../api.js';
-import { h, toast, pct, formModal, downloadCsv, COURSE_STATUS_LABEL, COURSE_STATUS_BADGE, fmtWhen } from '../ui.js';
+import { h, toast, pct, formModal, closeOnBackdrop, downloadCsv, COURSE_STATUS_LABEL, COURSE_STATUS_BADGE, fmtWhen } from '../ui.js';
 import { classDisplayName, norm } from '../class-filter.mjs';
 
 const MODE_OPTIONS = [['', '(chưa rõ)'], ['Online', 'Online'], ['Offline', 'Offline'], ['Hybrid', 'Hybrid']];
@@ -50,15 +50,25 @@ export async function renderStudents({ cls, state }) {
         [h('dt', {}, label), h('dd', {}, show(p[k]))])));
   }
 
-  async function reload() { rows = await get(`${base}/students`); paint(); if (historyBox.open) await refreshHistory(); }
+  async function reload() { rows = await get(`${base}/students`); paint(); }
 
-  // Lịch sử thay đổi ghi danh của lớp (nạp khi mở, làm mới sau mỗi thay đổi).
-  const historyBody = h('div', { class: 'muted' }, 'Đang tải…');
-  const historyBox = h('details', { class: 'card history' }, h('summary', {}, 'Lịch sử thay đổi của lớp'), historyBody);
-  async function refreshHistory() {
+  // Lịch sử thay đổi ghi danh của lớp: mở trong hộp thoại riêng (nạp mới mỗi lần mở).
+  async function openHistory() {
+    const body = h('div', { class: 'muted' }, 'Đang tải…');
+    const close = () => { back.remove(); document.removeEventListener('keydown', onKey); };
+    const onKey = (e) => { if (e.key === 'Escape') close(); };
+    const back = h('div', { class: 'modal-back' },
+      h('div', { class: 'modal modal-wide', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Lịch sử thay đổi của lớp' },
+        h('h2', {}, 'Lịch sử thay đổi của lớp', ' ', h('span', { class: 'muted small' }, classDisplayName(cls))),
+        body,
+        h('div', { class: 'actions' }, h('button', { type: 'button', onclick: close }, 'Đóng'))));
+    closeOnBackdrop(back, close);
+    document.addEventListener('keydown', onKey);
+    document.body.append(back);
     try {
       const ev = await get(`${base}/events`);
-      historyBody.replaceChildren(ev.length
+      body.className = '';
+      body.replaceChildren(ev.length
         ? h('div', { class: 'table-wrap' }, h('table', {},
           h('thead', {}, h('tr', {}, ['Thời điểm', 'Học viên', 'Sự kiện', 'Từ → Sang', 'Nguồn', 'Người thực hiện', 'Ghi chú'].map((x) => h('th', {}, x)))),
           h('tbody', {}, ev.map((x) => h('tr', {},
@@ -70,9 +80,8 @@ export async function renderStudents({ cls, state }) {
             h('td', {}, x.actor_name || '—'),
             h('td', {}, x.note || ''))))))
         : h('p', { class: 'muted' }, 'Chưa có thay đổi nào được ghi lại.'));
-    } catch (e) { historyBody.replaceChildren(h('p', { class: 'error' }, e.message)); }
+    } catch (e) { body.replaceChildren(h('p', { class: 'error' }, e.message)); }
   }
-  historyBox.addEventListener('toggle', () => { if (historyBox.open) refreshHistory(); });
 
   async function edit(r) {
     const v = await formModal({ title: r.full_name, fields: [
@@ -94,7 +103,7 @@ export async function renderStudents({ cls, state }) {
       try {
         await del(`${base}/students/${r.id}`, { reason: why.reason.trim() });
         document.querySelectorAll('.modal-back').forEach((m) => m.remove());
-        await reload(); await refreshHistory();
+        await reload();
         toast('Đã gỡ khỏi lớp');
       } catch (e) { toast(e.message, true); }
     } }, 'Gỡ khỏi lớp')) });
@@ -139,6 +148,7 @@ export async function renderStudents({ cls, state }) {
   paint();
   return h('div', {},
     h('div', { class: 'page-head' }, h('h1', {}, 'Học viên'), h('span', { class: 'muted', title: cls.code }, classDisplayName(cls)), h('span', { class: 'spacer' }),
+      h('button', { onclick: openHistory }, 'Lịch sử thay đổi'),
       h('button', { onclick: () => downloadCsv(`${cls.code}-hoc-vien.csv`, [
         ['Mã', 'Họ tên', 'Email', 'SĐT', 'Hình thức', 'Trạng thái', 'Điểm danh', 'HW', ...(readOnly ? [] : ['Điểm TB'])],
         ...filtered().map((r) => [r.student_code, r.full_name, r.email, r.phone, r.mode, shownStatus(r), pct(r.attendance_rate), pct(r.hw_rate), ...(readOnly ? [] : [r.score_avg ?? ''])])]) }, 'Xuất CSV'),
@@ -146,6 +156,5 @@ export async function renderStudents({ cls, state }) {
     h('div', { class: 'toolbar' }, search, status, mode, count),
     h('div', { class: 'table-wrap' }, h('table', {},
       h('thead', {}, h('tr', {}, [...['Mã', 'Họ tên', 'Email', 'SĐT', 'Hình thức', 'Trạng thái', 'Điểm danh', 'HW'], ...(readOnly ? [] : ['Điểm TB'])].map((x) => h('th', {}, x)))),
-      body)),
-    historyBox);
+      body)));
 }

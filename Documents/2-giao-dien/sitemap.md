@@ -97,7 +97,7 @@ Học viên
 ├─ Tìm / lọc trạng thái / lọc hình thức · Xuất CSV · + Thêm học viên
 ├─ Bảng: mã, họ tên, email, SĐT, hình thức, trạng thái (+ nhãn Sheet), điểm danh %, HW %, Điểm TB
 ├─ Sửa học viên (hộp thoại) · Gỡ khỏi lớp (admin, bắt buộc lý do)
-└─ Lịch sử thay đổi của lớp (100 sự kiện gần nhất)
+└─ Nút "Lịch sử thay đổi" → hộp thoại riêng (100 sự kiện gần nhất)
 
 Điểm danh
 ├─ Chú thích · Tìm · Sắp xếp (cá nhân hóa)
