@@ -207,6 +207,12 @@ a:hover { color: var(--gold-2); }
 .vc-head p { margin: 0; }
 .vc-tools { margin-bottom: .7rem; }
 .vc-wrap { max-height: min(62vh, 640px); }
+.modal.modal-history { width: min(1240px, 100%); }
+.hist-wrap { max-height: min(68vh, 700px); margin-bottom: .2rem; }
+.hist-table { font-size: .84rem; }
+.hist-table th, .hist-table td { padding: .45rem .6rem; vertical-align: top; }
+.hist-table td:nth-child(1) { white-space: nowrap; }
+.hist-table td:nth-child(7) { min-width: 12rem; }
 .vc-table th, .vc-table td { padding: .5rem .7rem; }
 .vc-amount { display: flex; gap: .4rem; align-items: center; }
 .vc-sel, .vc-custom, .vc-date { height: 2.1rem; border-radius: 10px; border: 1px solid var(--border); background: var(--solid-2); color: var(--text); font: inherit; font-size: .86rem; padding: 0 .6rem; }

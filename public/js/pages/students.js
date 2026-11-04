@@ -58,7 +58,7 @@ export async function renderStudents({ cls, state }) {
     const close = () => { back.remove(); document.removeEventListener('keydown', onKey); };
     const onKey = (e) => { if (e.key === 'Escape') close(); };
     const back = h('div', { class: 'modal-back' },
-      h('div', { class: 'modal modal-wide', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Lịch sử thay đổi của lớp' },
+      h('div', { class: 'modal modal-wide modal-history', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Lịch sử thay đổi của lớp' },
         h('h2', {}, 'Lịch sử thay đổi của lớp', ' ', h('span', { class: 'muted small' }, classDisplayName(cls))),
         body,
         h('div', { class: 'actions' }, h('button', { type: 'button', onclick: close }, 'Đóng'))));
@@ -69,7 +69,7 @@ export async function renderStudents({ cls, state }) {
       const ev = await get(`${base}/events`);
       body.className = '';
       body.replaceChildren(ev.length
-        ? h('div', { class: 'table-wrap' }, h('table', {},
+        ? h('div', { class: 'table-wrap hist-wrap' }, h('table', { class: 'hist-table' },
           h('thead', {}, h('tr', {}, ['Thời điểm', 'Học viên', 'Sự kiện', 'Từ → Sang', 'Nguồn', 'Người thực hiện', 'Ghi chú'].map((x) => h('th', {}, x)))),
           h('tbody', {}, ev.map((x) => h('tr', {},
             h('td', {}, fmtWhen(x.created_at, { year: true })),
