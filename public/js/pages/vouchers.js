@@ -117,6 +117,7 @@ export async function openVouchers({ cls }) {
     h('option', { value: 'unused' }, 'Chưa dùng'), h('option', { value: 'Used' }, 'Used'));
   const pickAll = h('input', { type: 'checkbox', 'aria-label': 'Chọn tất cả học viên đang hiển thị' });
   const applyBtn = h('button', { type: 'button', class: 'primary', disabled: true }, 'Áp dụng');
+  const clearBtn = h('button', { type: 'button', class: 'danger', disabled: true }, 'Xóa voucher đã chọn');
   const pickInfo = h('span', { class: 'muted small' });
   qAmount.addEventListener('change', () => { qCustom.hidden = qAmount.value !== OTHER; if (!qCustom.hidden) qCustom.focus(); });
   qCustom.addEventListener('input', () => { const d = qCustom.value.replace(/\D/g, ''); qCustom.value = d ? fmtVnd(Number(d)) : ''; });
@@ -127,13 +128,24 @@ export async function openVouchers({ cls }) {
     const n = list.filter((r) => picked.has(r.enrollment_id)).length;
     pickAll.checked = list.length > 0 && n === list.length;
     pickAll.indeterminate = n > 0 && n < list.length;
-    applyBtn.disabled = picked.size === 0;
+    applyBtn.disabled = picked.size === 0; clearBtn.disabled = picked.size === 0;
     applyBtn.textContent = picked.size ? `Áp dụng cho ${picked.size} học viên` : 'Áp dụng';
     pickInfo.textContent = picked.size ? `Đã chọn ${picked.size}` : 'Tick học viên (hoặc ô tiêu đề để chọn tất cả đang hiển thị) rồi điền; ô để trống = giữ nguyên';
   }
   pickAll.addEventListener('change', () => {
     for (const r of shown()) { if (pickAll.checked) picked.add(r.enrollment_id); else picked.delete(r.enrollment_id); }
     renderBody();
+  });
+  clearBtn.addEventListener('click', async () => {
+    if (!(await confirmModal(`Xóa toàn bộ voucher (số tiền, ngày gửi, ngày hết hạn, trạng thái) của ${picked.size} học viên đã chọn?`, 'Xóa'))) return;
+    clearBtn.disabled = true;
+    try {
+      const out = await put(`${base}/vouchers`, { enrollment_ids: [...picked], amount: null, sent_date: null, expiration_date: null, status: null });
+      const byId = new Map(rows.map((r) => [r.enrollment_id, r]));
+      for (const x of out.rows) Object.assign(byId.get(x.enrollment_id) ?? {}, x);
+      picked.clear(); renderBody(); refreshStat();
+      toast(`Đã xóa voucher của ${out.count} học viên`);
+    } catch (e) { toast(e.message, true); refreshPick(); }
   });
   applyBtn.addEventListener('click', async () => {
     const patch = {};
@@ -178,7 +190,7 @@ export async function openVouchers({ cls }) {
           h('p', { class: 'muted small' }, 'Chỉ admin và tài khoản được cấp quyền thấy bảng này. Mọi thay đổi tự lưu ngay.')),
         h('button', { type: 'button', class: 'icon-btn', 'aria-label': 'Đóng', onclick: close }, '✕')),
       h('div', { class: 'toolbar vc-tools' }, search, stat),
-      h('div', { class: 'vc-quick' }, h('div', { class: 'eyebrow' }, 'Điền nhanh'), h('div', { class: 'vc-quick-row' }, qAmount, qCustom, qSent, qExp, qStatus, applyBtn), pickInfo),
+      h('div', { class: 'vc-quick' }, h('div', { class: 'eyebrow' }, 'Điền nhanh'), h('div', { class: 'vc-quick-row' }, qAmount, qCustom, qSent, qExp, qStatus, applyBtn, clearBtn), pickInfo),
       h('div', { class: 'table-wrap vc-wrap' }, h('table', { class: 'vc-table' },
         h('thead', {}, h('tr', {}, ['Học viên', 'Voucher GG Maps (VND)', 'Voucher sent date', 'Expiration date', 'Voucher status', ''].map((x, i) => h('th', { class: i === 0 ? 'sticky' : '' }, i === 0 ? h('label', { class: 'vc-pick' }, pickAll, h('span', {}, x)) : x)))),
         body))));
