@@ -71,7 +71,7 @@ test('voucher không lọt ra API khác (học viên, điểm danh, bài tập, 
   }
   assert.equal((await t.db.one('select count(*)::int n from enrollment_vouchers')).n >= 1, true);
   await admin.del(`${base()}/students/${enr.V3}`, { reason: 'thử' });
-  assert.equal((await t.db.one('select count(*)::int n from enrollment_vouchers where enrollment_id = $1', [enr.V3])).n, 0);
+  assert.equal((await t.db.one('select count(*)::int n from enrollment_vouchers where enrollment_id = $1', [enr.V2])).n, 0);
 });
 
 test('bảng có RLS và không có bảng "vouchers" cũ; nhập Excel/Sheet không đọc cột voucher (đã có test riêng)', async () => {
@@ -79,4 +79,29 @@ test('bảng có RLS và không có bảng "vouchers" cũ; nhập Excel/Sheet kh
   const sql = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'src', 'schema.sql'), 'utf8');
   assert.match(sql, /alter table enrollment_vouchers enable row level security/);
   assert.equal(sql.replace(/\r/g, ''), require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'supabase', 'schema.sql'), 'utf8').replace(/\r/g, ''), 'hai file schema phải giống nhau');
+});
+
+test('điền nhanh nhiều học viên: chỉ đổi ô được gửi, giữ nguyên ô khác, kiểm tra dữ liệu, quyền', async () => {
+  const put = (b, who = ly) => who.put(`${base()}/vouchers`, b);
+  await ly.put(`${base()}/vouchers/${enr.V1}`, { amount: 750000, sent_date: '2026-10-20', status: 'Used' });
+  const r = await put({ enrollment_ids: [enr.V1, enr.V2], amount: 1000000, expiration_date: '2026-12-31' });
+  assert.equal(r.status, 200); assert.equal(r.body.count, 2);
+  const by = Object.fromEntries(r.body.rows.map((x) => [x.enrollment_id, x]));
+  assert.equal(by[enr.V1].amount, 1000000); assert.equal(by[enr.V1].sent_date, '2026-10-20'); assert.equal(by[enr.V1].status, 'Used');   // ô không gửi giữ nguyên
+  assert.equal(by[enr.V2].amount, 1000000); assert.equal(by[enr.V2].expiration_date, '2026-12-31'); assert.equal(by[enr.V2].sent_date, null);
+  assert.equal((await put({ enrollment_ids: [enr.V2], status: 'Used' })).body.rows[0].status, 'Used');
+  assert.equal((await put({ enrollment_ids: [enr.V2], status: '' })).body.rows[0].status, null);   // '' = xóa ô
+  // sai thì không ghi gì
+  assert.equal((await put({ enrollment_ids: [enr.V1, enr.V2], sent_date: '2027-01-01' })).status, 400);   // sau ngày hết hạn
+  assert.equal((await ly.get(`${base()}/vouchers`)).body.find((x) => x.enrollment_id === enr.V1).sent_date, '2026-10-20');
+  assert.equal((await put({ enrollment_ids: [enr.V1], amount: -5 })).status, 400);
+  assert.equal((await put({ enrollment_ids: [enr.V1], status: 'Hết' })).status, 400);
+  assert.equal((await put({ enrollment_ids: [] , amount: 500000 })).status, 400);
+  assert.equal((await put({ enrollment_ids: [enr.V1] })).status, 400);
+  assert.equal((await put({ enrollment_ids: [enr.V1, 999999], amount: 500000 })).status, 404);
+  assert.equal((await put({ enrollment_ids: [enr.V1], amount: 500000 }, gv)).status, 403);
+  assert.equal((await put({ enrollment_ids: [enr.V1], amount: 500000 }, guest)).status, 403);
+  // xóa trắng hết các ô thì xóa dòng
+  await put({ enrollment_ids: [enr.V2], amount: null, sent_date: null, expiration_date: null, status: null });
+  assert.equal((await t.db.one('select count(*)::int n from enrollment_vouchers where enrollment_id = $1', [enr.V2])).n, 0);
 });

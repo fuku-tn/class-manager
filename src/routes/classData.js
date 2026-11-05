@@ -269,6 +269,45 @@ module.exports = (db) => {
     res.json(await db.one(`${VOUCHER_SQL} where e.id = $1`, [enr.id]));
   });
 
+  // Điền nhanh: áp cùng một giá trị cho nhiều học viên một lượt. Chỉ các khóa CÓ trong body mới được đổi (khóa vắng = giữ nguyên;
+  // '' hoặc null = xóa ô đó); học viên chưa có voucher thì tạo mới. Một transaction, sai ở đâu thì không ghi gì.
+  router.put('/vouchers', needVoucher, async (req, res) => {
+    const b = req.body ?? {};
+    const err = (msg) => res.status(400).json({ error: msg });
+    const ids = [...new Set((Array.isArray(b.enrollment_ids) ? b.enrollment_ids : []).map(Number))];
+    if (!ids.length || ids.length > 500 || ids.some((x) => !Number.isInteger(x) || x <= 0)) return err('Hãy chọn ít nhất một học viên (tối đa 500)');
+    const has = (k) => Object.prototype.hasOwnProperty.call(b, k);
+    if (!['amount', 'sent_date', 'expiration_date', 'status'].some(has)) return err('Chưa có ô nào để điền');
+    let amount; let sent; let exp; let status;
+    if (has('amount')) {
+      if (b.amount == null || b.amount === '') amount = null;
+      else { amount = Number(b.amount); if (!Number.isInteger(amount) || amount < 0 || amount > 100000000) return err('Số tiền voucher phải là số nguyên từ 0 đến 100.000.000'); }
+    }
+    try { if (has('sent_date')) sent = isoOrNull(b.sent_date, 'Ngày gửi voucher'); if (has('expiration_date')) exp = isoOrNull(b.expiration_date, 'Ngày hết hạn'); } catch (e) { return err(e.message); }
+    if (has('status')) { status = b.status == null || b.status === '' ? null : b.status; if (status !== null && status !== 'Used') return err('Trạng thái voucher chỉ có thể để trống (chưa dùng) hoặc "Used"'); }
+    const cur = new Map((await db.all(
+      `select e.id, v.amount, v.sent_date::text as sent_date, v.expiration_date::text as expiration_date, v.status
+         from enrollments e left join enrollment_vouchers v on v.enrollment_id = e.id where e.class_id = $1 and e.id = any($2::bigint[])`, [req.cls.id, ids])).map((r) => [Number(r.id), r]));
+    if (cur.size !== ids.length) return res.status(404).json({ error: 'Có học viên không thuộc lớp này' });
+    const merged = ids.map((i) => {
+      const c = cur.get(i);
+      return { id: i, amount: has('amount') ? amount : c.amount, sent: has('sent_date') ? sent : c.sent_date, exp: has('expiration_date') ? exp : c.expiration_date, status: has('status') ? status : c.status };
+    });
+    if (merged.some((m) => m.sent && m.exp && m.exp < m.sent)) return err('Ngày hết hạn không được trước ngày gửi (kiểm tra các học viên đã chọn)');
+    const empty = merged.filter((m) => m.amount == null && !m.sent && !m.exp && !m.status);
+    const keep = merged.filter((m) => !empty.includes(m));
+    await db.tx(async (t) => {
+      if (empty.length) await t.run('delete from enrollment_vouchers where enrollment_id = any($1::bigint[])', [empty.map((m) => m.id)]);
+      if (keep.length) await t.run(
+        `insert into enrollment_vouchers (enrollment_id, amount, sent_date, expiration_date, status, updated_by, updated_at)
+         select v.id, v.a, v.s, v.e, v.st, $6, now() from unnest($1::bigint[], $2::integer[], $3::date[], $4::date[], $5::text[]) as v(id, a, s, e, st)
+         on conflict (enrollment_id) do update set amount = excluded.amount, sent_date = excluded.sent_date, expiration_date = excluded.expiration_date,
+           status = excluded.status, updated_by = excluded.updated_by, updated_at = now()`,
+        [keep.map((m) => m.id), keep.map((m) => m.amount), keep.map((m) => m.sent), keep.map((m) => m.exp), keep.map((m) => m.status), req.user.id]);
+    });
+    res.json({ ok: true, count: ids.length, rows: await db.all(`${VOUCHER_SQL} where e.class_id = $1 and e.id = any($2::bigint[])`, [req.cls.id, ids]) });
+  });
+
   // ---------- Potential: học viên trong sheet PERSONAL nhưng không có tên trong danh sách/điểm danh ----------
   // (Chưa thanh toán, hoặc đã bị xóa khỏi Sheet). Chỉ admin và tài khoản được bật can_view_potential (hiện: Đoàn Ly).
   router.get('/potential', async (req, res) => {
