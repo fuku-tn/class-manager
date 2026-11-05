@@ -128,9 +128,9 @@ erDiagram
 
 ### 5.1 Chuyên cần (`stats.js`)
 ```
-tỉ_lệ_chuyên_cần = (có_mặt + 0,5 × số_buổi_vắng_có_phép) ÷ số_buổi_đã_diễn_ra
+tỉ_lệ_chuyên_cần = có_mặt ÷ số_buổi_đã_diễn_ra      (vắng có phép tính như vắng: không được điểm)
 ```
-Vắng có phép tính **nửa buổi** (0,5) và vẫn nằm trong mẫu số; mẫu số ≤ 0 thì không có giá trị (`null`). Ô chưa điểm danh của buổi đã diễn ra tính là vắng.
+Vắng có phép **tính như vắng** (trọng số 0, `EXCUSED_WEIGHT` trong `stats.js`) và vẫn nằm trong mẫu số; mẫu số ≤ 0 thì không có giá trị (`null`). Ô chưa điểm danh của buổi đã diễn ra tính là vắng.
 
 ### 5.2 Bài tập và điểm
 | Đại lượng | Công thức |

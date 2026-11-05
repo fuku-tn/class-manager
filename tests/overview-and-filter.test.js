@@ -78,19 +78,19 @@ before(async () => {
 });
 after(async () => { await t.close(); });
 
-test('tổng quan: đếm lớp theo thời gian, học viên đang học, chuyên cần tính có phép nửa buổi', async () => {
+test('tổng quan: đếm lớp theo thời gian, học viên đang học, chuyên cần tính có phép như vắng', async () => {
   const r = (await admin.get('/api/overview')).body;
   assert.equal(r.totals.classes, 3);
   assert.equal(r.totals.running, 1);
   assert.equal(r.totals.upcoming, 1);
   assert.equal(r.totals.students_active, 2);                 // chỉ lớp đang chạy
-  // A: 1 có mặt + 0,5 có phép = 1,5/2;  B: 1 có mặt / 2  → gộp: (1,5 + 1) / 4 = 0.63
-  assert.equal(r.totals.attendance_rate, 0.63);
+  // A: 1 có mặt + 1 có phép (tính như vắng) = 1/2;  B: 1 có mặt / 2  → gộp: (1 + 1) / 4 = 0.5
+  assert.equal(r.totals.attendance_rate, 0.5);
   assert.equal(r.featured.length, 1);
   assert.equal(r.featured[0].short_code, 'RUN');
   assert.equal(r.featured[0].sessions_held, 2);
   assert.equal(r.featured[0].sessions_total, 3);
-  assert.equal(r.featured[0].attendance_rate, 0.63);
+  assert.equal(r.featured[0].attendance_rate, 0.5);
   assert.equal(r.upcoming[0].short_code, 'SOON');
 });
 
@@ -108,11 +108,11 @@ test('danh sách lớp trả về timing để bộ lọc dùng', async () => {
   assert.deepEqual(timing, { RUN: 'running', SOON: 'upcoming', OLD: 'finished' });
 });
 
-test('công thức chuyên cần nằm ở stats.js: có phép được nửa buổi và vẫn nằm trong mẫu số', () => {
+test('công thức chuyên cần nằm ở stats.js: có phép tính như vắng nhưng vẫn nằm trong mẫu số', () => {
   const { attendanceRate } = require('../src/services/stats');
   assert.equal(attendanceRate(6, 0, 8), 0.75);   // 6/8
-  assert.equal(attendanceRate(6, 1, 8), 0.81);   // (6 + 0,5)/8: có phép chỉ bằng nửa buổi đi học, không bị loại khỏi mẫu số
-  assert.equal(attendanceRate(0, 3, 3), 0.5);    // toàn có phép → 1,5/3
+  assert.equal(attendanceRate(6, 1, 8), 0.75);   // 6/8: có phép không được điểm nhưng không bị loại khỏi mẫu số
+  assert.equal(attendanceRate(0, 3, 3), 0);      // toàn có phép → 0/3
   assert.equal(attendanceRate(0, 0, 0), null);
 });
 

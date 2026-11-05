@@ -4,7 +4,7 @@
 // QUY TẮC Ô ĐIỂM DANH (chủ dự án xác nhận 2026-10-10):
 //   X (hoặc x) = đi học · O = vắng có phép · ô trống = vắng.
 //   Không còn trạng thái "đi trễ" (28/10/2026): ô X luôn là có mặt (ghi chú "trễ" chỉ là ghi chú). Tỉ lệ chuyên cần tính ở src/services/stats.js:
-//   (có mặt + 0,5 × có phép) ÷ số buổi đã diễn ra.
+//   có mặt ÷ số buổi đã diễn ra (có phép tính như vắng).
 // QUY TẮC TIỀN: không đọc bất kỳ cột liên quan đến tiền (VOUCHER*, EXPIRATION...). Chỉ đọc các cột trong
 //   danh sách cho phép (isAllowedHeader); cột khác không bao giờ được đưa vào bộ nhớ.
 // Idempotent: chạy lại không tạo trùng. Không ghi đè ô đã được người dùng sửa trực tiếp trên app (updated_by != null).

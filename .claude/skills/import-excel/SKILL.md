@@ -8,7 +8,7 @@ description: Nhập hoặc đối soát điểm danh, bài tập, danh sách h�
 ## Cấu trúc & quy tắc (đầy đủ ở `Documents/1-tong-quan/context.md`, mục "File Excel điểm danh")
 - Workbook nhiều sheet theo chương trình (`BIE-8`, `BIE-12`, `BIH`, `EBA`, `PBM`, `SCA`, `DDM`, `BIF`). **Chỉ sheet đang hiện** được nhập; sheet ẩn là bản cũ.
 - Ô điểm danh: **X = đi học, O = vắng có phép, trống = vắng**. Buổi không ai có X/O = chưa diễn ra.
-- Tỉ lệ = (có mặt + 0,5 × có phép) ÷ buổi đã diễn ra. Cột `ATTENDANCE RATE` của Excel tính khác (÷ tổng số buổi, coi O như vắng) nên **không** dùng để đối soát.
+- Tỉ lệ = có mặt ÷ buổi đã diễn ra (có phép tính như vắng). Cột `ATTENDANCE RATE` của Excel tính khác (÷ tổng số buổi, coi O như vắng) nên **không** dùng để đối soát.
 - **Không đọc cột voucher/tiền.** Đừng sửa bộ nhập để đọc thêm cột mà chưa hỏi chủ dự án.
 
 ## Quy trình
