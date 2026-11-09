@@ -27,7 +27,23 @@ export async function upload(url, file) {
   }
   return data;
 }
-export const get = (u) => api('GET', u);
+// Tải trước (prefetch): rê chuột/chạm vào tab thì gọi API của tab đó NGAY, tới lúc bấm thường đã có dữ liệu (đỡ ~1 vòng mạng khi đổi tab).
+// Mỗi bản tải trước chỉ dùng MỘT lần và sống tối đa 4 giây, nên không phục vụ dữ liệu cũ. Lỗi thì trả đúng lỗi như gọi bình thường.
+const WARM_MS = 4000;
+const warm = new Map();
+export function prefetch(url) {
+  const w = warm.get(url);
+  if (w && Date.now() - w.t < WARM_MS) return;
+  const p = api('GET', url);
+  p.catch(() => {});   // không báo lỗi chưa xử lý nếu không ai dùng
+  warm.set(url, { p, t: Date.now() });
+  setTimeout(() => { if (warm.get(url)?.p === p) warm.delete(url); }, WARM_MS);
+}
+export const get = (u) => {
+  const w = warm.get(u);
+  if (w && Date.now() - w.t < WARM_MS) { warm.delete(u); return w.p; }
+  return api('GET', u);
+};
 export const post = (u, b) => api('POST', u, b ?? {});
 export const put = (u, b) => api('PUT', u, b ?? {});
 export const del = (u, b) => api('DELETE', u, b);

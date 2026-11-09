@@ -324,6 +324,8 @@ a:hover { color: var(--gold-2); }
 .view.fit > * { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
 .view.fit > * > * { flex: 0 0 auto; }
 .view.fit > * > .table-wrap { flex: 0 1 auto; min-height: 8rem; }
+/* Chừa sẵn chỗ thanh cuộn: khi fitView() đặt chiều cao và thanh cuộn xuất hiện thì bảng không bị dàn trang lại lần nữa (đổi tab nhẹ hơn ~15%) */
+.view.fit > * > .table-wrap, .view.fit > * > .az-layout > .table-wrap { scrollbar-gutter: stable; }
 .view.fit > * > details[open] { flex: 0 1 auto; min-height: 6rem; overflow: auto; }
 .view.fit > * > details { margin-top: 1rem; margin-bottom: 0; }
 
@@ -338,7 +340,8 @@ a:hover { color: var(--gold-2); }
 .view.entering .kpis > .kpi:nth-child(1) { animation-delay: .06s; } .view.entering .kpis > .kpi:nth-child(2) { animation-delay: .10s; }
 .view.entering .kpis > .kpi:nth-child(3) { animation-delay: .14s; } .view.entering .kpis > .kpi:nth-child(4) { animation-delay: .18s; }
 .view.entering .kpis > .kpi:nth-child(5) { animation-delay: .22s; } .view.entering .kpis > .kpi:nth-child(6) { animation-delay: .26s; }
-.view.entering tbody tr { animation: fade .5s ease both; }
+/* Bảng lớn (hàng trăm hàng/ô) KHÔNG nhấc/nháy từng hàng: mỗi hàng một hoạt ảnh làm đổi tab giật ~0,1 s trên máy yếu. Chỉ mờ cả khung ngắn. */
+.view.entering > * > .table-wrap, .view.entering > * > .az-layout { animation: fade .22s ease both; animation-delay: 0s; }
 @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 .progress { position: fixed; top: 0; left: 0; height: 2px; width: 0; z-index: 80; background: var(--btn-gold); box-shadow: 0 0 10px var(--gold); opacity: 0; pointer-events: none; }
@@ -416,8 +419,8 @@ button.small { padding: .12rem .55rem; font-size: .75rem; border-radius: 8px; }
 .toolbar select { border-radius: 999px; padding-left: 1rem; }
 
 /* ---------- Bảng ---------- */
-/* Bảng cuộn TRONG khung (tiêu đề cột luôn hiện); chiều cao vừa khít màn hình do fitTables() trong main.js đặt. clip-path để góc bo không bị thanh cuộn che */
-.table-wrap { overflow: auto; clip-path: inset(0 round var(--radius)); border: 1px solid var(--border); border-radius: var(--radius); background: var(--glass); }
+/* Bảng cuộn TRONG khung (tiêu đề cột luôn hiện); chiều cao vừa khít màn hình do fitTables() trong main.js đặt. Không dùng clip-path trên khung cuộn (bắt trình duyệt cắt lại cả bảng mỗi khung hình khi cuộn) — overflow đã tự cắt theo góc bo */
+.table-wrap { overflow: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--glass); }
 .card .table-wrap { box-shadow: none; max-height: 420px; background: transparent; }
 table { border-collapse: separate; border-spacing: 0; width: 100%; }
 th, td { padding: .65rem .9rem; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
@@ -425,7 +428,6 @@ tbody tr:last-child td { border-bottom: 0; }
 thead th { position: sticky; top: 0; background: var(--solid-2); z-index: 2; font-size: .7rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--gold); }
 td.sticky, th.sticky { position: sticky; left: 0; background: var(--solid); z-index: 1; border-right: 1px solid var(--border); }
 thead th.sticky { z-index: 3; background: var(--solid-2); }
-tbody tr { transition: background .15s; }
 tbody tr:hover td { background: var(--glass-hover); }
 tbody tr:hover td.sticky { background: var(--solid-2); }
 tr.inactive td { color: var(--muted); }
@@ -458,7 +460,7 @@ th.sortable:hover { color: var(--gold); }
 .score-kpi { display: inline-flex; align-items: baseline; gap: .35rem; padding: .35rem .9rem; border-radius: 999px; background: var(--gold-soft); border: 1px solid var(--gold); }
 .score-kpi b { font-size: 1.15rem; color: var(--gold); font-variant-numeric: tabular-nums; }
 .score-kpi small { color: var(--muted); font-size: .76rem; }
-.cell:hover { filter: brightness(1.2); }
+.cell:hover { box-shadow: inset 0 0 0 100px rgba(255, 255, 255, .14); }   /* không dùng filter: tránh tạo lớp riêng cho từng ô khi cuộn dưới con trỏ */
 .cell.readonly { cursor: default; }
 .cell.readonly:hover { filter: none; }
 
@@ -471,7 +473,7 @@ span.cell.empty { background: transparent; }
 span.cell:focus-within, span.cell:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 span.cell[role="button"] { cursor: pointer; }
 .legend .cell { cursor: default; }
-.legend .cell:hover { filter: none; }
+.legend .cell:hover { box-shadow: none; }
 .badge.seg-b2b { background: var(--warn-bg); color: var(--warn); font-size: .7rem; padding: .02rem .5rem; }
 .badge.seg-b2c { background: var(--info-bg); color: var(--info); font-size: .7rem; padding: .02rem .5rem; }
 .profile { margin: .8rem 0; padding: .7rem .9rem; border: 1px solid var(--border); border-radius: 12px; }

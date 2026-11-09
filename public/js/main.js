@@ -1,4 +1,4 @@
-import { get, post } from './api.js';
+import { get, post, prefetch } from './api.js';
 import { h, toast, logo, icon, BRAND, formModal, tooltips } from './ui.js';
 import { renderLogin } from './pages/login.js';
 import { renderDashboard } from './pages/dashboard.js';
@@ -35,6 +35,19 @@ const TABS = [
   ['remind', 'Nhắc bài', renderRemind],
   ['potential', 'Potential', renderPotential],
 ];
+// API chính của từng tab (khớp đúng URL mà trang gọi) — dùng để tải trước khi rê chuột/chạm vào tab.
+function tabUrls(key, classId, user) {
+  const b = `/api/classes/${classId}`;
+  const admin = user.role === 'admin';
+  switch (key) {
+    case 'dashboard': return [`${b}/dashboard`, ...(admin ? [`${b}/profiles`, `${b}/feedback`] : [])];
+    case 'students': return [`${b}/students`, ...(admin ? [`${b}/profiles`] : [])];
+    case 'attendance': return [`${b}/attendance`];
+    case 'homework': return [`${b}/submissions`, ...(user.role === 'guest' ? [] : [`${b}/scores`])];
+    case 'graduation': return [`${b}/graduation`];
+    default: return [];
+  }
+}
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const initials = (name) => name.split(/\s+/).filter(Boolean).slice(-2).map((w) => w[0]).join('').toUpperCase() || '?';
@@ -94,6 +107,12 @@ function buildShell() {
             onclick: async () => { await post('/api/auth/logout'); state.user = null; shell = null; route(); } }, icon('logout'))))),
     h('main', { class: 'content' }, view));
   tooltips(root.querySelector('.topbar'));
+  // Rê chuột/chạm vào tab → tải trước dữ liệu của tab đó (lớp đang xem, bỏ qua lớp chỉ-xem/chưa có lớp)
+  root.addEventListener('pointerover', (e) => {
+    const a = e.target.closest?.('.top-nav .nav-link[data-key]');
+    const classId = store.get('classId');
+    if (a && classId && !a.classList.contains('active')) for (const u of tabUrls(a.dataset.key, classId, state.user)) prefetch(u);
+  });
   shell = { root, view, picker, makeup, absence, notices, homeLink, scheduleLink, navLinks, adminLinks, progress, active: null };
 }
 
