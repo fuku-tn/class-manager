@@ -110,6 +110,10 @@ function profileCard(p) {
 }
 
 export async function renderDashboard({ cls, state }) {
+  // Hồ sơ FORM + khảo sát (chỉ admin) gọi SONG SONG với số liệu chính và không chặn việc hiện trang (trước đây 3 lệnh gọi nối tiếp → trang chờ ~3 vòng mạng).
+  const isAdmin = state?.user?.role === 'admin';
+  const profP = isAdmin ? get(`/api/classes/${cls.id}/profiles`).catch(() => null) : null;
+  const fbP = isAdmin ? get(`/api/classes/${cls.id}/feedback`).catch(() => null) : null;
   const d = await get(`/api/classes/${cls.id}/dashboard`);
   const t = d.totals;
   const kpi = (label, value, bad) => h('div', { class: `kpi${bad ? ' bad' : ''}` }, h('div', { class: 'label' }, label), h('div', { class: 'value' }, value));
@@ -157,15 +161,15 @@ export async function renderDashboard({ cls, state }) {
   root.append(h('div', { class: 'grid2' }, a.el, b.el, c.el));
 
   // Hồ sơ lớp từ phiếu đăng ký (FORM): chỉ admin. Đã loại thông tin cá nhân, chỉ có số liệu tổng hợp.
-  if (state?.user?.role === 'admin') {
-    const prof = await get(`/api/classes/${cls.id}/profiles`).catch(() => null);
+  if (isAdmin) (async () => {
+    const prof = await profP;
     if (prof && prof.with_form > 0) root.append(profileCard(prof));
-    const fb = await get(`/api/classes/${cls.id}/feedback`).catch(() => null);
+    const fb = await fbP;
     if (fb && fb.summary.n > 0) {
       root.append(h('section', { class: 'card' }, h('div', { class: 'eyebrow' }, 'Chỉ admin'), h('h2', {}, 'Khảo sát sau khóa của lớp'),
         feedbackSummaryBlock(fb.summary, fb.group_labels, { limitNote: fb.summary.n < 5 ? `Mới có ${fb.summary.n} phiếu — số liệu chỉ mang tính tham khảo.` : '' })));
     }
-  }
+  })();
 
   // Chart cần canvas đã nằm trong DOM → vẽ ở tick sau.
   setTimeout(async () => {

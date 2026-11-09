@@ -20,9 +20,10 @@ export async function renderStudents({ cls, state }) {
   const upcoming = cls.timing === 'upcoming';
   const shownStatus = (r) => (upcoming && r.course_status === 'active' ? 'Lớp chưa diễn ra' : COURSE_STATUS_LABEL[r.course_status]);
   const base = `/api/classes/${cls.id}`;
+  // Hồ sơ đăng ký (FORM): chỉ admin; lỗi/không có thì bỏ qua. Gọi song song với danh sách học viên (trước đây nối tiếp).
+  const profilesP = state.user.role === 'admin' ? get(`${base}/profiles`).catch(() => null) : null;
   let rows = await get(`${base}/students`);
-  // Hồ sơ đăng ký (FORM): chỉ admin; lỗi/không có thì bỏ qua.
-  const profiles = state.user.role === 'admin' ? await get(`${base}/profiles`).catch(() => null) : null;
+  const profiles = await profilesP;
   const search = h('input', { type: 'search', placeholder: 'Tìm theo tên, mã, email…', 'aria-label': 'Tìm học viên' });
   const status = h('select', { 'aria-label': 'Lọc trạng thái' }, h('option', { value: '' }, 'Mọi trạng thái'), STATUS_OPTIONS.map(([v, l]) => h('option', { value: v }, upcoming && v === 'active' ? 'Lớp chưa diễn ra' : l)));
   const mode = h('select', { 'aria-label': 'Lọc hình thức' }, h('option', { value: '' }, 'Mọi hình thức'), MODE_OPTIONS.slice(1).map(([v, l]) => h('option', { value: v }, l)));
