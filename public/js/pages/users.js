@@ -43,7 +43,7 @@ export async function renderUsers({ state, navigate }) {
         try { await post('/api/users', v); toast('Đã tạo'); location.reload(); } catch (e) { toast(e.message, true); }
       } }, '+ Thêm người dùng')),
     h('div', { class: 'table-wrap' }, h('table', {},
-      h('thead', {}, h('tr', {}, ['Họ tên', 'Email', 'Vai trò', 'Nhắc bài (tin nhắn + chụp ảnh)', 'Xem lớp chưa diễn ra', 'Xem Potential', 'Voucher GG Maps', 'Lớp được phân', 'Trạng thái', ''].map((x) => h('th', {}, x)))),
+      h('thead', {}, h('tr', {}, ['Họ tên', 'Email', 'Vai trò', 'Nhắc bài (tin nhắn + chụp ảnh)', 'Sửa mọi lớp', 'Xem Potential', 'Voucher GG Maps', 'Lớp được phân', 'Trạng thái', ''].map((x) => h('th', {}, x)))),
       h('tbody', {}, users.map((u) => h('tr', { class: u.active ? '' : 'inactive' },
         h('td', {}, u.name), h('td', {}, u.email), h('td', {}, ({ admin: 'Admin', guest: 'Khách (chỉ xem)' })[u.role] ?? 'Giảng viên'),
         h('td', {}, u.role === 'admin' ? 'Có (admin)' : u.role === 'guest' ? '—'
@@ -59,9 +59,9 @@ export async function renderUsers({ state, navigate }) {
             try { await put(`/api/users/${u.id}/voucher`, { can_voucher: !u.can_voucher }); location.reload(); } catch (e) { toast(e.message, true); }
           } }, u.can_voucher ? 'Được dùng — tắt' : 'Không — bật')),
         h('td', {}, u.role === 'admin' ? 'Tất cả' : u.role === 'guest' ? '—'
-          : h('button', { class: u.can_view_upcoming ? 'primary' : '', title: 'Cho phép xem (không sửa) mọi lớp chưa tới ngày khai giảng, kể cả lớp chưa được phân công', onclick: async () => {
-            try { await put(`/api/users/${u.id}/view-upcoming`, { can_view_upcoming: !u.can_view_upcoming }); location.reload(); } catch (e) { toast(e.message, true); }
-          } }, u.can_view_upcoming ? 'Được xem — tắt' : 'Không — bật')),
+          : h('button', { class: u.can_all_classes ? 'primary' : '', title: 'Mọi tài khoản đều XEM được mọi lớp. Bật để tài khoản này còn SỬA được mọi lớp (điểm danh, bài tập, học viên…) như giảng viên được phân công vào tất cả lớp; vẫn thua admin', onclick: async () => {
+            try { await put(`/api/users/${u.id}/all-classes`, { can_all_classes: !u.can_all_classes }); location.reload(); } catch (e) { toast(e.message, true); }
+          } }, u.can_all_classes ? 'Được sửa — tắt' : 'Chỉ xem — bật')),
         h('td', {}, u.role === 'admin' ? 'Tất cả' : (u.class_ids.map(classOf).join(', ') || '—')),
         h('td', {}, u.active ? 'Hoạt động' : 'Đã khóa'),
         h('td', {},

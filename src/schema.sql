@@ -8,7 +8,8 @@ create table if not exists users (
   password_hash text not null,
   role          text not null default 'instructor' check (role in ('admin','instructor','guest')),
   can_remind    boolean not null default false,
-  can_view_upcoming boolean not null default false,
+  can_view_upcoming boolean not null default false,   -- (lỗi thời từ 11/11/2026: mọi tài khoản xem được mọi lớp)
+  can_all_classes boolean not null default false,     -- sửa được mọi lớp (chỉ thua admin) — xem supabase/migrations/2026-11-11-all-classes.sql
   can_view_potential boolean not null default false,
   can_voucher   boolean not null default false,   -- xem/sửa voucher Google Maps (admin luôn được)
   active        boolean not null default true,

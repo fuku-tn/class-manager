@@ -72,14 +72,14 @@ test('đồng bộ cần mã; ghi đúng, mã lớp chưa có trong app vẫn l�
   assert.equal((await all()).length, 3);
 });
 
-test('xem lịch: admin thấy hết; giảng viên/khách chỉ lớp được phân công', async () => {
+test('xem lịch: admin thấy hết (kể cả mã lớp chưa có trong app); giảng viên/khách thấy lịch của mọi lớp có trong app', async () => {
   await post([row('2026-09-06', 'S', 'BIE102', 'Power Query', 1), row('2026-09-15', 'T', 'BIH98', 'Metrics', 20), row('2026-12-01', 'T', 'XYZ999', 'Lớp lạ', 1)]);
   const a = (await admin.get('/api/schedule/teaching')).body;
   assert.deepEqual(a.map((x) => x.short_code), ['BIE102', 'BIH098', 'XYZ999']);
   for (const who of [gv, guest]) {
     const r = await who.get('/api/schedule/teaching');
     assert.equal(r.status, 200);
-    assert.deepEqual(r.body.map((x) => x.short_code), ['BIE102']);
+    assert.deepEqual(r.body.map((x) => x.short_code), ['BIE102', 'BIH098']);   // XYZ999 chưa có trong app: chỉ admin thấy
     assert.equal(r.body[0].session_date, '2026-09-06');
   }
   assert.equal((await realFetch(`${t.base}/api/schedule/teaching`)).status, 401);

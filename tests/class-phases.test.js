@@ -85,10 +85,10 @@ test('tổng quan trang chủ: lớp nộp/chấm bài và công bố tốt nghi
   assert.ok(r.featured.every((c) => ['running', 'grading', 'graduation'].includes(c.timing)));
   assert.ok(r.featured.every((c) => c.grading_until && c.graduation_on));
   assert.ok(!r.featured.some((c) => c.short_code === 'FIN' || c.short_code === 'SOON'));
-  // giảng viên chỉ thấy lớp được phân (đang ở giai đoạn chấm bài)
+  // mọi tài khoản thấy số liệu của mọi lớp (chủ dự án chốt 11/11/2026)
   const g = (await gv.get('/api/overview')).body;
-  assert.equal(g.totals.grading, 1);
-  assert.equal(g.featured.length, 1);
+  assert.equal(g.totals.grading, r.totals.grading);
+  assert.equal(g.featured.length, r.featured.length);
 });
 
 test('bộ lọc phía trình duyệt: nhóm "Đang hoạt động", chip và mặc định', async () => {

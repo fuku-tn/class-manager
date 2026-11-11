@@ -19,15 +19,14 @@ module.exports = (db) => {
       (select string_agg(distinct coalesce(e.company_name, e.customer_id), ' · ') from enrollments e
         where e.class_id = c.id and e.segment = 'b2b' and coalesce(e.company_name, e.customer_id) is not null) as companies
       from classes c`;
-    const rows = req.user.role === 'admin'
-      ? await db.all(`${base} order by c.start_date desc nulls last, c.id desc`)
-      : await db.all(`${base} where c.id in (select class_id from class_instructors where user_id = $1)
-                      or ($2::boolean and (${TIMING_SQL}) = 'upcoming') order by c.start_date desc nulls last, c.id desc`,
-        [req.user.id, req.user.can_view_upcoming === true && req.user.role !== 'guest']);
+    // Mọi tài khoản thấy mọi lớp; chỉ admin, tài khoản can_all_classes và giảng viên được phân công mới sửa được (còn lại view_only).
+    const rows = await db.all(`${base} order by c.start_date desc nulls last, c.id desc`);
     if (req.user.role !== 'admin') {
-      // Lớp chưa diễn ra được xem nhờ quyền can_view_upcoming (không phân công) thì chỉ xem: view_only
-      const mine = new Set((await db.all('select class_id from class_instructors where user_id = $1', [req.user.id])).map((r) => r.class_id));
-      for (const r of rows) r.view_only = !mine.has(r.id);
+      const guest = req.user.role === 'guest';
+      const all = !guest && req.user.can_all_classes === true;
+      const mine = guest || all ? new Set()
+        : new Set((await db.all('select class_id from class_instructors where user_id = $1', [req.user.id])).map((r) => r.class_id));
+      for (const r of rows) r.view_only = guest || !(all || mine.has(r.id));
     }
     res.json(rows);
   });

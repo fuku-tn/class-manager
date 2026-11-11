@@ -51,6 +51,6 @@ test('lớp được bù thấy học viên, lớp gốc và các buổi bù; l�
   assert.deepEqual((await admin.get(`/api/classes/${a}/makeups`)).body, []);
 });
 
-test('quyền: giảng viên không dạy lớp gốc vẫn thấy ở lớp mình dạy; không xem được lớp không được phân công', async () => {
-  assert.equal((await gv.get(`/api/classes/${a}/makeups`)).status, 403);
+test('quyền: giảng viên không dạy lớp gốc vẫn thấy ở lớp mình dạy; lớp không được phân công vẫn xem được (chỉ xem)', async () => {
+  assert.equal((await gv.get(`/api/classes/${a}/makeups`)).status, 200);
 });

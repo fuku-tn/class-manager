@@ -31,12 +31,17 @@ test('đăng nhập sai bị từ chối, đúng thì cấp phiên', async () =>
   assert.equal((await c.get('/api/auth/me')).body.role, 'admin');
 });
 
-test('giảng viên chỉ thấy lớp được phân công', async () => {
+test('giảng viên xem được mọi lớp nhưng chỉ sửa lớp được phân công', async () => {
   const gv = await t.login('gv@x.com');
-  assert.deepEqual((await gv.get('/api/classes')).body, []);
-  assert.equal((await gv.get(`/api/classes/${classId}/students`)).status, 403);
+  // chưa phân công: vẫn thấy lớp (chỉ xem), xem được học viên, nhưng không ghi được
+  const before = (await gv.get('/api/classes')).body;
+  assert.ok(before.length >= 1 && before.every((c) => c.view_only === true));
+  assert.equal((await gv.get(`/api/classes/${classId}/students`)).status, 200);
+  const w = await gv.post(`/api/classes/${classId}/students`, { student_code: 'ZZ', full_name: 'Không được' });
+  assert.equal(w.status, 403); assert.match(w.body.error, /chỉ được xem/);
   const gvId = (await t.db.one("select id from users where email = 'gv@x.com'")).id;
   assert.equal((await admin.put(`/api/users/${gvId}/classes`, { class_ids: [classId] })).status, 200);
+  assert.equal((await gv.get('/api/classes')).body.find((c) => c.id === classId).view_only, false);
   assert.equal((await gv.get(`/api/classes/${classId}/students`)).status, 200);
   assert.equal((await gv.post('/api/classes', { code: 'X' })).status, 403); // không phải admin
   assert.equal((await gv.get('/api/users')).status, 403);

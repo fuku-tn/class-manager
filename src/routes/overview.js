@@ -1,5 +1,5 @@
 // Tổng quan cho trang Home: số lớp đang diễn ra, học viên đang học, chuyên cần trung bình, lớp nổi bật.
-// Chỉ tính các lớp người dùng được phép xem (admin: tất cả; giảng viên: lớp được phân công).
+// Mọi tài khoản xem được mọi lớp (chủ dự án chốt 11/11/2026) nên tổng quan tính trên tất cả các lớp.
 const express = require('express');
 const { TIMING_SQL, PHASE_DATES_SQL, ACTIVE_TIMINGS } = require('../services/timing');
 const { attendanceRate } = require('../services/stats'); // công thức chuyên cần chỉ nằm ở stats.js
@@ -13,17 +13,13 @@ module.exports = (db) => {
   const router = express.Router();
 
   router.get('/', async (req, res) => {
-    const admin = req.user.role === 'admin';
     const classes = await db.all(
       `select c.id, c.code, c.short_code, c.program, c.delivery_mode, c.shift, c.start_date, c.end_date,
               ${TIMING_SQL} as timing, ${PHASE_DATES_SQL},
               (select count(*)::int from enrollments e where e.class_id = c.id and e.course_status in ('active','completed')) as students,
               (select count(*)::int from sessions s where s.class_id = c.id) as sessions_total,
               (select count(*)::int from sessions s where s.class_id = c.id and s.held) as sessions_held
-       from classes c
-       ${admin ? '' : `where c.id in (select class_id from class_instructors where user_id = $1)
-                       or ($2::boolean and (${TIMING_SQL}) = 'upcoming')`}`,
-      admin ? [] : [req.user.id, req.user.can_view_upcoming === true && req.user.role !== 'guest']);
+       from classes c`);
 
     const running = classes.filter((c) => c.timing === 'running');
     const active = classes.filter((c) => ACTIVE_TIMINGS.includes(c.timing)); // đang học + nộp/chấm bài + công bố tốt nghiệp

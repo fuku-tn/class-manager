@@ -94,11 +94,12 @@ test('tổng quan: đếm lớp theo thời gian, học viên đang học, chuy�
   assert.equal(r.upcoming[0].short_code, 'SOON');
 });
 
-test('tổng quan: giảng viên chỉ thấy số liệu của lớp được phân; chưa đăng nhập bị chặn', async () => {
+test('tổng quan: mọi tài khoản thấy số liệu của mọi lớp; chưa đăng nhập bị chặn', async () => {
   const r = (await gv.get('/api/overview')).body;
-  assert.equal(r.totals.classes, 1);
-  assert.equal(r.totals.upcoming, 0);
-  assert.equal(r.upcoming.length, 0);
+  const a = (await admin.get('/api/overview')).body;
+  assert.equal(r.totals.classes, a.totals.classes);
+  assert.equal(r.totals.upcoming, a.totals.upcoming);
+  assert.equal(r.upcoming.length, a.upcoming.length);
   assert.equal((await t.client().get('/api/overview')).status, 401);
 });
 

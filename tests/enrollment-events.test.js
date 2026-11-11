@@ -76,9 +76,10 @@ test('gỡ khỏi lớp: chỉ admin, bắt buộc có lý do, ghi nhật ký c�
   assert.match(ev.note, /1 lượt điểm danh/);
 });
 
-test('nhật ký của lớp: chỉ người có quyền vào lớp xem được', async () => {
+test('nhật ký của lớp: mọi tài khoản đăng nhập xem được (chỉ xem), chưa đăng nhập thì không', async () => {
   const other = (await admin.post('/api/classes', { code: 'EV.02', session_count: 1, hw_count: 0 })).body.id;
-  assert.equal((await gv.get(`/api/classes/${other}/events`)).status, 403);
+  assert.equal((await gv.get(`/api/classes/${other}/events`)).status, 200);
+  assert.equal((await t.client().get(`/api/classes/${other}/events`)).status, 401);
   assert.equal((await guest.get(`/api/classes/${webClass}/events`)).status, 200);
 });
 

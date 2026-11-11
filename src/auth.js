@@ -55,7 +55,7 @@ function attachUser(db) {
     try {
       if (token) {
         const row = await db.one(
-          `select u.id, u.email, u.name, u.role, u.can_remind, u.can_view_upcoming, u.can_view_potential, u.can_voucher from auth_sessions s
+          `select u.id, u.email, u.name, u.role, u.can_remind, u.can_view_upcoming, u.can_all_classes, u.can_view_potential, u.can_voucher from auth_sessions s
            join users u on u.id = s.user_id
            where s.token_hash = $1 and s.expires_at > now() and u.active`, [sha256(token)]);
         if (row) req.user = { ...row };
@@ -95,23 +95,26 @@ function requireRemind(req, res, next) {
   next();
 }
 
-// Kiểm tra quyền truy cập lớp :classId (admin xem tất cả, giảng viên chỉ lớp được phân công).
+// Kiểm tra quyền truy cập lớp :classId (chủ dự án chốt 11/11/2026): MỌI tài khoản xem được mọi lớp (đã/đang/sắp diễn ra). Sửa được: admin,
+// tài khoản có can_all_classes, và giảng viên được phân công lớp đó. Còn lại chỉ XEM: ghi bị 403, và trong request này người dùng được coi như
+// KHÁCH (không thấy điểm/GPA, nhắc bài, Potential, voucher) — các route đã có sẵn nhánh cho khách nên tự đúng.
 function requireClassAccess(db) {
   return async (req, res, next) => {
     const classId = Number(req.params.classId);
     if (!Number.isSafeInteger(classId)) return res.status(404).json({ error: 'Không tìm thấy lớp' });
     const cls = await db.one(`select c.*, ${TIMING_SQL} as timing from classes c where c.id = $1`, [classId]);
     if (!cls) return res.status(404).json({ error: 'Không tìm thấy lớp' });
+    let viewOnly = false;
     if (req.user.role !== 'admin') {
-      const ok = await db.one('select 1 as x from class_instructors where class_id = $1 and user_id = $2', [classId, req.user.id]);
-      if (!ok) {
-        // Tài khoản được bật can_view_upcoming: được XEM (không sửa) mọi lớp chưa diễn ra, kể cả chưa được phân công.
-        if (req.user.can_view_upcoming === true && req.user.role !== 'guest' && cls.timing === 'upcoming') {
-          if (req.method !== 'GET') return res.status(403).json({ error: 'Bạn chỉ được xem lớp chưa diễn ra, không được chỉnh sửa' });
-        } else return res.status(403).json({ error: 'Bạn không được phân công lớp này' });
+      const canEdit = req.user.role !== 'guest' && (req.user.can_all_classes === true
+        || !!(await db.one('select 1 as x from class_instructors where class_id = $1 and user_id = $2', [classId, req.user.id])));
+      if (!canEdit) {
+        if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return res.status(403).json({ error: 'Bạn chỉ được xem lớp này, không được chỉnh sửa' });
+        viewOnly = true;
+        req.user = { ...req.user, role: 'guest', can_remind: false, can_view_potential: false, can_voucher: false, can_all_classes: false };
       }
     }
-    req.cls = { ...cls };
+    req.cls = { ...cls, view_only: viewOnly };
     next();
   };
 }

@@ -249,20 +249,19 @@ sequenceDiagram
 
 ## 7. Phân quyền
 
-| Khả năng | Admin | Giảng viên | + `can_remind` | + `can_view_upcoming` | + `can_view_potential` | Khách |
+| Khả năng | Admin | Giảng viên (lớp được phân) | + `can_all_classes` | + `can_remind` | + `can_view_potential` | Khách / lớp chỉ xem |
 |---|---|---|---|---|---|---|
-| Xem lớp được phân công | ✓ (mọi lớp) | ✓ | ✓ | ✓ | ✓ | ✓ (lớp được phân) |
-| Ghi điểm danh/bài tập, sửa học viên | ✓ | ✓ (lớp của mình) | ✓ | ✓ | ✓ | ✗ |
-| Xem lớp chưa diễn ra (chỉ xem) | ✓ | ✗ | ✗ | ✓ | ✗ | ✗ |
-| Tin nhắn nhắc bài, sao chép/chụp ảnh, tổng quan | ✓ | ✗ | ✓ | ✗ | ✗ | ✗ |
-| Xem Potential (+ lịch sử chuyển Potential) | ✓ | ✗ | ✗ | ✗ | ✓ | ✗ |
-| Xem điểm (cột/trang điểm, Điểm TB) | ✓ | ✓ (lớp của mình) | ✓ | ✓ | ✓ | ✗ |
-| Xem lịch sử đổi trạng thái đăng ký | ✓ | ✓ (lớp của mình) | ✓ | ✓ | ✓ | ✓* |
+| Xem lớp (đã/đang/sắp diễn ra) | ✓ (mọi lớp) | ✓ (mọi lớp) | ✓ (mọi lớp) | ✓ | ✓ | ✓ (mọi lớp, chỉ xem) |
+| Ghi điểm danh/bài tập, sửa học viên | ✓ | ✓ (lớp của mình) | ✓ (mọi lớp) | — | — | ✗ |
+| Tin nhắn nhắc bài, sao chép/chụp ảnh, tổng quan | ✓ | ✗ | — | ✓ | ✗ | ✗ |
+| Xem Potential (+ lịch sử chuyển Potential) | ✓ | ✗ | — | ✗ | ✓ | ✗ |
+| Xem điểm (cột/trang điểm, Điểm TB) | ✓ | ✓ (lớp của mình) | ✓ (mọi lớp) | — | — | ✗ |
+| Xem lịch sử đổi trạng thái đăng ký | ✓ | ✓ | ✓ | ✓ | ✓ | ✓* |
 | Gỡ học viên, tạo/xóa lớp, quản lý người dùng, Nhập Excel, khảo sát, hồ sơ FORM, công bố tốt nghiệp | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ |
 
-\* Khách thấy lịch sử của lớp mình được phân nhưng không thấy sự kiện chuyển Potential và không thấy điểm.
+\* Khách và tài khoản ở lớp chỉ xem thấy lịch sử của lớp nhưng không thấy sự kiện chuyển Potential và không thấy điểm. Từ 11/11/2026 mọi tài khoản xem được mọi lớp; chỉ người được phân công (hoặc `can_all_classes`) mới sửa được.
 
-Cơ chế: `attachUser` nạp người dùng + cờ năng lực từ phiên; `requireClassAccess` kiểm lớp (gồm ngoại lệ `can_view_upcoming`: chỉ GET); `blockGuestWrites` chặn mọi ghi của khách; `requireAdmin` cho thao tác quản trị. Lớp xem nhờ `can_view_upcoming` được đánh dấu `view_only` để giao diện ẩn nút ghi.
+Cơ chế: `attachUser` nạp người dùng + cờ năng lực từ phiên; `requireClassAccess` kiểm lớp (mọi tài khoản xem được; không có quyền sửa thì chỉ GET và bị coi như khách trong request đó); `blockGuestWrites` chặn mọi ghi của khách; `requireAdmin` cho thao tác quản trị. Lớp xem nhờ `can_view_upcoming` được đánh dấu `view_only` để giao diện ẩn nút ghi.
 
 ---
 

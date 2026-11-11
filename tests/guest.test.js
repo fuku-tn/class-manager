@@ -48,13 +48,16 @@ test('khách không ghi được: điểm danh, bài tập, học viên, buổi 
   assert.equal((await admin.get(`${base}/students`)).body[0].full_name, 'An');
 });
 
-test('khách đăng xuất được; không phân lớp thì không thấy lớp nào', async () => {
+test('khách đăng xuất được; khách (kể cả chưa phân lớp) xem được mọi lớp nhưng luôn chỉ xem', async () => {
   assert.equal((await guest.post('/api/auth/logout')).status, 200);
   assert.equal((await guest.get('/api/classes')).status, 401);
   await t.addUser('khach2@x.com', 'guest');
   const g2 = await t.login('khach2@x.com');
-  assert.deepEqual((await g2.get('/api/classes')).body, []);
-  assert.equal((await g2.get(`/api/classes/${classId}/students`)).status, 403);
+  const list = (await g2.get('/api/classes')).body;
+  assert.ok(list.length >= 1 && list.every((c) => c.view_only === true));
+  assert.equal((await g2.get(`/api/classes/${classId}/students`)).status, 200);
+  assert.equal((await g2.post(`/api/classes/${classId}/students`, { student_code: 'K1', full_name: 'Khách' })).status, 403);
+  assert.equal((await g2.get(`/api/classes/${classId}/scores`)).status, 403);   // điểm vẫn ẩn với khách
 });
 
 test('admin tạo được người dùng vai trò khách; schema hai file đều có vai trò guest', async () => {
