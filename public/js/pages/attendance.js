@@ -136,6 +136,7 @@ export async function renderAttendance({ cls, state }) {
     countCells.clear();
     head.replaceChildren(h('tr', {},
       h('th', { class: 'sticky' }, 'Học viên'),
+      readOnly ? null : h('th', {}, 'SĐT'),
       data.sessions.map((s) => {
         const count = h('div', { class: 'sess-count' });
         countCells.set(s.id, count);
@@ -209,12 +210,13 @@ export async function renderAttendance({ cls, state }) {
     const q = norm(search.value).trim(); // không phân biệt hoa/thường và dấu tiếng Việt
     cells.clear(); rateCells.clear();
     const list = sortRows(data.rows, sortKey)
-      .filter((r) => !q || norm(r.full_name).includes(q) || norm(r.student_code).includes(q));
+      .filter((r) => !q || norm(r.full_name).includes(q) || norm(r.student_code).includes(q) || (!readOnly && norm(r.phone ?? '').includes(q)));
     body.replaceChildren(...list.map((row) => {
       const rate = h('td', { class: 'num' }, pct(row.attendance_rate));
       rateCells.set(row.enrollment_id, rate);
       return h('tr', { class: row.course_status === 'active' ? '' : 'inactive', 'data-initial': surnameInitial(row.full_name) },
         h('td', { class: 'sticky' }, row.full_name, h('div', { class: 'muted small' }, row.student_code + (row.course_status !== 'active' ? ` · ${row.course_status}` : ''))),
+        readOnly ? null : h('td', { class: 'att-phone' }, row.phone || '—'),
         data.sessions.map((s) => makeCell(row, s)), rate);
     }));
     az.update();

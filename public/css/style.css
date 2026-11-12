@@ -206,6 +206,7 @@ a:hover { color: var(--gold-2); }
 .vc-head h2 svg { width: 20px; height: 20px; color: var(--gold); }
 .vc-head p { margin: 0; }
 .vc-tools { margin-bottom: .7rem; }
+.vc-phone, .att-phone { white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--muted); font-size: .85rem; }
 .vc-quick { margin-bottom: .8rem; padding: .7rem .9rem; border: 1px dashed color-mix(in srgb, var(--gold) 55%, var(--border)); border-radius: 14px; background: var(--gold-soft); display: grid; gap: .45rem; }
 .vc-quick-row { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
 .vc-quick-row .vc-date { width: 7.8rem; }

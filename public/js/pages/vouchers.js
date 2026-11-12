@@ -33,7 +33,7 @@ export async function openVouchers({ cls }) {
   try { rows = await get(`${base}/vouchers`); } catch (e) { toast(e.message, true); return; }
 
   const stat = h('span', { class: 'vc-stat muted small' });
-  const search = h('input', { type: 'search', placeholder: 'Tìm học viên…', 'aria-label': 'Tìm học viên' });
+  const search = h('input', { type: 'search', placeholder: 'Tìm tên, mã, SĐT…', 'aria-label': 'Tìm học viên' });
   const body = h('tbody');
   const picked = new Set();   // enrollment_id đang được tick (giữ nguyên khi tìm kiếm/vẽ lại)
   const refreshStat = () => {
@@ -100,12 +100,13 @@ export async function openVouchers({ cls }) {
     status.addEventListener('change', () => save({ status: status.value || null }));
     tr.append(
       h('td', { class: 'sticky' }, h('label', { class: 'vc-pick' }, tick, h('span', {}, r.full_name, h('div', { class: 'muted small' }, r.student_code + (r.course_status !== 'active' ? ` · ${r.course_status}` : ''))))),
+      h('td', { class: 'vc-phone' }, r.phone || '—'),
       h('td', {}, h('div', { class: 'vc-amount' }, amountSel, custom)), h('td', {}, sent), h('td', {}, exp), h('td', {}, status), h('td', { class: 'vc-end' }, saved));
     paint();
     return tr;
   }
 
-  const shown = () => { const q = norm(search.value).trim(); return rows.filter((r) => !q || norm(r.full_name).includes(q) || norm(r.student_code).includes(q)); };
+  const shown = () => { const q = norm(search.value).trim(); return rows.filter((r) => !q || norm(r.full_name).includes(q) || norm(r.student_code).includes(q) || norm(r.phone ?? '').includes(q)); };
 
   // ----- Điền nhanh -----
   const qAmount = h('select', { class: 'vc-sel', 'aria-label': 'Số tiền voucher cần điền' }, h('option', { value: '' }, 'Voucher: giữ nguyên'),
@@ -178,7 +179,7 @@ export async function openVouchers({ cls }) {
   function renderBody() {
     body.replaceChildren(...shown().map(rowEl));
     refreshPick();
-    if (!body.children.length) body.append(h('tr', {}, h('td', { colspan: 6, class: 'empty-state' }, rows.length ? 'Không có học viên khớp tìm kiếm.' : 'Lớp chưa có học viên.')));
+    if (!body.children.length) body.append(h('tr', {}, h('td', { colspan: 7, class: 'empty-state' }, rows.length ? 'Không có học viên khớp tìm kiếm.' : 'Lớp chưa có học viên.')));
   }
 
   const close = () => { back.remove(); document.removeEventListener('keydown', onKey); };
@@ -192,7 +193,7 @@ export async function openVouchers({ cls }) {
       h('div', { class: 'toolbar vc-tools' }, search, stat),
       h('div', { class: 'vc-quick' }, h('div', { class: 'eyebrow' }, 'Điền nhanh'), h('div', { class: 'vc-quick-row' }, qAmount, qCustom, qSent, qExp, qStatus, applyBtn, clearBtn), pickInfo),
       h('div', { class: 'table-wrap vc-wrap' }, h('table', { class: 'vc-table' },
-        h('thead', {}, h('tr', {}, ['Học viên', 'Voucher GG Maps (VND)', 'Voucher sent date', 'Expiration date', 'Voucher status', ''].map((x, i) => h('th', { class: i === 0 ? 'sticky' : '' }, i === 0 ? h('label', { class: 'vc-pick' }, pickAll, h('span', {}, x)) : x)))),
+        h('thead', {}, h('tr', {}, ['Học viên', 'SĐT', 'Voucher GG Maps (VND)', 'Voucher sent date', 'Expiration date', 'Voucher status', ''].map((x, i) => h('th', { class: i === 0 ? 'sticky' : '' }, i === 0 ? h('label', { class: 'vc-pick' }, pickAll, h('span', {}, x)) : x)))),
         body))));
   closeOnBackdrop(back, close);
   search.addEventListener('input', renderBody);

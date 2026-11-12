@@ -228,7 +228,7 @@ module.exports = (db) => {
   // ---------- Voucher Google Maps (số tiền do chủ dự án cho phép 22/10/2026) ----------
   // Chỉ admin + tài khoản được bật can_voucher (hiện: Đoàn Minh Lý). Nhập tay trên web; KHÔNG đọc từ Excel/Sheet. Mỗi học viên một dòng.
   const needVoucher = (req, res, next) => (canVoucher(req.user) ? next() : res.status(403).json({ error: 'Bạn không có quyền xem voucher' }));
-  const VOUCHER_SQL = `select e.id as enrollment_id, s.student_code, s.full_name, e.course_status, v.amount, v.sent_date::text as sent_date,
+  const VOUCHER_SQL = `select e.id as enrollment_id, s.student_code, s.full_name, s.phone, e.course_status, v.amount, v.sent_date::text as sent_date,
                               v.expiration_date::text as expiration_date, v.status, u.name as updated_by_name, v.updated_at
                          from enrollments e join students s on s.id = e.student_id
                          left join enrollment_vouchers v on v.enrollment_id = e.id left join users u on u.id = v.updated_by`;
@@ -463,6 +463,7 @@ module.exports = (db) => {
       sessions: data.sessions.map((s) => ({ ...s, summary: sums.get(s.id) })),
       rows: data.enrollments.map((e) => ({
         enrollment_id: e.id, student_code: e.student_code, full_name: e.full_name, mode: e.mode,
+        ...(req.user.role !== 'guest' ? { phone: e.phone ?? null } : {}),   // SĐT chỉ cho tài khoản sửa được lớp (khách/lớp chỉ xem không thấy)
         course_status: e.course_status, attendance_rate: stats.get(e.id).attendance_rate,
         attended: stats.get(e.id).attended, excused: stats.get(e.id).excused, absent: stats.get(e.id).absent,
         cells: Object.fromEntries(data.sessions.map((s) => [s.id, cells.get(`${e.id}:${s.id}`) ?? null])),

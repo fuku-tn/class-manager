@@ -80,3 +80,15 @@ test('chỉ admin bật/tắt "Sửa mọi lớp"; danh sách người dùng có
   for (const f of ['src/schema.sql', 'supabase/schema.sql']) assert.match(fs.readFileSync(path.join(__dirname, '..', f), 'utf8'), /can_all_classes boolean not null default false/, f);
   assert.ok(fs.existsSync(path.join(__dirname, '..', 'supabase/migrations/2026-11-11-all-classes.sql')));
 });
+
+test('số điện thoại ở trang Điểm danh và Voucher: chỉ người sửa được lớp thấy; lớp chỉ xem/khách không', async () => {
+  const add = await admin.post(`/api/classes/${oldId}/students`, { student_code: 'PH1', full_name: 'Có Số Điện Thoại', phone: '0901234567' });
+  assert.equal(add.status, 201);
+  const row = async (who) => (await who.get(`/api/classes/${oldId}/attendance`)).body.rows.find((r) => r.student_code === 'PH1');
+  assert.equal((await row(admin)).phone, '0901234567');
+  assert.equal((await row(ly)).phone, '0901234567');              // "Sửa mọi lớp"
+  assert.equal('phone' in (await row(plain)), false);              // plain không được phân OLD.01 → chỉ xem
+  assert.equal('phone' in (await row(guest)), false);
+  const v = (await admin.get(`/api/classes/${oldId}/vouchers`)).body.find((r) => r.student_code === 'PH1');
+  assert.equal(v.phone, '0901234567');                             // popup Voucher (admin / can_voucher)
+});
