@@ -11,7 +11,7 @@ const { logEvents, latestEvents } = require('./history');
 const { bieHasDefaultCapstone } = require('./scoreModules');
 
 const ALLOWED_COURSE = ['COURSE', 'COURSE ID', 'STARTDATE', 'ENDDATE', 'NEXT COURSE', 'DAYS OF WEEK'];
-const ALLOWED_TX = ['STUDENT ID', 'CUSTOMER ID', 'FULL NAME', 'EMAIL', 'PHONE', 'COURSE', 'MODE', 'GENDER', 'STATUS', 'REGISTRATION SOURCE'];
+const ALLOWED_TX = ['STUDENT ID', 'CUSTOMER ID', 'FULL NAME', 'EMAIL', 'PHONE', 'COURSE', 'MODE', 'GENDER', 'STATUS', 'REGISTRATION SOURCE', 'DEFERRAL STATUS', 'DEFERRAL COURSE'];
 const ALLOWED_CURRICULUM = ['PHASE', 'MODULE', 'TOOLS', 'SESSION', 'HOURS', 'CONTENT'];
 
 const PROGRAM_NAMES = {
@@ -172,8 +172,23 @@ function stateFromStatus(raw) {
 // Bảo lưu / chuyển lớp (STATUS, đổi mã lớp) vẫn đi qua bình thường vì dòng vẫn có đủ hai mã.
 const STUDENT_ID_RE = /^[A-Za-z][A-Za-z0-9]{0,5}\.\d{1,9}$/;
 
-function parseTransactions(ws, classByShort) {
-  const { rows } = readAllowed(ws, [...ALLOWED_TX, 'COMPANY NAME', 'SEGMENT']);
+// DEFERRAL STATUS của Sheet (chủ dự án chốt 12/11/2026): TRUE = học viên bảo lưu khóa ghi ở DEFERRAL COURSE. true / false / null (ô trống hoặc giá trị lạ = không có thông tin).
+const deferralOf = (v) => {
+  if (v === true) return true;
+  if (v === false) return false;
+  const s = String(v ?? '').trim().toLowerCase();
+  if (s === 'true' || s === '1') return true;
+  if (s === 'false' || s === '0') return false;
+  return null;
+};
+
+function parseTransactions(ws, classByShort, { deferralColumn } = {}) {
+  const { rows, columns } = readAllowed(ws, [...ALLOWED_TX, 'COMPANY NAME', 'SEGMENT']);
+  // Nguồn có CỘT DEFERRAL STATUS không (Apps Script cũ chưa gửi cột → false → không đổi trạng thái bảo lưu nào). Đồng bộ truyền cờ vì bảng đã được gộp đủ cột; file Excel thì xét theo tiêu đề.
+  const hasDeferralCol = deferralColumn ?? columns.includes('DEFERRAL STATUS');
+  const deferrals = new Map();   // `${lớp bị bảo lưu}|${mã học viên}` -> true (Sheet nói bảo lưu); không còn TRUE thì ghi danh do Sheet bảo lưu được trả về (xem khối bảo lưu bên dưới)
+  const deferral = { unknown_course: new Map(), true_rows: 0 };
+  const unknownLabels = new Map();   // nhãn STATUS lạ (không nằm trong SHEET_STATUSES) -> số dòng
   const skipped = { no_course: 0, unknown_course: new Map(), no_student_id: 0, invalid_student_id: 0, invalid_samples: [] };
   const students = new Map();   // STUDENT ID -> thông tin mới nhất
   const enrolls = new Map();    // `${short}|${student}` -> bản ghi
@@ -192,6 +207,21 @@ function parseTransactions(ws, classByShort) {
     }
     if (!short) { skipped.no_course++; continue; }
     if (!classByShort.has(short)) { skipped.unknown_course.set(short, (skipped.unknown_course.get(short) ?? 0) + 1); continue; }
+
+    const rawLabel = txt(r.STATUS);
+    if (rawLabel && !sheetStatusOf(rawLabel)) {
+      // Chỉ lưu dạng đã che: chữ số → '#', bỏ nhãn có '@', tối đa 30 ký tự (ô STATUS là chữ tự do — tuyệt đối không để số tiền/SĐT/email lọt vào nhật ký)
+      const k = /@/.test(rawLabel) ? '(nhãn có @ — đã ẩn)' : String(rawLabel).replace(/\d/g, '#').slice(0, 30);
+      unknownLabels.set(k, (unknownLabels.get(k) ?? 0) + 1);
+    }
+    // Cả sheet PERSONAL (b2c) và COMPANY (b2b) đều có cột này (chủ dự án xác nhận 12/11/2026).
+    if (hasDeferralCol && deferralOf(r['DEFERRAL STATUS']) === true) {
+      deferral.true_rows++;
+      const dCourse = txt(r['DEFERRAL COURSE'])?.toUpperCase() ?? null;
+      const target = dCourse && dCourse !== short ? dCourse : short;
+      if (!classByShort.has(target)) { const k = String(target).slice(0, 20); deferral.unknown_course.set(k, (deferral.unknown_course.get(k) ?? 0) + 1); }
+      else deferrals.set(`${target}|${sid}`, true);   // nhiều dòng: TRUE thắng
+    }
 
     const email = txt(r.EMAIL)?.toLowerCase() ?? null;
     const phone = normalizePhone(r.PHONE);
@@ -218,7 +248,12 @@ function parseTransactions(ws, classByShort) {
     ids_with_many_emails: [...idEmails].filter(([, s]) => s.size > 1).map(([id, s]) => ({ id, emails: [...s] })),
     phones_with_many_ids: [...phoneIds].filter(([, s]) => s.size > 1).map(([p, s]) => ({ phone_tail: p, ids: [...s] })),
   };
-  return { students: [...students.values()], enrolls: [...enrolls.values()], skipped, anomalies, total_rows: rows.length };
+  skipped.unknown_status = Object.fromEntries([...unknownLabels].sort((a, b) => b[1] - a[1]).slice(0, 10));
+  return {
+    students: [...students.values()], enrolls: [...enrolls.values()], skipped, anomalies, total_rows: rows.length,
+    deferrals: [...deferrals.keys()].map((k) => { const [short_code, student_code] = k.split('|'); return { short_code, student_code }; }),
+    deferral_unknown_course: Object.fromEntries(deferral.unknown_course), deferral_column: hasDeferralCol, deferral_true_rows: deferral.true_rows,
+  };
 }
 
 async function loadWorkbook(file) {
@@ -262,7 +297,7 @@ const en0 = (enrolls, classId) => enrolls.map((e) => classId.get(e.short_code)).
 // không đè tên/email/SĐT/hình thức và không đưa học viên đã nghỉ/bảo lưu về "đang học" (sửa tay trên web được giữ).
 // eventSource: 'sync' | 'import' | 'web' (ghi vào nhật ký sự kiện). detectMissing: phát hiện học viên không còn trong Sheet (chỉ đồng bộ tự động).
 async function importTransactions(db, { transactionsFile, curriculumFile, dryRun = false, preserveManual = false,
-  eventSource = 'import', actor = null, detectMissing = false, missingSegments = ['b2c', 'b2b'], guard = false }) {
+  eventSource = 'import', actor = null, detectMissing = false, missingSegments = ['b2c', 'b2b'], guard = false, deferralColumn }) {
   const tw = await loadWorkbook(transactionsFile);
   const courseWs = tw.getWorksheet('Course');
   const txWs = tw.getWorksheet('Transactions');
@@ -275,7 +310,7 @@ async function importTransactions(db, { transactionsFile, curriculumFile, dryRun
   const extraClasses = await db.all('select id, code, short_code from classes where short_code is not null and not (short_code = any($1::text[]))',
     [classes.map((c) => c.short_code)]);
   for (const x of extraClasses) classByShort.set(x.short_code, { code: x.code, short_code: x.short_code, extra: true });
-  const parsed = parseTransactions(txWs, classByShort);
+  const parsed = parseTransactions(txWs, classByShort, { deferralColumn });
   const byCode = new Map(curricula.map((c) => [c.code, c]));
   const missingTemplates = [...new Set(classes.map((c) => c.template).filter((t) => t && !byCode.has(t)))];
   if (missingTemplates.length) {
@@ -502,6 +537,58 @@ async function importTransactions(db, { transactionsFile, curriculumFile, dryRun
         }
       }
       summary.sheet_status_changes = statusChanges;
+
+      // Bảo lưu theo Sheet: DEFERRAL STATUS = TRUE → ghi danh của khóa DEFERRAL COURSE thành "bảo lưu" (deferred) + deferred_by_sheet.
+      // Không còn TRUE (bỏ tick, xóa ô, xóa dòng bảo lưu) mà ghi danh vẫn do Sheet bảo lưu → trả về "đang học". Bảo lưu đặt tay trên web (deferred_by_sheet = false) không bị đụng;
+      // chỉ chuyển từ "đang học" (học viên đã nghỉ không bị kéo ngược). Lệnh ghi có điều kiện trạng thái hiện tại (chống đè khi có người sửa cùng lúc) và chỉ ghi sự kiện cho dòng thật sự đổi.
+      summary.deferral_column = parsed.deferral_column;
+      summary.deferral_true_rows = parsed.deferral_true_rows;
+      summary.deferral_unknown_course = parsed.deferral_unknown_course;
+      summary.unknown_status_labels = parsed.skipped.unknown_status;
+      summary.deferred_from_sheet = 0; summary.reactivated_from_sheet = 0; summary.deferral_no_enrollment = 0;
+      if (parsed.deferral_column) {
+        await t.run('update enrollments set deferred_by_sheet = false where deferred_by_sheet and course_status <> \'deferred\'');   // bảo lưu đã bị đổi bởi người/đường khác → không còn là "do Sheet"
+        const unpaidKeys = new Set(unpaid.map(keyOf));
+        const wanted = parsed.deferrals.map((d) => ({ cid: classId.get(d.short_code), sid: studentId.get(d.student_code), short: d.short_code }))
+          .filter((d) => d.cid && d.sid);
+        const trueSet = new Set(wanted.map((d) => `${d.cid}:${d.sid}`));
+        const cur = wanted.length ? new Map((await t.all(
+          `select e.id, e.class_id, e.student_id, e.course_status from enrollments e
+             join unnest($1::bigint[], $2::bigint[]) as u(c, s) on e.class_id = u.c and e.student_id = u.s`,
+          [wanted.map((d) => d.cid), wanted.map((d) => d.sid)])).map((r) => [`${r.class_id}:${r.student_id}`, r])) : new Map();
+        const toDefer = []; const toBack = [];
+        for (const d of wanted) {
+          const k = `${d.cid}:${d.sid}`;
+          const r = cur.get(k);
+          if (!r) { summary.deferral_no_enrollment++; continue; }
+          if (!unpaidKeys.has(k) && r.course_status === 'active') toDefer.push({ ...d, r });
+        }
+        const marked = involved.length ? await t.all(
+          'select id, class_id, student_id, course_status from enrollments where deferred_by_sheet and course_status = \'deferred\' and class_id = any($1::bigint[])', [involved]) : [];
+        for (const r of marked) {
+          const k = `${r.class_id}:${r.student_id}`;
+          if (!trueSet.has(k) && newSheet.has(k)) toBack.push({ cid: r.class_id, short: classCodeById.get(r.class_id), r });   // học viên vẫn có mặt trong Sheet nhưng không còn TRUE
+        }
+        let blocked = false;
+        if (guard) {
+          const total = Number((await t.one('select count(*)::int as n from enrollments')).n) - addedNow;
+          const limit = Math.max(GUARD_MIN, Math.ceil(total * GUARD_RATIO));
+          // Chốt chặn: KHÔNG ném lỗi (đừng chặn cả lượt đồng bộ vì phần bảo lưu) — bỏ qua riêng phần bảo lưu và báo trong summary; áp bằng trang Nhập Excel.
+          if (total >= GUARD_MIN * 2 && toDefer.length + toBack.length > limit) { blocked = true; summary.deferral_blocked = toDefer.length + toBack.length; summary.deferral_block_limit = limit; }
+        }
+        const apply = async (list, from, status, flag, note) => {
+          if (!list.length || blocked) return 0;
+          const done = new Set((await t.all(
+            'update enrollments set course_status = $2, deferred_by_sheet = $3 where id = any($1::bigint[]) and course_status = $4 and ($3 or deferred_by_sheet) returning id',
+            [list.map((x) => x.r.id), status, flag, from])).map((r) => Number(r.id)));
+          for (const x of list) if (done.has(Number(x.r.id))) events.push({ ...base({ id: x.r.id, class_id: x.r.class_id, student_id: x.r.student_id }), event: 'status_changed',
+            from_status: from, to_status: status, note: `${note}${x.short ? ` (khóa ${x.short})` : ''}` });
+          if (summary.class_ids) summary.class_ids = [...new Set([...summary.class_ids, ...list.filter((x) => done.has(Number(x.r.id))).map((x) => x.r.class_id)])];
+          return done.size;
+        };
+        summary.deferred_from_sheet = await apply(toDefer, 'active', 'deferred', true, 'Sheet: DEFERRAL STATUS = TRUE → bảo lưu');
+        summary.reactivated_from_sheet = await apply(toBack, 'deferred', 'active', false, 'Sheet: không còn DEFERRAL STATUS = TRUE → học lại');
+      }
 
       // Chuyển học viên sang Potential: chụp lại điểm danh/bài tập (để khôi phục nếu họ quay lại), rồi xóa khỏi lớp.
       const movePotential = async (items) => {

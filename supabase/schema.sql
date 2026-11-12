@@ -146,6 +146,7 @@ create table if not exists enrollments (
   segment            text not null default 'b2c' check (segment in ('b2c','b2b')),
   company_name       text,
   sheet_status       text,
+  deferred_by_sheet  boolean not null default false,   -- bị Sheet (DEFERRAL STATUS = TRUE) chuyển sang bảo lưu; xem migration 2026-11-12-deferred-by-sheet.sql
   graduation_status  text not null default 'pending' check (graduation_status in ('pending','passed','failed')),
   graduation_note    text,
   graduation_by      bigint references users(id) on delete set null,

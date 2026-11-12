@@ -82,7 +82,7 @@ module.exports = (db) => {
           student_code: stu.student_code, full_name: stu.full_name, event: 'status_changed', from_status: e.course_status,
           to_status: b.course_status, source: 'web', actor_id: req.user.id, actor_name: req.user.name }]);
       }
-      await t.run('update enrollments set mode = $1, course_status = $2, certificate_status = $3, note = $4 where id = $5',
+      await t.run('update enrollments set mode = $1, course_status = $2, certificate_status = $3, note = $4, deferred_by_sheet = case when course_status is distinct from $2 then false else deferred_by_sheet end where id = $5',
         [b.mode === undefined ? e.mode : (b.mode || null), b.course_status || e.course_status,
           b.certificate_status === undefined ? e.certificate_status : str(b.certificate_status),
           b.note === undefined ? e.note : str(b.note), e.id]);

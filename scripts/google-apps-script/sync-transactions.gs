@@ -23,7 +23,7 @@ const CONFIG = {
   RESEND_AFTER_MINUTES: 60,           // không đổi gì vẫn gửi lại mỗi giờ một lần để trang quản trị biết script còn sống
 };
 
-const ALLOWED_TX = ['STUDENT ID', 'CUSTOMER ID', 'FULL NAME', 'EMAIL', 'PHONE', 'COURSE', 'MODE', 'GENDER', 'STATUS', 'REGISTRATION SOURCE'];
+const ALLOWED_TX = ['STUDENT ID', 'CUSTOMER ID', 'FULL NAME', 'EMAIL', 'PHONE', 'COURSE', 'MODE', 'GENDER', 'STATUS', 'REGISTRATION SOURCE', 'DEFERRAL STATUS', 'DEFERRAL COURSE'];
 const ALLOWED_COURSE = ['COURSE', 'COURSE ID', 'STARTDATE', 'ENDDATE', 'NEXT COURSE', 'DAYS OF WEEK', 'START DATE', 'EXPECTED END DATE'];
 // Tab COMPANY: cùng cột với PERSONAL + tên công ty (không lấy ngày sinh, không lấy cột tiền).
 const ALLOWED_COMPANY = ALLOWED_TX.concat(['COMPANY NAME']);

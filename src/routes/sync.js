@@ -136,7 +136,7 @@ module.exports = (db) => {
       const suspicious = !!(prevRun?.n && tx.rows.length < prevRun.n * 0.5);
       const { anomaly_details, class_ids = [], columns_read, ...brief } = await importTransactions(db, {
         transactionsFile: wb, curriculumFile: null, dryRun: false, preserveManual: true,
-        eventSource: 'sync', detectMissing: !suspicious, guard: true,
+        eventSource: 'sync', detectMissing: !suspicious, guard: true, deferralColumn: tx.headers.includes('DEFERRAL STATUS') || !!company?.headers.includes('DEFERRAL STATUS'),
         missingSegments: company ? ['b2c', 'b2b'] : ['b2c'], // chưa gửi COMPANY thì không dò B2B
       });
       if (suspicious) brief.missing_detection_skipped = true;
@@ -146,7 +146,8 @@ module.exports = (db) => {
         if (!form.headers.includes('COURSE')) throw httpError(422, 'Thiếu cột Mã lớp trong sheet FORM');
         brief.form = await applyForms(db, form);
       }
-      const changed = Object.values(brief.added ?? {}).some((n) => n > 0);
+      const changed = Object.values(brief.added ?? {}).some((n) => n > 0)
+        || (brief.deferred_from_sheet ?? 0) + (brief.reactivated_from_sheet ?? 0) + (brief.sheet_status_changes ?? 0) + (brief.moved_to_potential ?? 0) > 0;
       await refreshSchedule(db);   // lớp mới / đổi ngày khai giảng → lịch giảng dạy khớp lại ngay
       await gradSync.safe(gradSync.syncRecent(db));   // lớp vừa qua giai đoạn chấm bài → lưu kết quả tốt nghiệp
       if (changed) await realtime.publishMany(class_ids.flatMap((classId) => [{ classId, payload: { kind: 'attendance' } }]));
