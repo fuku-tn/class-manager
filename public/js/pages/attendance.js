@@ -33,7 +33,8 @@ export async function renderAttendance({ cls, state }) {
   sortSelect.value = sortKey;
   const body = h('tbody');
   const head = h('thead');
-  const tableWrap = h('div', { class: 'table-wrap' }, h('table', { class: 'table-att' }, head, body));
+  const cols = h('colgroup');   // mỗi cột một <col>: tô sáng cột buổi "đang tới" chỉ cần đổi class của MỘT <col> (không đụng từng ô)
+  const tableWrap = h('div', { class: 'table-wrap' }, h('table', { class: 'table-att' }, cols, head, body));
   const az = createAzIndex({ wrap: tableWrap, body });
   // Voucher Google Maps: chỉ admin + tài khoản được bật can_voucher (máy chủ cũng kiểm lại)
   const voucherBtn = (state.user.role === 'admin' || state.user.can_voucher === true) && !cls.view_only
@@ -44,6 +45,8 @@ export async function renderAttendance({ cls, state }) {
   const cells = new Map();     // key -> <span.cell> (có <select> bên trong)
   const rateCells = new Map(); // enrollment_id -> <td>
   const countCells = new Map(); // session_id -> <div> hiện diện/sĩ số
+  const colBySession = new Map(); // session_id -> <col>
+  const thBySession = new Map();  // session_id -> <th>
   const pending = new Set();   // ô đang được chính mình lưu (không bị làm mới đè lên)
 
   const paintCell = (el, cell) => {
@@ -67,9 +70,28 @@ export async function renderAttendance({ cls, state }) {
     el.title = `Hiện diện ${sum.attended} trên sĩ số ${sum.roster} · có phép ${sum.excused} · vắng ${sum.absent}`;
   };
   const sessionById = (id) => data.sessions.find((s) => s.id === id);
+  // Buổi "đang tới" = buổi có người CÓ MẶT mới nhất (số buổi lớn nhất có ít nhất một học viên có mặt); chưa buổi nào thì là buổi đầu tiên.
+  // Không dựa vào cờ "đã diễn ra": buổi tương lai có đơn xin nghỉ/ô vắng ghi trước cũng bị tính là đã diễn ra nhưng chưa ai đi học.
+  // Cột đó (tiêu đề + cả cột) được tô sáng nhẹ để biết lớp đang học tới đâu. Chỉ hiển thị — số liệu vẫn do máy chủ tính.
+  const currentSessionId = () => {
+    if (!data.sessions.length) return null;
+    const held = data.sessions.filter((s) => (s.summary?.attended ?? 0) > 0);
+    const pick = held.length ? held.reduce((a, b) => (b.session_no > a.session_no ? b : a)) : data.sessions.reduce((a, b) => (b.session_no < a.session_no ? b : a));
+    return { id: pick.id, started: held.length > 0 };
+  };
+  const markNow = () => {
+    const cur = currentSessionId();
+    for (const [id, col] of colBySession) col.classList.toggle('col-now', cur?.id === id);
+    for (const [id, th] of thBySession) {
+      const on = cur?.id === id;
+      th.classList.toggle('now-col', on);
+      const s = sessionById(id);
+      th.title = on ? (cur.started ? 'Buổi lớp đang học tới (buổi có người có mặt mới nhất)' : 'Buổi đầu tiên — lớp chưa điểm danh') : (s?.title || '');
+    }
+  };
   const applySummary = (sessionId, sum) => {
     const s = sessionById(sessionId);
-    if (s && sum) { s.summary = sum; s.held = !!sum.held; paintCount(sessionId, sum); }
+    if (s && sum) { s.summary = sum; s.held = !!sum.held; paintCount(sessionId, sum); markNow(); }
   };
   const applyEnrollment = (row, info) => {
     if (!info) return;
@@ -133,7 +155,8 @@ export async function renderAttendance({ cls, state }) {
   }
 
   function renderHead() {
-    countCells.clear();
+    countCells.clear(); colBySession.clear(); thBySession.clear();
+    cols.replaceChildren(h('col'), ...(readOnly ? [] : [h('col')]), ...data.sessions.map((s) => { const c = h('col'); colBySession.set(s.id, c); return c; }), h('col'));
     head.replaceChildren(h('tr', {},
       h('th', { class: 'sticky' }, 'Học viên'),
       readOnly ? null : h('th', {}, 'SĐT'),
@@ -141,7 +164,7 @@ export async function renderAttendance({ cls, state }) {
         const count = h('div', { class: 'sess-count' });
         countCells.set(s.id, count);
         paintCount(s.id, s.summary);
-        return h('th', { class: 'num', title: s.title || '' }, h('div', { class: 'sess-head' },
+        const th = h('th', { class: 'num', title: s.title || '' }, h('div', { class: 'sess-head' },
           h('div', { class: 'sess-title' }, `B${s.session_no}`,
             !readOnly && h('button', { class: 'small', title: 'Sửa tên/ngày buổi học', onclick: async () => {
               const v = await formModal({ title: `Buổi ${s.session_no}`, fields: [
@@ -155,8 +178,11 @@ export async function renderAttendance({ cls, state }) {
           !readOnly && h('div', { class: 'sess-actions' },
             h('button', { class: 'small', title: 'Đánh dấu tất cả chưa điểm danh là Có mặt', onclick: () => bulk(s, 'present') }, 'Cả lớp ✓'),
             h('button', { class: 'small danger', title: 'Bỏ điểm danh của tất cả học viên trong buổi này', onclick: () => bulk(s, 'clear') }, 'Bỏ tất cả'))));
+        thBySession.set(s.id, th);
+        return th;
       }),
       h('th', { class: 'num' }, 'Tỉ lệ')));
+    markNow();
   }
 
   // Ô điểm danh: danh sách thả xuống (select thật, dùng được bàn phím/điện thoại) nhưng khi đóng chỉ hiện ký hiệu.
@@ -235,6 +261,7 @@ export async function renderAttendance({ cls, state }) {
     if (!sameShape) { Object.assign(data, fresh); renderHead(); renderBody(); return; }
     data.sessions = fresh.sessions;
     for (const s of data.sessions) paintCount(s.id, s.summary);
+    markNow();
     fresh.rows.forEach((fr, i) => {
       const row = data.rows[i];
       for (const s of data.sessions) {

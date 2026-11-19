@@ -438,6 +438,10 @@ th .small { text-transform: none; letter-spacing: 0; font-weight: 500; color: va
 .table-att th, .table-att td { padding-left: .45rem; padding-right: .45rem; }
 .table-att td.sticky, .table-att th.sticky { padding-left: .9rem; min-width: 210px; }
 .sess-head { display: flex; flex-direction: column; align-items: center; gap: .3rem; }
+/* Buổi "đang tới" của lớp: cột sáng nhẹ (tô trên <col>, không tốn thêm class cho từng ô) + tiêu đề cột có vạch và quầng vàng nhạt */
+.table-att col.col-now { background: linear-gradient(180deg, color-mix(in srgb, var(--gold) 15%, transparent), color-mix(in srgb, var(--gold) 5%, transparent)); }
+.table-att thead th.now-col { background: color-mix(in srgb, var(--gold) 16%, var(--solid-2)); box-shadow: inset 0 -2px 0 var(--gold), 0 0 14px color-mix(in srgb, var(--gold) 35%, transparent); }
+.table-att thead th.now-col .sess-title { color: var(--gold); text-shadow: 0 0 10px color-mix(in srgb, var(--gold) 55%, transparent); }
 .sess-title { display: flex; align-items: center; gap: .25rem; }
 .sess-head button { text-transform: none; letter-spacing: 0; color: var(--text); }
 

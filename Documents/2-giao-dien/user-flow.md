@@ -74,7 +74,7 @@ flowchart TD
   J --> E
 ```
 
-**Ghi chú:** `✓` có mặt · `V` vắng · `P` có phép · `·` chưa điểm danh. Ô chưa điểm danh của buổi đã diễn ra tính là **vắng**; vắng có phép **tính như vắng** khi tính % chuyên cần. Bấm "Bỏ tất cả" để xóa điểm danh của một buổi.
+**Ghi chú:** `✓` có mặt · `V` vắng · `P` có phép · `·` chưa điểm danh. Ô chưa điểm danh của buổi đã diễn ra tính là **vắng**; vắng có phép **tính như vắng** khi tính % chuyên cần. Bấm "Bỏ tất cả" để xóa điểm danh của một buổi. Cột buổi lớp **đang học tới** (buổi lớn nhất có ít nhất một học viên có mặt; chưa có thì là buổi 1) được tô sáng nhẹ và tiêu đề có vạch vàng, tự dời khi điểm danh sang buổi mới.
 
 ---
 

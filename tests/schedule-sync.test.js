@@ -113,29 +113,35 @@ test('khớp lịch khai giảng: lớp dời khai giảng cả tuần thì dờ
   assert.deepEqual(got.map((x) => x.i), ['Bùi Trường Sơn', 'Phạm Hoài An', 'Phạm Hoài An']);
 });
 
+// Lịch dự kiến chỉ sinh cho lớp có buổi cuối ≥ hôm nay − 14 ngày: dùng ngày TƯƠNG ĐỐI (thứ Hai gần nhất) để test không hỏng theo thời gian.
+const addDays = (iso, n) => { const d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+const lastMonday = () => { const d = new Date(); d.setUTCHours(0, 0, 0, 0); d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7)); return d.toISOString().slice(0, 10); };
+
 test('lớp chưa có dòng trong Calendar: sinh lịch dự kiến từ ngày khai giảng + thứ học; có dòng thật thì thay', async () => {
   await t.db.run('delete from teaching_schedule');
-  const e = (await admin.post('/api/classes', { code: 'P1.EBA.P122.ON.EE.191026', session_count: 6, start_date: '2026-10-19', end_date: '2026-11-04' })).body.id;
-  await t.db.run("update classes set short_code = 'EBA122', program = 'EBA', days_of_week = '24', shift = 'evening', end_date = '2026-11-04' where id = $1", [e]);
+  const S = lastMonday(); const E = addDays(S, 16);   // thứ Hai + thứ Tư, 3 tuần → 6 buổi
+  const e = (await admin.post('/api/classes', { code: 'P1.EBA.P122.ON.EE.191026', session_count: 6, start_date: S, end_date: E })).body.id;
+  await t.db.run("update classes set short_code = 'EBA122', program = 'EBA', days_of_week = '24', shift = 'evening', end_date = $2 where id = $1", [e, E]);
   assert.equal((await post([row('2026-09-06', 'S', 'BIE102', 'x', 1)])).status, 200);
   const g = await t.db.all("select session_date::text d, session_no n, note, instructor i from teaching_schedule where short_code = 'EBA122' order by 1");
-  assert.deepEqual(g.map((x) => x.d), ['2026-10-19', '2026-10-21', '2026-10-26', '2026-10-28', '2026-11-02', '2026-11-04']);
+  assert.deepEqual(g.map((x) => x.d), [0, 2, 7, 9, 14, 16].map((n) => addDays(S, n)));
   assert.deepEqual([g[0].note, g[5].note, g[0].i], ['Khai giảng', 'Bế giảng', 'Phạm Hoài An']);
-  assert.equal((await post([row('2026-09-06', 'S', 'BIE102', 'x', 1), row('2026-10-20', 'T', 'EBA122', 'Thật', 1, 'Bế giảng')])).status, 200);
+  assert.equal((await post([row('2026-09-06', 'S', 'BIE102', 'x', 1), row(addDays(S, 1), 'T', 'EBA122', 'Thật', 1, 'Bế giảng')])).status, 200);
   assert.equal((await t.db.all("select 1 from teaching_schedule where short_code = 'EBA122'")).length, 1);
 });
 
 test('đổi ngày khai giảng của lớp trên web → lịch dự kiến tự sinh lại khớp ngày mới', async () => {
   await t.db.run('delete from teaching_schedule');
-  const e = (await admin.post('/api/classes', { code: 'P1.EBA.P901.ON.EE.191026', session_count: 6, start_date: '2026-10-19' })).body.id;
-  await t.db.run("update classes set short_code = 'EBA901', program = 'EBA', days_of_week = '24', shift = 'evening', end_date = '2026-11-04' where id = $1", [e]);
+  const S = lastMonday(); const E = addDays(S, 16);
+  const e = (await admin.post('/api/classes', { code: 'P1.EBA.P901.ON.EE.191026', session_count: 6, start_date: S })).body.id;
+  await t.db.run("update classes set short_code = 'EBA901', program = 'EBA', days_of_week = '24', shift = 'evening', end_date = $2 where id = $1", [e, E]);
   const first = async () => (await t.db.all("select session_date::text d from teaching_schedule where short_code = 'EBA901' order by 1")).map((x) => x.d);
-  assert.equal((await admin.put(`/api/classes/${e}`, { start_date: '2026-10-19' })).status, 200);
-  assert.deepEqual((await first()).slice(0, 2), ['2026-10-19', '2026-10-21']);
-  assert.equal((await admin.put(`/api/classes/${e}`, { start_date: '2026-10-26' })).status, 200);   // dời 1 tuần
+  assert.equal((await admin.put(`/api/classes/${e}`, { start_date: S })).status, 200);
+  assert.deepEqual((await first()).slice(0, 2), [S, addDays(S, 2)]);
+  assert.equal((await admin.put(`/api/classes/${e}`, { start_date: addDays(S, 7) })).status, 200);   // dời 1 tuần
   const dates = await first();
   assert.equal(dates.length, 6);
-  assert.deepEqual(dates.slice(0, 2), ['2026-10-26', '2026-10-28']);
+  assert.deepEqual(dates.slice(0, 2), [addDays(S, 7), addDays(S, 9)]);
 });
 
 test('Calendar mới có vài buổi đầu → sinh nối tiếp các buổi còn thiếu theo thứ học (đến Bế giảng)', async () => {
